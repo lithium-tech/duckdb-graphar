@@ -1,0 +1,12 @@
+require duckdb_graphar
+
+
+query I
+ATTACH '__WORKING_DIRECTORY__/test/data/git/Git.yaml' as test_db (type duckdb_graphar);
+----
+
+query I
+SELECT name from (SHOW ALL TABLES);
+----
+Person.vertex
+Person_knows_Person.edge

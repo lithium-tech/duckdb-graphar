@@ -1,0 +1,33 @@
+root = true
+
+[*.{c,cpp,h,hpp}]
+insert_final_newline = true
+indent_style = space
+indent_size = 4
+trim_trailing_whitespace = true
+charset = utf-8
+max_line_length = 120
+
+[*.{test,test_slow,test_coverage,benchmark}]
+insert_final_newline = true
+indent_style = space
+indent_size = 4
+trim_trailing_whitespace = false
+charset = utf-8
+
+[Makefile]
+insert_final_newline = true
+indent_style = space
+indent_size = 4
+trim_trailing_whitespace = true
+charset = utf-8
+
+[{CMakeLists.txt,*.cmake,*.rst}]\
+insert_final_newline = true
+indent_style = space
+indent_size = 4
+trim_trailing_whitespace = true
+charset = utf-8
+
+[*keywords.list]
+insert_final_newline = false

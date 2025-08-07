@@ -1,0 +1,56 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# HTML
+*.html
+
+# macOS folder view
+**/.DS_Store
+
+# Working folders
+.history/
+.data/
+*.gen.h
+
+.cache
+.DS_Store
+.idea
+.venv
+.vscode
+out/
+_build/
+build-*/
+build/
+cmake-build-*/
+CMakeUserPresets.json
+compile_commands.json
+coverage*
+duckdb_unittest_tempdir/
+test/python/__pycache__/
+testext
