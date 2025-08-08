@@ -1,8 +1,11 @@
 #pragma once
 
 #include "duckdb/catalog/catalog_entry/table_catalog_entry.hpp"
+#include "graphar/graph_info.h"
 
 namespace duckdb {
+
+struct GraphArTableInformation;
 
 class GraphArTableEntry : public TableCatalogEntry {
    public:
@@ -20,8 +23,11 @@ class GraphArTableEntry : public TableCatalogEntry {
     void BindUpdateConstraints(Binder& binder, LogicalGet& get, LogicalProjection& proj, LogicalUpdate& update,
                                ClientContext& context) override;
 
+    void SetTableInfo(shared_ptr<GraphArTableInformation> table_info_) { table_info = table_info_; }
+
    private:
     unique_ptr<SchemaCatalogEntry> schema;
+    weak_ptr<GraphArTableInformation> table_info;
 };
 
 }  // namespace duckdb

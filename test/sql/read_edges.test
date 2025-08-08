@@ -1,4 +1,4 @@
-require duckdb_graphar
+require graphar_duck
 
 
 query I
@@ -16,3 +16,25 @@ SELECT * FROM read_edges('__WORKING_DIRECTORY__/test/data/git/Git.yaml', src='Pe
 ----
 0
 23977
+
+statement ok
+ATTACH '__WORKING_DIRECTORY__/test/data/git/Git.yaml' as test_db (type graphar_duck);
+
+query I
+SELECT _graphArDstIndex FROM 'Person_knows_Person.edge' LIMIT 1;
+----
+23977
+
+query I
+SELECT _graphArDstIndex FROM 'Person_knows_Person.edge' WHERE _graphArSrcIndex=3;
+----
+4950
+5916
+34935
+3358
+18029
+
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person.edge';
+----
+578006

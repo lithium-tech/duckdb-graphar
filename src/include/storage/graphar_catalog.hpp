@@ -52,7 +52,7 @@ class GraphArCatalog : public Catalog {
 
     const std::string& GetPath() const { return path; }
 
-    const std::shared_ptr<graphar::GraphInfo>& GetGraphInfo() const { return graph_info; }
+    const std::shared_ptr<graphar::GraphInfo> GetGraphInfo() const { return graph_info; }
 
    private:
     void DropSchema(ClientContext& context, DropInfo& info) override;

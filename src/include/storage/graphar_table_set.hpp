@@ -26,12 +26,15 @@ class GraphArTableSet {
     void FillEntry(ClientContext& context, GraphArTableInformation& table);
 
     template <typename InfoVector>
-    void CreateTables(GraphArCatalog& graphar_catalog, const InfoVector& infos, std::vector<std::string> id_columns);
+    requires(std::is_same_v<InfoVector, graphar::VertexInfoVector> ||
+             std::is_same_v<InfoVector, graphar::EdgeInfoVector>) void CreateTables(GraphArCatalog& graphar_catalog,
+                                                                                    const InfoVector& infos,
+                                                                                    GraphArTableType type);
 
    private:
     GraphArSchemaEntry& schema;
     Catalog& catalog;
-    case_insensitive_map_t<unique_ptr<GraphArTableInformation>> entries;
+    case_insensitive_map_t<shared_ptr<GraphArTableInformation>> entries;
     mutex entry_lock;
 };
 

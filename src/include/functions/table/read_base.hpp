@@ -19,6 +19,8 @@
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
 
+#include <sstream>
+
 namespace duckdb {
 
 using Reader = std::variant<graphar::VertexPropertyArrowChunkReader, graphar::AdjListArrowChunkReader,
@@ -65,15 +67,18 @@ class ReadEdges;
 class ReadBindData : public TableFunctionData {
    public:
     ReadBindData() = default;
+    vector<std::string> GetParams() { return params; }
+    vector<std::string>& GetFlattenPropNames() { return flatten_prop_names; }
+    vector<std::string>& GetFlattenPropTypes() { return flatten_prop_types; }
 
    private:
-    std::vector<std::vector<std::string>> prop_names;
-    std::vector<std::string> flatten_prop_names;
-    std::vector<std::vector<std::string>> prop_types;
-    std::vector<std::string> flatten_prop_types;
+    vector<vector<std::string>> prop_names;
+    vector<std::string> flatten_prop_names;
+    vector<vector<std::string>> prop_types;
+    vector<std::string> flatten_prop_types;
     std::shared_ptr<graphar::GraphInfo> graph_info;
     std::string function_name;
-    std::vector<std::string> params;
+    vector<std::string> params;
     graphar::PropertyGroupVector pgs;
     idx_t columns_to_remove = 0;
 
@@ -86,22 +91,23 @@ class ReadBindData : public TableFunctionData {
 class ReadBaseGlobalTableFunctionState : public GlobalTableFunctionState {
    private:
     graphar::PropertyGroupVector pgs;
-    std::vector<std::vector<std::string>> prop_names;
-    std::vector<std::vector<std::string>> prop_types;
-    std::vector<vector<LogicalType>> prop_types_duck;
+    vector<vector<std::string>> prop_names;
+    vector<vector<std::string>> prop_types;
+    vector<vector<LogicalType>> prop_types_duck;
     idx_t chunk_count = 0;
     idx_t total_props_num = 0;
-    std::vector<std::shared_ptr<Reader>> readers;
-    std::vector<std::vector<std::shared_ptr<ArrowArray>>> ptrs;
-    std::vector<int> first_chunk;
-    std::vector<std::shared_ptr<arrow::Table>> tables;
-    std::vector<std::vector<idx_t>> indices;
-    std::vector<std::vector<idx_t>> chunk_ids;
-    std::vector<std::vector<idx_t>> sizes;
+    vector<std::shared_ptr<Reader>> readers;
+    vector<vector<std::shared_ptr<ArrowArray>>> ptrs;
+    vector<int> first_chunk;
+    vector<std::shared_ptr<arrow::Table>> tables;
+    vector<vector<idx_t>> indices;
+    vector<vector<idx_t>> chunk_ids;
+    vector<vector<idx_t>> sizes;
     arrow_column_map_t arrow_convert_data;
     std::pair<int64_t, int64_t> filter_range = {-1, -1};
     std::string function_name;
     int64_t total_rows = 0;
+    vector<column_t> column_ids;
 
     template <typename ReadFinal>
     friend class ReadBase;
@@ -112,6 +118,66 @@ class ReadBaseGlobalTableFunctionState : public GlobalTableFunctionState {
 template <typename ReadFinal>
 class ReadBase {
    public:
+    template <typename TypeInfo>
+    requires(std::is_same_v<TypeInfo, graphar::VertexInfo> ||
+             std::is_same_v<TypeInfo, graphar::EdgeInfo>) static void SetBindData(std::shared_ptr<graphar::GraphInfo>
+                                                                                      graph_info,
+                                                                                  const TypeInfo& type_info,
+                                                                                  unique_ptr<ReadBindData>& bind_data,
+                                                                                  string function_name,
+                                                                                  idx_t columns_to_remove = 0,
+                                                                                  idx_t pg_for_id = 0,
+                                                                                  vector<string> id_columns = {}) {
+        DUCKDB_GRAPHAR_LOG_TRACE("ReadBase::SetBindData");
+        bind_data->pgs = type_info.GetPropertyGroups();
+        DUCKDB_GRAPHAR_LOG_DEBUG("pgs size " + std::to_string(bind_data->pgs.size()));
+        bind_data->prop_types.resize(bind_data->pgs.size() + pg_for_id);
+        bind_data->prop_names.resize(bind_data->prop_types.size());
+
+        idx_t total_props_num = id_columns.size();
+        for (idx_t i = 0; i < bind_data->pgs.size(); ++i) {
+            int prop_num = bind_data->pgs[i]->GetProperties().size();
+            total_props_num += prop_num;
+            bind_data->prop_names[i + pg_for_id].reserve(prop_num);
+            bind_data->prop_types[i + pg_for_id].reserve(prop_num);
+        }
+        DUCKDB_GRAPHAR_LOG_DEBUG("total_props_num: " + std::to_string(total_props_num));
+
+        vector<std::string> names;
+        names.reserve(total_props_num);
+        bind_data->flatten_prop_types.reserve(total_props_num);
+
+        for (auto& id_column : id_columns) {
+            names.push_back(id_column);
+            bind_data->prop_types[0].emplace_back("int64");
+            bind_data->flatten_prop_types.emplace_back("int64");
+            bind_data->prop_names[0].emplace_back(id_column);
+        }
+
+        for (idx_t i = 0; i < bind_data->pgs.size(); ++i) {
+            for (auto p : bind_data->pgs[i]->GetProperties()) {
+                auto type_name = std::move(p.type->ToTypeName());
+                names.emplace_back(p.name);
+                bind_data->prop_types[i + pg_for_id].emplace_back(type_name);
+                bind_data->flatten_prop_types.emplace_back(type_name);
+                bind_data->prop_names[i + pg_for_id].emplace_back(p.name);
+            }
+        }
+        DUCKDB_GRAPHAR_LOG_DEBUG("Bind data filled");
+
+        bind_data->function_name = function_name;
+        bind_data->flatten_prop_names = std::move(names);
+        bind_data->columns_to_remove = columns_to_remove;
+        if constexpr (std::is_same_v<TypeInfo, graphar::VertexInfo>) {
+            bind_data->params = {type_info.GetType()};
+        } else {
+            bind_data->params = {type_info.GetSrcType(), type_info.GetEdgeType(), type_info.GetDstType()};
+        }
+
+        bind_data->graph_info = graph_info;
+        DUCKDB_GRAPHAR_LOG_TRACE("ReadBase::SetBindData finished");
+    }
+
     static unique_ptr<FunctionData> Bind(ClientContext& context, TableFunctionBindInput& input,
                                          vector<LogicalType>& return_types, vector<string>& names) {
         return ReadFinal::Bind(context, input, return_types, names);
@@ -157,13 +223,14 @@ class ReadBase {
     }
 
     static unique_ptr<GlobalTableFunctionState> Init(ClientContext& context, TableFunctionInitInput& input) {
+        DUCKDB_GRAPHAR_LOG_TRACE("Init started");
         bool time_logging = GraphArSettings::is_time_logging(context);
 
         ScopedTimer t("StateInit");
 
-        LOG_TRACE("::Init\n Cast bind data");
-
         auto bind_data = input.bind_data->Cast<ReadBindData>();
+
+        DUCKDB_GRAPHAR_LOG_TRACE(bind_data.function_name + "::Init");
 
         if (time_logging) {
             t.print("cast");
@@ -171,8 +238,11 @@ class ReadBase {
 
         ReadBaseGlobalTableFunctionState gstate;
 
+        DUCKDB_GRAPHAR_LOG_DEBUG("Init global state");
+
         gstate.function_name = bind_data.function_name;
         gstate.pgs = bind_data.pgs;
+        gstate.column_ids = input.column_ids;
         gstate.readers.resize(bind_data.prop_types.size());
         gstate.first_chunk.resize(gstate.readers.size(), true);
         gstate.tables.resize(gstate.readers.size());
@@ -182,11 +252,11 @@ class ReadBase {
         gstate.prop_types_duck.resize(gstate.readers.size());
         gstate.ptrs.resize(gstate.readers.size());
 
-        LOG_DEBUG("readers num: " + std::to_string(gstate.readers.size()));
+        DUCKDB_GRAPHAR_LOG_DEBUG("readers num: " + std::to_string(gstate.readers.size()));
 
         std::string filter_value, filter_column, filter_type;
         if (input.filters) {
-            LOG_DEBUG("Found filters");
+            DUCKDB_GRAPHAR_LOG_DEBUG("Found filters");
 
             if (input.filters->filters.size() > 1) {
                 throw NotImplementedException("Multiple filters are not supported");
@@ -206,8 +276,8 @@ class ReadBase {
 
             filter_column = bind_data.flatten_prop_names[filter_index];
             filter_type = bind_data.flatten_prop_types[filter_index];
-            LOG_DEBUG("filter column: " + filter_column + " filter type: " + filter_type +
-                      " filter value: " + filter_value);
+            DUCKDB_GRAPHAR_LOG_DEBUG("filter column: " + filter_column + " filter type: " + filter_type +
+                                     " filter value: " + filter_value);
         }
         if (time_logging) {
             t.print("filter parsing");
@@ -236,7 +306,7 @@ class ReadBase {
                     gstate.tables[i] = gstate.tables[i]->RemoveColumn(0).ValueOrDie();
                 }
             }
-            LOG_DEBUG("Table Schema: " + gstate.tables[i]->schema()->ToString());
+            DUCKDB_GRAPHAR_LOG_DEBUG("Table Schema: " + gstate.tables[i]->schema()->ToString());
 
             gstate.sizes[i].resize(gstate.tables[i]->num_columns());
             gstate.indices[i].resize(gstate.sizes[i].size(), 0);
@@ -252,7 +322,7 @@ class ReadBase {
             }
             gstate.total_props_num += gstate.tables[i]->num_columns();
         }
-        LOG_DEBUG("total props num: " + std::to_string(gstate.total_props_num));
+        DUCKDB_GRAPHAR_LOG_DEBUG("total props num: " + std::to_string(gstate.total_props_num));
 
         gstate.prop_names = bind_data.prop_names;
         gstate.prop_types = bind_data.prop_types;
@@ -261,7 +331,7 @@ class ReadBase {
             t.print("additional info");
         }
 
-        LOG_DEBUG("::Init\n Done");
+        DUCKDB_GRAPHAR_LOG_DEBUG("::Init\n Done");
         if (time_logging) {
             t.print();
         }
@@ -274,11 +344,11 @@ class ReadBase {
 
         ScopedTimer t("Execute");
 
-        LOG_DEBUG("::Execute\n Cast state");
+        DUCKDB_GRAPHAR_LOG_DEBUG("::Execute\n Cast state");
 
         ReadBaseGlobalTableFunctionState& gstate = input.global_state->Cast<ReadBaseGlobalTableFunctionState>();
 
-        LOG_DEBUG("Chunk " + std::to_string(gstate.chunk_count) + ": Begin iteration");
+        DUCKDB_GRAPHAR_LOG_DEBUG("Chunk " + std::to_string(gstate.chunk_count) + ": Begin iteration");
 
         idx_t num_rows = STANDARD_VECTOR_SIZE;
         for (idx_t i = 0; i < gstate.readers.size(); i++) {
@@ -316,7 +386,7 @@ class ReadBase {
                     num_rows = std::min(num_rows, gstate.sizes[i][prop_i] - gstate.indices[i][prop_i]);
                 }
             }
-            LOG_DEBUG("num rows final: " + std::to_string(num_rows));
+            DUCKDB_GRAPHAR_LOG_DEBUG("num rows final: " + std::to_string(num_rows));
 
             auto fake_wrapper = make_uniq<ArrowArrayWrapper>();
             fake_wrapper->arrow_array.length = num_rows;
@@ -342,6 +412,7 @@ class ReadBase {
                 props_before += gstate.prop_names[i].size();
             }
             ArrowScanLocalState local_state(std::move(fake_wrapper), context);
+
             props_before = 0;
             for (idx_t i = 0; i < gstate.readers.size(); i++) {
                 for (int prop_i = 0; prop_i < gstate.prop_names[i].size(); ++prop_i) {
@@ -355,8 +426,9 @@ class ReadBase {
             }
             local_state.chunk->arrow_array.children[0]->release = release_children_only;
             local_state.chunk->arrow_array.children[0]->length = num_rows;
+            local_state.column_ids = gstate.column_ids;
 
-            ArrowTableFunction::ArrowToDuckDB(local_state, gstate.arrow_convert_data, output, 0);
+            ArrowTableFunction::ArrowToDuckDB(local_state, gstate.arrow_convert_data, output, 0, false);
 
             for (idx_t i = 0; i < gstate.readers.size(); i++) {
                 for (int prop_i = 0; prop_i < gstate.prop_names[i].size(); ++prop_i) {
@@ -368,7 +440,8 @@ class ReadBase {
         output.SetCapacity(num_rows);
         output.SetCardinality(num_rows);
         gstate.total_rows += num_rows;
-        LOG_DEBUG("Size of chunk: " + std::to_string(num_rows) + " Total size: " + std::to_string(gstate.total_rows))
+        DUCKDB_GRAPHAR_LOG_DEBUG("Size of chunk: " + std::to_string(num_rows) +
+                                 " Total size: " + std::to_string(gstate.total_rows))
         if (time_logging) {
             t.print();
         }
@@ -377,5 +450,6 @@ class ReadBase {
 
     static void Register(DatabaseInstance& db) { ExtensionUtil::RegisterFunction(db, ReadFinal::GetFunction()); }
     static TableFunction GetFunction() { return ReadFinal::GetFunction(); }
+    static TableFunction GetScanFunction() { return ReadFinal::GetScanFunction(); }
 };
 }  // namespace duckdb

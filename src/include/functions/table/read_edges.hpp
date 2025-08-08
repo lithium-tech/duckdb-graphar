@@ -13,6 +13,8 @@
 namespace duckdb {
 class ReadEdges : public ReadBase<ReadEdges> {
    public:
+    static void SetBindData(std::shared_ptr<graphar::GraphInfo> graph_info, const graphar::EdgeInfo& edge_info,
+                            unique_ptr<ReadBindData>& bind_data);
     static unique_ptr<FunctionData> Bind(ClientContext& context, TableFunctionBindInput& input,
                                          vector<LogicalType>& return_types, vector<string>& names);
 
@@ -21,6 +23,7 @@ class ReadEdges : public ReadBase<ReadEdges> {
                                              const std::string& filter_column, const std::string& filter_type);
 
     static TableFunction GetFunction();
+    static TableFunction GetScanFunction();
 
     static void SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data, std::string& filter_value,
                           std::string& filter_column, std::string& filter_type);
