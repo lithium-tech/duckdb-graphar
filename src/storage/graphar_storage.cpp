@@ -13,8 +13,7 @@
 #include "duckdb/main/client_data.hpp"
 
 #include "utils/func.hpp"
-
-#include <iostream>
+#include "utils/global_log_manager.hpp"
 
 namespace duckdb {
 

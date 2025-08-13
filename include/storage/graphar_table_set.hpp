@@ -12,10 +12,10 @@ class GraphArSchemaEntry;
 class GraphArTransaction;
 
 class GraphArTableSet {
-   public:
+public:
     explicit GraphArTableSet(GraphArSchemaEntry& schema);
 
-   public:
+public:
     static unique_ptr<GraphArTableInformation> GetTableInfo(ClientContext& context, GraphArSchemaEntry& schema,
                                                             const string& table_name);
     optional_ptr<CatalogEntry> GetEntry(ClientContext& context, const EntryLookupInfo& lookup);
@@ -31,7 +31,7 @@ class GraphArTableSet {
                                                                                     const InfoVector& infos,
                                                                                     GraphArTableType type);
 
-   private:
+private:
     GraphArSchemaEntry& schema;
     Catalog& catalog;
     case_insensitive_map_t<shared_ptr<GraphArTableInformation>> entries;

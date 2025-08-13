@@ -11,18 +11,18 @@ namespace duckdb {
 // struct CreateSchemaInfo;
 
 class GraphArSchemaSet {
-   public:
+public:
     explicit GraphArSchemaSet(Catalog& catalog);
 
-   public:
+public:
     void LoadEntries(ClientContext& context);
     optional_ptr<CatalogEntry> GetEntry(ClientContext& context, const string& name);
     void Scan(ClientContext& context, const std::function<void(CatalogEntry&)>& callback);
 
-   protected:
+protected:
     optional_ptr<CatalogEntry> CreateEntryInternal(ClientContext& context, unique_ptr<CatalogEntry> entry);
 
-   private:
+private:
     Catalog& catalog;
     case_insensitive_map_t<unique_ptr<CatalogEntry>> entries;
     mutex entry_lock;

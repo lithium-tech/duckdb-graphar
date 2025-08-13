@@ -97,6 +97,7 @@ void GraphArSchemaEntry::Alter(CatalogTransaction transaction, AlterInfo &info) 
 }
 
 static bool CatalogTypeIsSupported(CatalogType type) {
+<<<<<<< HEAD
 	switch (type) {
 	case CatalogType::TABLE_ENTRY:
 	case CatalogType::VIEW_ENTRY:
@@ -104,6 +105,15 @@ static bool CatalogTypeIsSupported(CatalogType type) {
 	default:
 		return false;
 	}
+=======
+    switch (type) {
+        case CatalogType::TABLE_ENTRY:
+        case CatalogType::VIEW_ENTRY:
+            return true;
+        default:
+            return false;
+    }
+>>>>>>> upstream/main
 }
 
 void GraphArSchemaEntry::Scan(ClientContext &context, CatalogType type,
@@ -130,6 +140,7 @@ optional_ptr<CatalogEntry> GraphArSchemaEntry::LookupEntry(CatalogTransaction tr
 	return GetCatalogSet(type).GetEntry(context, lookup_info);
 }
 
+<<<<<<< HEAD
 GraphArTableSet &GraphArSchemaEntry:: GetCatalogSet(CatalogType type) {
 	switch (type) {
 	case CatalogType::TABLE_ENTRY:
@@ -138,6 +149,16 @@ GraphArTableSet &GraphArSchemaEntry:: GetCatalogSet(CatalogType type) {
 	default:
 		throw InternalException("Type not supported for GetCatalogSet");
 	}
+=======
+GraphArTableSet& GraphArSchemaEntry::GetCatalogSet(CatalogType type) {
+    switch (type) {
+        case CatalogType::TABLE_ENTRY:
+        case CatalogType::VIEW_ENTRY:
+            return tables;
+        default:
+            throw InternalException("Type not supported for GetCatalogSet");
+    }
+>>>>>>> upstream/main
 }
 
 } // namespace duckdb

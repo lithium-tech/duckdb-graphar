@@ -1,6 +1,4 @@
 #include "functions/scalar/bfs.hpp"
-#include "utils/benchmark.hpp"
-#include "utils/global_log_manager.hpp"
 
 #include "duckdb.hpp"
 #include "duckdb/common/exception.hpp"

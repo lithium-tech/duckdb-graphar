@@ -6,12 +6,12 @@
 
 namespace duckdb {
 class GlobalLogManager {
-   public:
+public:
     static void Initialize(DatabaseInstance& db, LogLevel log_level = LogLevel::LOG_INFO);
 
     static optional_ptr<LogManager> GetLogManager() { return log_manager; }
 
-   private:
+private:
     GlobalLogManager() = default;
     ~GlobalLogManager() = default;
     GlobalLogManager(const GlobalLogManager&) = delete;

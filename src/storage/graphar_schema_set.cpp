@@ -3,7 +3,6 @@
 #include "duckdb/catalog/catalog.hpp"
 
 #include "storage/graphar_catalog.hpp"
-#include "storage/graphar_schema_set.hpp"
 #include "storage/graphar_transaction.hpp"
 
 namespace duckdb {

@@ -15,7 +15,7 @@ struct GraphArTableInformation {
                             GraphArTableType type_, vector<string>&& params_)
         : catalog(catalog_), entry(std::move(entry_)), name(name_), type(type_), params(std::move(params_)) {}
 
-   public:
+public:
     optional_ptr<CatalogEntry> GetSchemaVersion(optional_ptr<BoundAtClause> at);
     optional_ptr<CatalogEntry> CreateSchemaVersion(GraphArTableSchema& table_schema);
     const string& BaseFilePath() const;
@@ -27,7 +27,7 @@ struct GraphArTableInformation {
     const GraphArCatalog& GetCatalog() const { return catalog; }
     const vector<string>& GetParams() const { return params; }
 
-   private:
+private:
     GraphArCatalog& catalog;
     unique_ptr<GraphArTableEntry> entry;
     string name;

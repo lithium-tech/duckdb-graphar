@@ -13,7 +13,7 @@ class ScopedTimer {
     std::chrono::time_point<std::chrono::high_resolution_clock> start, last;
     std::string name;
 
-   public:
+public:
     ScopedTimer(const std::string& name);
     ~ScopedTimer(){};
     void print(const std::string msg, bool all);
@@ -25,7 +25,7 @@ struct GraphArSettings {
     template <typename T>
     static T get(const ClientContext& context, const std::string& name) {
         Value result;
-        (void) context.TryGetCurrentSetting(name, result);
+        (void)context.TryGetCurrentSetting(name, result);
         if (!result.IsNull()) {
             return !result.IsNull() && result.GetValue<T>();
         }

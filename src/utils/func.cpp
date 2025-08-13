@@ -1,7 +1,7 @@
 #include "utils/func.hpp"
-#include "utils/global_log_manager.hpp"
 
 #include <iostream>
+
 #include "duckdb.hpp"
 #include "duckdb/common/types.hpp"
 #include "duckdb/common/types/data_chunk.hpp"
@@ -11,6 +11,8 @@
 #include "graphar/filesystem.h"
 
 #include "graphar/graph_info.h"
+#include "graphar/types.h"
+#include "utils/global_log_manager.hpp"
 
 
 namespace duckdb {
@@ -55,6 +57,7 @@ std::string GraphArFunctions::GetNameFromInfo(const std::shared_ptr<graphar::Edg
 	return info->GetSrcType() + "_" + info->GetEdgeType() + "_" + info->GetDstType() + ".edge";
 }
 
+<<<<<<< HEAD
 std::shared_ptr<graphar::Expression> GraphArFunctions::GetFilter(const std::string filter_type, const std::string filter_value, const std::string filter_column) {
 	if (filter_type == "string") {
 		return graphar::_Equal(graphar::_Property(filter_column),
@@ -70,6 +73,26 @@ std::shared_ptr<graphar::Expression> GraphArFunctions::GetFilter(const std::stri
 		return graphar::_Equal(graphar::_Property(filter_column), graphar::_Literal(std::stod(filter_value)));
 	}
 	throw NotImplementedException("Unsupported filter type");
+=======
+std::shared_ptr<graphar::Expression> GraphArFunctions::GetFilter(const std::string filter_type,
+                                                                 const std::string filter_value,
+                                                                 const std::string filter_column) {
+    if (filter_type == "string") {
+        return graphar::_Equal(graphar::_Property(filter_column),
+                               graphar::_Literal(filter_value.substr(1, filter_value.size() - 2)));
+    } else if (filter_type == "int32") {
+        return graphar::_Equal(graphar::_Property(filter_column), graphar::_Literal(std::stoi(filter_value)));
+    } else if (filter_type == "int64") {
+        // Bug: stoll -> long long int, need only int64_t == long long
+        return graphar::_Equal(graphar::_Property(filter_column),
+                               graphar::_Literal((int64_t)(std::stoll(filter_value))));
+    } else if (filter_type == "float") {
+        return graphar::_Equal(graphar::_Property(filter_column), graphar::_Literal(std::stof(filter_value)));
+    } else if (filter_type == "double") {
+        return graphar::_Equal(graphar::_Property(filter_column), graphar::_Literal(std::stod(filter_value)));
+    }
+    throw NotImplementedException("Unsupported filter type");
+>>>>>>> upstream/main
 }
 
 std::string GetYamlContent(const std::string &path) {

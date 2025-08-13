@@ -65,7 +65,7 @@ class ReadVertices;
 class ReadEdges;
 
 class ReadBindData : public TableFunctionData {
-   public:
+public:
     ReadBindData() = default;
     vector<std::string> GetParams() { return params; }
     vector<std::string>& GetFlattenPropNames() { return flatten_prop_names; }
@@ -89,7 +89,7 @@ class ReadBindData : public TableFunctionData {
 };
 
 class ReadBaseGlobalTableFunctionState : public GlobalTableFunctionState {
-   private:
+private:
     graphar::PropertyGroupVector pgs;
     vector<vector<std::string>> prop_names;
     vector<vector<std::string>> prop_types;
@@ -393,7 +393,7 @@ class ReadBase {
             fake_wrapper->arrow_array.release = release_children_only;
             fake_wrapper->arrow_array.n_children = gstate.total_props_num;
             fake_wrapper->arrow_array.children =
-                (class ArrowArray**) malloc(gstate.total_props_num * sizeof(class ArrowArray*));
+                (class ArrowArray**)malloc(gstate.total_props_num * sizeof(class ArrowArray*));
 
             idx_t props_before = 0;
             for (idx_t i = 0; i < gstate.readers.size(); i++) {

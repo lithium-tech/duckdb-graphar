@@ -1,6 +1,3 @@
-#include "utils/global_log_manager.hpp"
-
-#include "storage/graphar_catalog.hpp"
 #include "storage/graphar_table_set.hpp"
 
 #include "storage/graphar_transaction.hpp"
@@ -19,7 +16,7 @@
 #include "duckdb/common/types.hpp"
 
 #include "storage/graphar_table_information.hpp"
-
+#include "storage/graphar_transaction.hpp"
 #include "utils/func.hpp"
 
 #include "functions/table/read_base.hpp"

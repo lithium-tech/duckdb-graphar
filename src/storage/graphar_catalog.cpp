@@ -1,11 +1,10 @@
-#include "utils/global_log_manager.hpp"
-
 #include "storage/graphar_catalog.hpp"
 #include "storage/graphar_schema_entry.hpp"
 #include "storage/graphar_transaction.hpp"
 #include "storage/graphar_table_entry.hpp"
 
-#include "utils/func.hpp"
+#include <filesystem>
+#include <iostream>
 
 #include "duckdb/parser/parsed_data/create_schema_info.hpp"
 #include "duckdb/storage/database_size.hpp"
