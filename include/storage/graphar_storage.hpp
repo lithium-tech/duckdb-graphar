@@ -5,7 +5,7 @@
 namespace duckdb {
 
 class GraphArStorageExtension : public StorageExtension {
-   public:
+public:
     GraphArStorageExtension();
 };
 

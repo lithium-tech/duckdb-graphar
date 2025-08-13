@@ -1,9 +1,6 @@
-#include "utils/global_log_manager.hpp"
-
-#include "storage/graphar_catalog.hpp"
 #include "storage/graphar_schema_entry.hpp"
-#include "storage/graphar_table_entry.hpp"
-#include "storage/graphar_transaction.hpp"
+
+#include <iostream>
 
 #include "duckdb/common/unordered_set.hpp"
 #include "duckdb/parser/constraints/list.hpp"
@@ -14,8 +11,10 @@
 #include "duckdb/parser/parsed_data/drop_info.hpp"
 #include "duckdb/parser/parsed_expression_iterator.hpp"
 #include "duckdb/planner/parsed_data/bound_create_table_info.hpp"
-
-#include <iostream>
+#include "storage/graphar_catalog.hpp"
+#include "storage/graphar_table_entry.hpp"
+#include "storage/graphar_transaction.hpp"
+#include "utils/global_log_manager.hpp"
 
 namespace duckdb {
 
@@ -98,11 +97,11 @@ void GraphArSchemaEntry::Alter(CatalogTransaction transaction, AlterInfo& info) 
 
 static bool CatalogTypeIsSupported(CatalogType type) {
     switch (type) {
-    case CatalogType::TABLE_ENTRY:
-    case CatalogType::VIEW_ENTRY:
-        return true;
-    default:
-        return false;
+        case CatalogType::TABLE_ENTRY:
+        case CatalogType::VIEW_ENTRY:
+            return true;
+        default:
+            return false;
     }
 }
 
@@ -126,11 +125,11 @@ optional_ptr<CatalogEntry> GraphArSchemaEntry::LookupEntry(CatalogTransaction tr
 
 GraphArTableSet& GraphArSchemaEntry::GetCatalogSet(CatalogType type) {
     switch (type) {
-    case CatalogType::TABLE_ENTRY:
-    case CatalogType::VIEW_ENTRY:
-        return tables;
-    default:
-        throw InternalException("Type not supported for GetCatalogSet");
+        case CatalogType::TABLE_ENTRY:
+        case CatalogType::VIEW_ENTRY:
+            return tables;
+        default:
+            throw InternalException("Type not supported for GetCatalogSet");
     }
 }
 

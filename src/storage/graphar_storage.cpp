@@ -1,8 +1,6 @@
-#include "utils/global_log_manager.hpp"
-
-#include "storage/graphar_catalog.hpp"
 #include "storage/graphar_storage.hpp"
-#include "storage/graphar_transaction_manager.hpp"
+
+#include <iostream>
 
 #include "duckdb.hpp"
 #include "duckdb/catalog/catalog_entry/schema_catalog_entry.hpp"
@@ -11,10 +9,10 @@
 #include "duckdb/parser/parsed_data/attach_info.hpp"
 #include "duckdb/parser/parsed_data/create_schema_info.hpp"
 #include "duckdb/transaction/transaction_manager.hpp"
-
+#include "storage/graphar_catalog.hpp"
+#include "storage/graphar_transaction_manager.hpp"
 #include "utils/func.hpp"
-
-#include <iostream>
+#include "utils/global_log_manager.hpp"
 
 namespace duckdb {
 

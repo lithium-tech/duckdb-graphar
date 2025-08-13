@@ -1,6 +1,4 @@
 #include "storage/graphar_table_entry.hpp"
-#include "storage/graphar_catalog.hpp"
-#include "storage/graphar_schema_entry.hpp"
 
 #include "duckdb/catalog/catalog_entry/table_function_catalog_entry.hpp"
 #include "duckdb/common/multi_file/multi_file_reader.hpp"
@@ -14,6 +12,8 @@
 #include "duckdb/planner/tableref/bound_at_clause.hpp"
 #include "duckdb/storage/statistics/base_statistics.hpp"
 #include "duckdb/storage/table_storage_info.hpp"
+#include "storage/graphar_catalog.hpp"
+#include "storage/graphar_schema_entry.hpp"
 
 namespace duckdb {
 

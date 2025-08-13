@@ -9,11 +9,11 @@ class GraphArCatalog;
 class GraphArTableEntry;
 
 class GraphArTransaction : public Transaction {
-   public:
+public:
     GraphArTransaction(GraphArCatalog& graphar_catalog, TransactionManager& manager, ClientContext& context);
     ~GraphArTransaction() override;
 
-   public:
+public:
     void Start();
     void Commit();
     void Rollback();
@@ -24,7 +24,7 @@ class GraphArTransaction : public Transaction {
 
     static GraphArTransaction& Get(ClientContext& context, Catalog& catalog);
 
-   private:
+private:
     DatabaseInstance& db;
     GraphArCatalog& graphar_catalog;
     case_insensitive_map_t<unique_ptr<CatalogEntry>> catalog_entries;

@@ -14,13 +14,13 @@ class GraphArSchemaEntry;
 class GraphArTableEntry;
 
 class GraphArCatalog : public Catalog {
-   public:
+public:
     explicit GraphArCatalog(AttachedDatabase& db_p, const std::string& path_,
                             std::shared_ptr<graphar::GraphInfo>& graph_info_, ClientContext& context,
                             std::string& database_name);
     ~GraphArCatalog();
 
-   public:
+public:
     void Initialize(bool load_builtin) override;
     string GetCatalogType() override { return "graphar"; }
 
@@ -54,10 +54,10 @@ class GraphArCatalog : public Catalog {
 
     const std::shared_ptr<graphar::GraphInfo>& GetGraphInfo() const { return graph_info; }
 
-   private:
+private:
     void DropSchema(ClientContext& context, DropInfo& info) override;
 
-   private:
+private:
     std::string path;
     std::shared_ptr<graphar::GraphInfo> graph_info;
     ClientData& client_data;

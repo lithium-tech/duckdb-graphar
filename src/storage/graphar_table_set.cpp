@@ -1,7 +1,6 @@
-#include "utils/global_log_manager.hpp"
-
-#include "storage/graphar_catalog.hpp"
 #include "storage/graphar_table_set.hpp"
+
+#include <filesystem>
 
 #include "duckdb/catalog/dependency_list.hpp"
 #include "duckdb/common/types.hpp"
@@ -14,14 +13,12 @@
 #include "duckdb/parser/parsed_data/drop_info.hpp"
 #include "duckdb/parser/parser.hpp"
 #include "duckdb/planner/parsed_data/bound_create_table_info.hpp"
+#include "storage/graphar_catalog.hpp"
 #include "storage/graphar_schema_entry.hpp"
-#include "storage/graphar_transaction.hpp"
-
 #include "storage/graphar_table_information.hpp"
-
+#include "storage/graphar_transaction.hpp"
 #include "utils/func.hpp"
-
-#include <filesystem>
+#include "utils/global_log_manager.hpp"
 
 namespace duckdb {
 

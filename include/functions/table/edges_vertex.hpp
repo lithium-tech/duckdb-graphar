@@ -11,7 +11,7 @@ struct EdgesVertex;
 struct EdgesVertexGlobalTableFunctionState;
 
 class EdgesVertexBindData final : public TableFunctionData {
-   public:
+public:
     EdgesVertexBindData(std::string file_path) : file_path(file_path) {};
 
     const std::string& GetFilePath() const { return file_path; }
@@ -23,7 +23,7 @@ class EdgesVertexBindData final : public TableFunctionData {
     const std::shared_ptr<graphar::EdgeInfo>& GetEdgeInfo() const { return edge_info; }
     void SetEdgeInfo(const std::shared_ptr<graphar::EdgeInfo>& info) { edge_info = info; }
 
-   private:
+private:
     std::string file_path;
     std::shared_ptr<graphar::GraphInfo> graph_info;
     std::shared_ptr<graphar::EdgeInfo> edge_info;
@@ -33,7 +33,7 @@ class EdgesVertexBindData final : public TableFunctionData {
 };
 
 struct EdgesVertexGlobalState {
-   public:
+public:
     EdgesVertexGlobalState(ClientContext& context, EdgesVertexBindData& bind_data,
                            std::shared_ptr<graphar::EdgeInfo> edge_info, const std::string& prefix, idx_t iter,
                            idx_t end_iter)
@@ -48,7 +48,7 @@ struct EdgesVertexGlobalState {
     void IncrementChunkCount() { ++chunk_count; }
     void IncrementIter() { ++iter; }
 
-   private:
+private:
     std::shared_ptr<graphar::EdgeInfo> edge_info;
     std::string prefix;
     idx_t iter;
@@ -59,7 +59,7 @@ struct EdgesVertexGlobalState {
 };
 
 struct EdgesVertexGlobalTableFunctionState : public GlobalTableFunctionState {
-   public:
+public:
     EdgesVertexGlobalTableFunctionState(ClientContext& context, EdgesVertexBindData& bind_data,
                                         std::shared_ptr<graphar::EdgeInfo> edge_info, const std::string& prefix,
                                         idx_t iter, idx_t end_iter)
@@ -69,7 +69,7 @@ struct EdgesVertexGlobalTableFunctionState : public GlobalTableFunctionState {
 
     EdgesVertexGlobalState& GetState() { return state; }
 
-   private:
+private:
     EdgesVertexGlobalState state;
 
     friend struct EdgesVertex;

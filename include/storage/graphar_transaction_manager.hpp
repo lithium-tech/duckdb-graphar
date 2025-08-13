@@ -8,7 +8,7 @@
 namespace duckdb {
 
 class GraphArTransactionManager : public TransactionManager {
-   public:
+public:
     GraphArTransactionManager(AttachedDatabase& db_p, GraphArCatalog& graphar_catalog);
 
     Transaction& StartTransaction(ClientContext& context) override;
@@ -17,7 +17,7 @@ class GraphArTransactionManager : public TransactionManager {
 
     void Checkpoint(ClientContext& context, bool force = false) override;
 
-   private:
+private:
     GraphArCatalog& graphar_catalog;
     mutex transaction_lock;
     reference_map_t<Transaction, unique_ptr<GraphArTransaction>> transactions;

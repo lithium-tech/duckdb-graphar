@@ -1,9 +1,9 @@
+#include "storage/graphar_schema_set.hpp"
+
 #include "duckdb/catalog/catalog.hpp"
 #include "duckdb/parser/parsed_data/create_schema_info.hpp"
 #include "duckdb/parser/parsed_data/drop_info.hpp"
-
 #include "storage/graphar_catalog.hpp"
-#include "storage/graphar_schema_set.hpp"
 #include "storage/graphar_transaction.hpp"
 
 namespace duckdb {

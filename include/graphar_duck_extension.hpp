@@ -5,7 +5,7 @@
 namespace duckdb {
 
 class GrapharDuckExtension : public Extension {
-   public:
+public:
     void Load(DuckDB& db) override;
     std::string Name() override;
     std::string Version() const override;

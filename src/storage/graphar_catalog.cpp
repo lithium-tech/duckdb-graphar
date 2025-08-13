@@ -1,19 +1,17 @@
-#include "utils/global_log_manager.hpp"
-
 #include "storage/graphar_catalog.hpp"
-#include "storage/graphar_schema_entry.hpp"
-#include "storage/graphar_table_entry.hpp"
-#include "storage/graphar_transaction.hpp"
 
-#include "utils/func.hpp"
+#include <filesystem>
+#include <iostream>
 
 #include "duckdb/common/exception/transaction_exception.hpp"
 #include "duckdb/parser/parsed_data/create_schema_info.hpp"
 #include "duckdb/parser/parsed_data/create_table_info.hpp"
 #include "duckdb/storage/database_size.hpp"
-
-#include <filesystem>
-#include <iostream>
+#include "storage/graphar_schema_entry.hpp"
+#include "storage/graphar_table_entry.hpp"
+#include "storage/graphar_transaction.hpp"
+#include "utils/func.hpp"
+#include "utils/global_log_manager.hpp"
 
 namespace duckdb {
 GraphArCatalog::GraphArCatalog(AttachedDatabase& db_p, const std::string& path_,
