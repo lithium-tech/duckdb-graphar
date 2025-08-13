@@ -59,8 +59,7 @@ inline std::pair<int64_t, int64_t> GetChunkAndOffset(graphar::IdType chunk_size,
 }
 
 static void release_children_only(struct ArrowArray* array) {
-    if (array == nullptr)
-        return;
+    if (array == nullptr) return;
 
     if (array->children != nullptr) {
         free(array->children);
@@ -76,7 +75,7 @@ static int64_t GetInt64Value(std::shared_ptr<Array> array, int64_t index) {
 }
 
 class MyAdjReaderOrdSrc {
-   public:
+public:
     MyAdjReaderOrdSrc(const std::shared_ptr<graphar::EdgeInfo> edge_info, const std::string& prefix)
         : edge_info_(edge_info),
           prefix_(prefix),
@@ -162,7 +161,7 @@ class MyAdjReaderOrdSrc {
 
     int64_t size() { return size_; }
 
-   private:
+private:
     const std::shared_ptr<graphar::EdgeInfo> edge_info_;
     const std::string prefix_;
     int64_t size_;
@@ -181,8 +180,7 @@ inline void PrintArrowTable(const std::shared_ptr<arrow::Table>& table, int64_t 
 
     for (int col = 0; col < num_columns; ++col) {
         std::cout << table->field(col)->name();
-        if (col < num_columns - 1)
-            std::cout << "\t";
+        if (col < num_columns - 1) std::cout << "\t";
     }
     std::cout << "\n";
     if (limit > 0) {
@@ -207,8 +205,7 @@ inline void PrintArrowTable(const std::shared_ptr<arrow::Table>& table, int64_t 
                     local_row -= chunk->length();
                 }
             }
-            if (col < num_columns - 1)
-                std::cout << "\t";
+            if (col < num_columns - 1) std::cout << "\t";
         }
         std::cout << "\n";
     }

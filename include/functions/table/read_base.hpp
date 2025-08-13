@@ -63,10 +63,10 @@ class ReadVertices;
 class ReadEdges;
 
 class ReadBindData : public TableFunctionData {
-   public:
+public:
     ReadBindData() = default;
 
-   private:
+private:
     std::vector<std::vector<std::string>> prop_names;
     std::vector<std::string> flatten_prop_names;
     std::vector<std::vector<std::string>> prop_types;
@@ -84,7 +84,7 @@ class ReadBindData : public TableFunctionData {
 };
 
 class ReadBaseGlobalTableFunctionState : public GlobalTableFunctionState {
-   private:
+private:
     graphar::PropertyGroupVector pgs;
     std::vector<std::vector<std::string>> prop_names;
     std::vector<std::vector<std::string>> prop_types;
@@ -111,7 +111,7 @@ class ReadBaseGlobalTableFunctionState : public GlobalTableFunctionState {
 
 template <typename ReadFinal>
 class ReadBase {
-   public:
+public:
     static unique_ptr<FunctionData> Bind(ClientContext& context, TableFunctionBindInput& input,
                                          vector<LogicalType>& return_types, vector<string>& names) {
         return ReadFinal::Bind(context, input, return_types, names);
@@ -323,7 +323,7 @@ class ReadBase {
             fake_wrapper->arrow_array.release = release_children_only;
             fake_wrapper->arrow_array.n_children = gstate.total_props_num;
             fake_wrapper->arrow_array.children =
-                (class ArrowArray**) malloc(gstate.total_props_num * sizeof(class ArrowArray*));
+                (class ArrowArray**)malloc(gstate.total_props_num * sizeof(class ArrowArray*));
 
             idx_t props_before = 0;
             for (idx_t i = 0; i < gstate.readers.size(); i++) {

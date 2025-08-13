@@ -10,11 +10,11 @@ struct CreateTableInfo;
 class GraphArSchemaEntry;
 
 struct GraphArTableInformation {
-   public:
+public:
     GraphArTableInformation(GraphArCatalog& catalog, unique_ptr<GraphArTableEntry> entry, const string& name)
         : catalog(catalog), entry(std::move(entry)), name(name) {}
 
-   public:
+public:
     optional_ptr<CatalogEntry> GetSchemaVersion(optional_ptr<BoundAtClause> at);
     optional_ptr<CatalogEntry> CreateSchemaVersion(GraphArTableSchema& table_schema);
     const string& BaseFilePath() const;
@@ -22,7 +22,7 @@ struct GraphArTableInformation {
     bool IsFilled() const { return filled; }
     GraphArTableEntry& GetEntry() const { return *entry; }
 
-   private:
+private:
     GraphArCatalog& catalog;
     unique_ptr<GraphArTableEntry> entry;
     string name;

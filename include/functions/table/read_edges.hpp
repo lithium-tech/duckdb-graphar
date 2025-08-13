@@ -12,7 +12,7 @@
 
 namespace duckdb {
 class ReadEdges : public ReadBase<ReadEdges> {
-   public:
+public:
     static unique_ptr<FunctionData> Bind(ClientContext& context, TableFunctionBindInput& input,
                                          vector<LogicalType>& return_types, vector<string>& names);
 

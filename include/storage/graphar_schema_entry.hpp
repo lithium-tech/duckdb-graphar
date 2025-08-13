@@ -8,10 +8,10 @@ class GraphArTransaction;
 class GraphArTableEntry;
 
 class GraphArSchemaEntry : public SchemaCatalogEntry {
-   public:
+public:
     GraphArSchemaEntry(Catalog& catalog, CreateSchemaInfo& info);
 
-   public:
+public:
     optional_ptr<CatalogEntry> CreateTable(CatalogTransaction transaction, BoundCreateTableInfo& info) override;
     optional_ptr<CatalogEntry> CreateFunction(CatalogTransaction transaction, CreateFunctionInfo& info) override;
     optional_ptr<CatalogEntry> CreateIndex(CatalogTransaction transaction, CreateIndexInfo& info,
@@ -32,7 +32,7 @@ class GraphArSchemaEntry : public SchemaCatalogEntry {
     void DropEntry(ClientContext& context, DropInfo& info) override;
     optional_ptr<CatalogEntry> LookupEntry(CatalogTransaction transaction, const EntryLookupInfo& lookup_info) override;
 
-   private:
+private:
     void AlterTable(GraphArTransaction& transaction, RenameTableInfo& info);
     void AlterTable(GraphArTransaction& transaction, RenameColumnInfo& info);
     void AlterTable(GraphArTransaction& transaction, AddColumnInfo& info);
@@ -40,7 +40,7 @@ class GraphArSchemaEntry : public SchemaCatalogEntry {
 
     void TryDropEntry(ClientContext& context, CatalogType catalog_type, const string& name);
 
-   private:
+private:
     GraphArTableSet& GetCatalogSet(CatalogType type);
     GraphArTableSet tables;
 };

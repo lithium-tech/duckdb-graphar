@@ -12,10 +12,10 @@ class GraphArSchemaEntry;
 class GraphArTransaction;
 
 class GraphArTableSet {
-   public:
+public:
     explicit GraphArTableSet(GraphArSchemaEntry& schema);
 
-   public:
+public:
     static unique_ptr<GraphArTableInformation> GetTableInfo(ClientContext& context, GraphArSchemaEntry& schema,
                                                             const string& table_name);
     optional_ptr<CatalogEntry> GetEntry(ClientContext& context, const EntryLookupInfo& lookup);
@@ -28,7 +28,7 @@ class GraphArTableSet {
     template <typename InfoVector>
     void CreateTables(GraphArCatalog& graphar_catalog, const InfoVector& infos, std::vector<std::string> id_columns);
 
-   private:
+private:
     GraphArSchemaEntry& schema;
     Catalog& catalog;
     case_insensitive_map_t<unique_ptr<GraphArTableInformation>> entries;
