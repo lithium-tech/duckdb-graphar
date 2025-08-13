@@ -1,26 +1,44 @@
-name: Main Extension Distribution Pipeline
-on:
-  push:
-  pull_request:
-  workflow_dispatch:
+name: CI/CD Pipeline
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.head_ref || '' }}-${{ github.base_ref || '' }}-${{ github.ref != 'refs/heads/main' || github.sha }}
-  cancel-in-progress: true
+on: [push, pull_request, workflow_dispatch]
 
 jobs:
-  duckdb-next-build:
-    name: Build extension binaries
-    uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@main
-    with:
-      duckdb_version: main
-      ci_tools_version: main
-      extension_name: duckdb_graphar
+  build:
+    name: Build and Test (Ubuntu)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
 
-  duckdb-stable-build:
-    name: Build extension binaries
-    uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v1.2.0
-    with:
-      duckdb_version: v1.2.0
-      ci_tools_version: v1.2.0
-      extension_name: duckdb_graphar
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Check C++ Code Style
+        run: |
+          echo "Installing clang-format..."
+          sudo apt-get install -y clang-format >/dev/null || { echo "FAILED: clang-format install"; exit 1; }
+          echo -n "Checking code style... "
+          find src/ -name '*.cpp' -o -name '*.hpp' | xargs clang-format --dry-run --Werror >/dev/null 2>&1 || { echo "FAILED: Code style check"; exit 1; }
+          echo "OK"
+
+      - name: Cache Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.ccache
+            build/_deps
+          key: ${{ runner.os }}-${{ env.BUILD_TYPE }}-deps-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ env.BUILD_TYPE }}-deps-
+
+      - name: Install System Dependencies
+        run: |
+          echo -n "Installing dependencies..."
+          sudo apt-get update -qq || { echo "FAILED: apt update"; exit 1; }
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            zlib1g-dev \
+            libzstd-dev \
+            libsnappy-dev \
+            ccache >/dev/null || { echo "FAILED: Dependency install"; exit 1; }
+          echo "OK"
