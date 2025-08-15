@@ -1,4 +1,4 @@
-require duckdb_graphar
+require graphar_duck
 
 
 query I
@@ -17,3 +17,24 @@ SELECT * FROM read_vertices('__WORKING_DIRECTORY__/test/data/git/Git.yaml', type
 ----
 42
 42
+
+statement ok
+ATTACH '__WORKING_DIRECTORY__/test/data/git/Git.yaml' as test_db (type graphar_duck);
+
+query I
+SELECT hash_phone_no FROM 'Person.vertex' LIMIT 4;
+----
+0
+1
+2
+3
+
+query I
+SELECT hash_phone_no FROM 'Person.vertex' WHERE _graphArVertexIndex=4;
+----
+4
+
+query I
+SELECT COUNT(*) FROM 'Person.vertex';
+----
+37700

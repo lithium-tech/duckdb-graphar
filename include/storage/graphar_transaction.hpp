@@ -1,7 +1,8 @@
 #pragma once
 
-#include "duckdb/common/case_insensitive_map.hpp"
-#include "duckdb/transaction/transaction.hpp"
+#include <duckdb/common/case_insensitive_map.hpp>
+#include <duckdb/transaction/transaction.hpp>
+
 #include "storage/graphar_schema_set.hpp"
 
 namespace duckdb {

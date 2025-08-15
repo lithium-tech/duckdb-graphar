@@ -1,10 +1,12 @@
 #pragma once
 
-#include "duckdb/common/named_parameter_map.hpp"
-#include "duckdb/function/table_function.hpp"
-#include "graphar/api/high_level_reader.h"
-#include "graphar/graph_info.h"
 #include "utils/func.hpp"
+
+#include <duckdb/common/named_parameter_map.hpp>
+#include <duckdb/function/table_function.hpp>
+
+#include <graphar/api/high_level_reader.h>
+#include <graphar/graph_info.h>
 
 namespace duckdb {
 

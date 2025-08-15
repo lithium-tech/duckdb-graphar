@@ -1,13 +1,14 @@
 #pragma once
 
-#include "duckdb.hpp"
-#include "duckdb/catalog/catalog.hpp"
-#include "duckdb/catalog/entry_lookup_info.hpp"
-#include "duckdb/common/common.hpp"
-#include "duckdb/common/enums/access_mode.hpp"
-#include "duckdb/main/client_context.hpp"
-#include "duckdb/main/client_data.hpp"
-#include "graphar/graph_info.h"
+#include <duckdb.hpp>
+#include <duckdb/catalog/catalog.hpp>
+#include <duckdb/catalog/entry_lookup_info.hpp>
+#include <duckdb/common/common.hpp>
+#include <duckdb/common/enums/access_mode.hpp>
+#include <duckdb/main/client_context.hpp>
+#include <duckdb/main/client_data.hpp>
+
+#include <graphar/graph_info.h>
 
 namespace duckdb {
 class GraphArSchemaEntry;
@@ -52,7 +53,7 @@ public:
 
     const std::string& GetPath() const { return path; }
 
-    const std::shared_ptr<graphar::GraphInfo>& GetGraphInfo() const { return graph_info; }
+    const std::shared_ptr<graphar::GraphInfo> GetGraphInfo() const { return graph_info; }
 
 private:
     void DropSchema(ClientContext& context, DropInfo& info) override;

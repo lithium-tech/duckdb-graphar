@@ -1,11 +1,11 @@
 #pragma once
 
+#include <duckdb.hpp>
+#include <duckdb/common/types.hpp>
+#include <duckdb/common/types/value.hpp>
+
 #include <chrono>
 #include <string>
-
-#include "duckdb.hpp"
-#include "duckdb/common/types.hpp"
-#include "duckdb/common/types/value.hpp"
 
 namespace duckdb {
 

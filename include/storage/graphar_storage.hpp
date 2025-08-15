@@ -1,6 +1,6 @@
 #pragma once
 
-#include "duckdb/storage/storage_extension.hpp"
+#include <duckdb/storage/storage_extension.hpp>
 
 namespace duckdb {
 
