@@ -3,9 +3,20 @@ project(graphar_duck)
 string(TOUPPER ${PROJECT_NAME} PROJECT_NAME_UPPERCASE)
 set(EXTENSION_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR} CACHE STRING "Extension root directory")
 
+# =============================================
+# Core Configuration
+# =============================================
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+include(FetchContent)
+include(GNUInstallDirs)
+include(ExternalProject)
+
+option(BUILD_LOADABLE_EXTENSION "Build as loadable extension" ON)
+option(LOAD_TESTS "Build extension tests" OFF)
+option(SHOW_LOG_STAGES "Display progress logs for each stage" ON)
 
 # # =============================================
 # # Progress Reporting Functions
@@ -22,10 +33,10 @@ function(log_done)
     endif()
 endfunction()
 
-option(SHOW_LOG_STAGES "Display progress logs for each stage" ON)
-
-include(FetchContent)
-
+# =============================================
+# Dependency Management
+# =============================================
+# DuckDB
 set(DUCKDB_EXTENSION_CONFIGS "${CMAKE_CURRENT_SOURCE_DIR}/config/extension_config.cmake")
 
 log_stage("Declaring DuckDB")
@@ -34,7 +45,7 @@ set(ENABLE_SANITIZER OFF CACHE BOOL "")
 set(ENABLE_UBSAN OFF CACHE BOOL "")
 set(DISABLE_VPTR_SANITIZER ON CACHE BOOL "")
 set(SKIP_EXTENSIONS "graphar_duck")
-# Fetch DuckDB
+
 FetchContent_Declare(
     duckdb
     GIT_REPOSITORY https://github.com/duckdb/duckdb.git
@@ -48,28 +59,9 @@ log_stage("Making available")
 FetchContent_MakeAvailable(duckdb)
 log_done()
 
+# Arrow
 log_stage("Configuring Apache Arrow...")
 
-include(ExternalProject)
-
-# Arrow configuration
-set(ARROW_BUILD_SHARED ON CACHE BOOL "")
-set(ARROW_BUILD_STATIC OFF CACHE BOOL "")
-set(ARROW_BUILD_TESTS OFF CACHE BOOL "")
-set(ARROW_BUILD_BENCHMARKS OFF CACHE BOOL "")
-set(ARROW_BUILD_EXAMPLES OFF CACHE BOOL "")
-set(ARROW_DEPENDENCY_SOURCE "BUNDLED" CACHE STRING "")
-
-set(ARROW_COMPUTE ON CACHE BOOL "")
-set(ARROW_DATASET ON CACHE BOOL "")
-set(ARROW_FILESYSTEM ON CACHE BOOL "")
-set(ARROW_PARQUET ON CACHE BOOL "")
-set(ARROW_ORC OFF CACHE BOOL "")
-set(ARROW_WITH_ZLIB ON CACHE BOOL "")
-set(ARROW_WITH_ZSTD ON CACHE BOOL "")
-set(ARROW_WITH_SNAPPY ON CACHE BOOL "")
-
-# Use ExternalProject to build Arrow
 ExternalProject_Add(
   arrow
   GIT_REPOSITORY https://github.com/apache/arrow.git
@@ -77,43 +69,39 @@ ExternalProject_Add(
   SOURCE_SUBDIR cpp
   CMAKE_ARGS
     -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-    -DARROW_BUILD_SHARED=${ARROW_BUILD_SHARED}
-    -DARROW_BUILD_STATIC=${ARROW_BUILD_STATIC}
-    -DARROW_BUILD_TESTS=${ARROW_BUILD_TESTS}
-    -DARROW_BUILD_BENCHMARKS=${ARROW_BUILD_BENCHMARKS}
-    -DARROW_BUILD_EXAMPLES=${ARROW_BUILD_EXAMPLES}
-    -DARROW_DEPENDENCY_SOURCE=${ARROW_DEPENDENCY_SOURCE}
-    -DARROW_COMPUTE=${ARROW_COMPUTE}
-    -DARROW_DATASET=${ARROW_DATASET}
-    -DARROW_FILESYSTEM=${ARROW_FILESYSTEM}
-    -DARROW_PARQUET=${ARROW_PARQUET}
-    -DARROW_ORC=${ARROW_ORC}
-    -DARROW_WITH_ZLIB=${ARROW_WITH_ZLIB}
-    -DARROW_WITH_ZSTD=${ARROW_WITH_ZSTD}
+    -DARROW_BUILD_SHARED=ON
+    -DARROW_BUILD_STATIC=OFF
+    -DARROW_BUILD_TESTS=OFF
+    -DARROW_BUILD_BENCHMARKS=OFF
+    -DARROW_BUILD_EXAMPLES=OFF
+    -DARROW_DEPENDENCY_SOURCE=BUNDLED
+    -DARROW_COMPUTE=ON
+    -DARROW_DATASET=ON
+    -DARROW_FILESYSTEM=ON
+    -DARROW_PARQUET=ON
+    -DARROW_ORC=ON
+    -DARROW_WITH_ZLIB=ON
+    -DARROW_WITH_ZSTD=ON
     -DARROW_WITH_BROTLI=OFF
     -DARROW_WITH_BZ2=OFF
     -DARROW_WITH_LZ4=OFF
     -DARROW_WITH_SNAPPY=ON
-    -DARROW_WITH_PROTOBUF=ON
     -DARROW_CSV=ON
-    -DARROW_WITH_SNAPPY=${ARROW_WITH_SNAPPY}
     -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/arrow-install
   BUILD_ALWAYS OFF
   INSTALL_DIR ${CMAKE_BINARY_DIR}/arrow-install
 )
 
-# Make sure Arrow is built before GraphAR and your extension
-# --- Create imported target for Arrow ---
 add_library(arrow::arrow_shared SHARED IMPORTED GLOBAL)
 
-# Set the location of the Arrow shared library
 set_target_properties(arrow::arrow_shared PROPERTIES
   IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/arrow-install/lib/libarrow.so
   INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_BINARY_DIR}/arrow-install/include
 )
 
-# Make sure Arrow is built before anything that depends on it
 add_dependencies(arrow::arrow_shared arrow)
+
+# GraphAr
 
 set(Protobuf_INCLUDE_DIR "${CMAKE_BINARY_DIR}/duckdb-build/extension/${PROJECT_NAME}/arrow-prefix/src/arrow-build/protobuf_ep-install/include")
 set(Protobuf_LIBRARIES "${CMAKE_BINARY_DIR}/duckdb-build/extension/${PROJECT_NAME}/arrow-prefix/src/arrow-build/protobuf_ep-install/lib/libprotobuf.a")
@@ -124,19 +112,18 @@ ExternalProject_Add(
   graphar
   GIT_REPOSITORY https://github.com/apache/incubator-graphar.git
   GIT_TAG main
-  SOURCE_SUBDIR cpp  # или другой подкаталог, если используется
+  SOURCE_SUBDIR cpp
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/graphar-install
-    -DCMAKE_PREFIX_PATH=${CMAKE_BINARY_DIR}/arrow-install  # указываем, где искать arrow
-    -DARROW_HOME=${CMAKE_BINARY_DIR}/arrow-install         # если проект использует ARROW_HOME
+    -DCMAKE_PREFIX_PATH=${CMAKE_BINARY_DIR}/arrow-install
+    -DARROW_HOME=${CMAKE_BINARY_DIR}/arrow-install
     -DGRAPHAR_BUILD_SHARED=ON
     -DGRAPHAR_BUILD_STATIC=OFF
     -DGRAPHAR_TEST=OFF
   INSTALL_DIR ${CMAKE_BINARY_DIR}/graphar-install
-  DEPENDS arrow  # важно: graphar зависит от arrow
+  DEPENDS arrow
 )
 
-# --- Импортируем graphar как цель для использования в вашем проекте ---
 add_library(graphar::graphar_shared SHARED IMPORTED GLOBAL)
 
 set_target_properties(graphar::graphar_shared PROPERTIES
@@ -149,13 +136,14 @@ add_dependencies(graphar::graphar_shared graphar arrow)
 
 log_done()
 
+# =============================================
+# Build Targets
+# =============================================
 file(GLOB_RECURSE EXTENSION_SOURCES CONFIGURE_DEPENDS "${EXTENSION_ROOT_DIR}/src/*.cpp")
 
 log_stage("Building static extension")
 build_static_extension(graphar_duck ${EXTENSION_SOURCES})
 log_done()
-
-message("BINARY DIRS: ${arrow_BINARY_DIR}; ${graphar_BINARY_DIR}; ${CMAKE_BINARY_DIR}")
 
 set(EXTENSION_INCLUDES
      $<BUILD_INTERFACE:${EXTENSION_ROOT_DIR}/include>
@@ -175,6 +163,9 @@ target_link_libraries(graphar_duck_extension
     graphar::graphar_shared
 )
 
+# =============================================
+# Installation
+# =============================================
 set(INSTALL_LIB_DIR "${CMAKE_INSTALL_LIBDIR}" CACHE PATH "Library installation directory")
 
 install(
