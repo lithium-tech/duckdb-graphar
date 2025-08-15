@@ -1,8 +1,9 @@
 #pragma once
 
-#include "duckdb/catalog/catalog_entry.hpp"
 #include "storage/graphar_catalog.hpp"
 #include "storage/graphar_table_entry.hpp"
+
+#include <duckdb/catalog/catalog_entry.hpp>
 
 namespace duckdb {
 class GraphArTableSchema;
@@ -10,7 +11,7 @@ class GraphArTableSchema;
 enum class GraphArTableType { Vertex, Edge, Unknown };
 
 struct GraphArTableInformation {
-   public:
+public:
     GraphArTableInformation(GraphArCatalog& catalog_, unique_ptr<GraphArTableEntry> entry_, const string& name_,
                             GraphArTableType type_, vector<string>&& params_)
         : catalog(catalog_), entry(std::move(entry_)), name(name_), type(type_), params(std::move(params_)) {}

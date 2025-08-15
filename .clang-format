@@ -1,4 +1,4 @@
-# BasedOnStyle:  Google
+BasedOnStyle:    Google
 IndentWidth:     4
 ColumnLimit:     120
 UseTab:          Never
@@ -81,29 +81,28 @@ ForEachMacros:
   - foreach
   - Q_FOREACH
   - BOOST_FOREACH
+  - SECTION
+  - TEST_CASE
+  - DYNAMIC_SECTION
+  - BENCHMARK
 IfMacros:
   - KJ_IF_MAYBE
-IncludeBlocks:   Regroup
+IncludeBlocks: Regroup
 IncludeCategories:
-  - Regex:           '^<.*\.h>'
+  - Regex:           '^".*"'
     Priority:        1
-    SortPriority:    0
+    CaseSensitive:   false
+  - Regex:           '^<arrow/.*'
+    Priority:        2
+    CaseSensitive:   false
+  - Regex:           '^<duckdb/.*'
+    Priority:        3
+    CaseSensitive:   false
+  - Regex:           '^<graphar/.*'
+    Priority:        4
     CaseSensitive:   false
   - Regex:           '^<.*'
-    Priority:        2
-    SortPriority:    1
-    CaseSensitive:   false
-  - Regex:           '"(postgres|c)\.h"'
-    Priority:        3
-    SortPriority:    2
-    CaseSensitive:   false
-  - Regex:           '"tea/.*'
-    Priority:        4
-    SortPriority:    4
-    CaseSensitive:   false
-  - Regex:           '.*'
     Priority:        5
-    SortPriority:    3
     CaseSensitive:   false
 IncludeIsMainRegex: '([-_](test|unittest))?$'
 IncludeIsMainSourceRegex: ''

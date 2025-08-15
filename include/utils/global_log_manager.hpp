@@ -1,8 +1,8 @@
 #pragma once
 
-#include "duckdb/logging/log_manager.hpp"
-#include "duckdb/logging/logging.hpp"
-#include "duckdb/main/database.hpp"
+#include <duckdb/logging/log_manager.hpp>
+#include <duckdb/logging/logging.hpp>
+#include <duckdb/main/database.hpp>
 
 namespace duckdb {
 class GlobalLogManager {

@@ -1,18 +1,19 @@
 #pragma once
 
+#include <arrow/api.h>
+#include <arrow/scalar.h>
+
+#include <duckdb/common/types.hpp>
+#include <duckdb/common/types/data_chunk.hpp>
+#include <duckdb/function/table/arrow/arrow_type_info.hpp>
+#include <duckdb/function/table/arrow/enum/arrow_type_info_type.hpp>
+
+#include <graphar/api/arrow_reader.h>
+#include <graphar/reader_util.h>
+#include <graphar/types.h>
+
 #include <iostream>
-
 #include <math.h>
-
-#include "arrow/api.h"
-#include "arrow/scalar.h"
-#include "duckdb/common/types.hpp"
-#include "duckdb/common/types/data_chunk.hpp"
-#include "duckdb/function/table/arrow/arrow_type_info.hpp"
-#include "duckdb/function/table/arrow/enum/arrow_type_info_type.hpp"
-#include "graphar/api/arrow_reader.h"
-#include "graphar/reader_util.h"
-#include "graphar/types.h"
 
 namespace duckdb {
 

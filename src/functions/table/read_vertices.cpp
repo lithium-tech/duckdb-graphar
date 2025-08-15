@@ -2,18 +2,18 @@
 #include "utils/func.hpp"
 #include "utils/benchmark.hpp"
 
-#include "duckdb/function/table_function.hpp"
-#include "duckdb/common/named_parameter_map.hpp"
-#include "duckdb/main/extension_util.hpp"
-#include "duckdb/function/table/arrow.hpp"
+#include <duckdb/function/table_function.hpp>
+#include <duckdb/common/named_parameter_map.hpp>
+#include <duckdb/main/extension_util.hpp>
+#include <duckdb/function/table/arrow.hpp>
 
-#include "graphar/expression.h"
-#include "graphar/fwd.h"
-#include "graphar/api/high_level_reader.h"
-#include "graphar/api/arrow_reader.h"
-#include "graphar/arrow/chunk_reader.h"
+#include <graphar/expression.h>
+#include <graphar/fwd.h>
+#include <graphar/api/high_level_reader.h>
+#include <graphar/api/arrow_reader.h>
+#include <graphar/arrow/chunk_reader.h>
 
-#include "arrow/c/bridge.h"
+#include <arrow/c/bridge.h>
 
 #include <cassert>
 #include <iostream>

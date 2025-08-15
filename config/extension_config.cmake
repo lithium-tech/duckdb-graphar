@@ -1,0 +1,7 @@
+message(">>>>>>>>>>>>> extension config")
+
+duckdb_extension_load(graphar_duck
+    SOURCE_DIR "${EXTENSION_ROOT_DIR}/config"
+    INCLUDE_DIR "${EXTENSION_ROOT_DIR}/include"
+    LINKED_LIBS "arrow;graphar"
+)

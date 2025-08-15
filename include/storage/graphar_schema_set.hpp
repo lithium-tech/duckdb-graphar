@@ -1,14 +1,12 @@
 
 #pragma once
 
-// #include "storage/graphar_schema_entry.hpp"
-#include "duckdb/catalog/catalog.hpp"
-#include "duckdb/catalog/catalog_entry.hpp"
-#include "duckdb/common/case_insensitive_map.hpp"
-#include "duckdb/main/client_context.hpp"
+#include <duckdb/catalog/catalog.hpp>
+#include <duckdb/catalog/catalog_entry.hpp>
+#include <duckdb/common/case_insensitive_map.hpp>
+#include <duckdb/main/client_context.hpp>
 
 namespace duckdb {
-// struct CreateSchemaInfo;
 
 class GraphArSchemaSet {
 public:

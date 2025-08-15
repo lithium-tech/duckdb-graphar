@@ -1,19 +1,18 @@
 #include "utils/global_log_manager.hpp"
+#include "utils/func.hpp"
+#include "utils/global_log_manager.hpp"
 
 #include "storage/graphar_storage.hpp"
 #include "storage/graphar_catalog.hpp"
 #include "storage/graphar_transaction_manager.hpp"
 
-#include "duckdb.hpp"
-#include "duckdb/parser/parsed_data/attach_info.hpp"
-#include "duckdb/transaction/transaction_manager.hpp"
-#include "duckdb/catalog/catalog_entry/schema_catalog_entry.hpp"
-#include "duckdb/catalog/catalog_entry/table_catalog_entry.hpp"
-#include "duckdb/parser/parsed_data/create_schema_info.hpp"
-#include "duckdb/main/client_data.hpp"
-
-#include "utils/func.hpp"
-#include "utils/global_log_manager.hpp"
+#include <duckdb.hpp>
+#include <duckdb/parser/parsed_data/attach_info.hpp>
+#include <duckdb/transaction/transaction_manager.hpp>
+#include <duckdb/catalog/catalog_entry/schema_catalog_entry.hpp>
+#include <duckdb/catalog/catalog_entry/table_catalog_entry.hpp>
+#include <duckdb/parser/parsed_data/create_schema_info.hpp>
+#include <duckdb/main/client_data.hpp>
 
 namespace duckdb {
 

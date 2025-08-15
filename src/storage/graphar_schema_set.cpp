@@ -1,6 +1,6 @@
-#include "duckdb/parser/parsed_data/create_schema_info.hpp"
-#include "duckdb/parser/parsed_data/drop_info.hpp"
-#include "duckdb/catalog/catalog.hpp"
+#include <duckdb/parser/parsed_data/create_schema_info.hpp>
+#include <duckdb/parser/parsed_data/drop_info.hpp>
+#include <duckdb/catalog/catalog.hpp>
 
 #include "storage/graphar_catalog.hpp"
 #include "storage/graphar_transaction.hpp"
@@ -33,21 +33,7 @@ static string GetSchemaName(const vector<string> &items) {
 }
 
 void GraphArSchemaSet::LoadEntries(ClientContext &context) {
-    // throw NotImplementedException("GraphArSchemaSet::LoadEntries");
-	if (!entries.empty()) {
-		return;
-	}
-
-	auto &ic_catalog = catalog.Cast<GraphArCatalog>();
-	auto schemas = GraphArAPI::GetSchemas(context, ic_catalog, {});
-	for (const auto &schema : schemas) {
-		CreateSchemaInfo info;
-		info.schema = GetSchemaName(schema.items);
-		info.internal = false;
-		auto schema_entry = make_uniq<GraphArSchemaEntry>(catalog, info);
-		schema_entry->namespace_items = std::move(schema.items);
-		CreateEntryInternal(context, std::move(schema_entry));
-	}
+    throw NotImplementedException("GraphArSchemaSet::LoadEntries");
 }
 
 optional_ptr<CatalogEntry> GraphArSchemaSet::CreateEntryInternal(ClientContext &context, unique_ptr<CatalogEntry> entry) {

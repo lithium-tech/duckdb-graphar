@@ -1,17 +1,19 @@
 #pragma once
 
-#include "duckdb/common/named_parameter_map.hpp"
-#include "duckdb/function/table_function.hpp"
-#include "graphar/api/high_level_reader.h"
-#include "graphar/graph_info.h"
 #include "utils/func.hpp"
+
+#include <duckdb/common/named_parameter_map.hpp>
+#include <duckdb/function/table_function.hpp>
+
+#include <graphar/api/high_level_reader.h>
+#include <graphar/graph_info.h>
 
 namespace duckdb {
 
 class TwoHopBindData final : public TableFunctionData {
 public:
     TwoHopBindData(std::shared_ptr<graphar::EdgeInfo> edge_info, std::string prefix, graphar::IdType src_id)
-        : edge_info(edge_info), prefix(prefix), src_id(src_id){};
+        : edge_info(edge_info), prefix(prefix), src_id(src_id) {};
 
     const std::shared_ptr<graphar::EdgeInfo>& GetEdgeInfo() const { return edge_info; }
     const std::string& GetPrefix() const { return prefix; }
@@ -83,14 +85,9 @@ public:
 };
 
 struct OneMoreHopGlobalTableFunctionState : public GlobalTableFunctionState {
-<<<<<<< HEAD:src/include/functions/table/hop.hpp
-   public:
-    OneMoreHopGlobalTableFunctionState(ClientContext& context, TwoHopBindData& bind_data) : state(context, bind_data){};
-=======
 public:
     OneMoreHopGlobalTableFunctionState(ClientContext& context, TwoHopBindData& bind_data)
         : state(context, bind_data) {};
->>>>>>> upstream/main:include/functions/table/hop.hpp
 
     static unique_ptr<GlobalTableFunctionState> Init(ClientContext& context, TableFunctionInitInput& input);
 

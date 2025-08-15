@@ -1,6 +1,6 @@
 #pragma once
 
-#include "duckdb/function/scalar_function.hpp"
+#include <duckdb/function/scalar_function.hpp>
 
 namespace duckdb {
 struct Bfs {

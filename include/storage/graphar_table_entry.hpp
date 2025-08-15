@@ -1,7 +1,8 @@
 #pragma once
 
-#include "duckdb/catalog/catalog_entry/table_catalog_entry.hpp"
-#include "graphar/graph_info.h"
+#include <duckdb/catalog/catalog_entry/table_catalog_entry.hpp>
+
+#include <graphar/graph_info.h>
 
 namespace duckdb {
 
@@ -25,7 +26,7 @@ public:
 
     void SetTableInfo(shared_ptr<GraphArTableInformation> table_info_) { table_info = table_info_; }
 
-   private:
+private:
     unique_ptr<SchemaCatalogEntry> schema;
     weak_ptr<GraphArTableInformation> table_info;
 };

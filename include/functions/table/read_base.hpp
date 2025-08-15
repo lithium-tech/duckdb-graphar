@@ -1,25 +1,27 @@
 #pragma once
 
-#include <cassert>
-#include <iostream>
-#include <variant>
-
-#include "arrow/c/bridge.h"
-#include "duckdb/common/named_parameter_map.hpp"
-#include "duckdb/function/table/arrow.hpp"
-#include "duckdb/function/table_function.hpp"
-#include "duckdb/main/extension_util.hpp"
-#include "graphar/api/arrow_reader.h"
-#include "graphar/api/high_level_reader.h"
-#include "graphar/arrow/chunk_reader.h"
-#include "graphar/expression.h"
-#include "graphar/fwd.h"
-#include "graphar/reader_util.h"
 #include "utils/benchmark.hpp"
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
 
+#include <arrow/c/bridge.h>
+
+#include <duckdb/common/named_parameter_map.hpp>
+#include <duckdb/function/table/arrow.hpp>
+#include <duckdb/function/table_function.hpp>
+#include <duckdb/main/extension_util.hpp>
+
+#include <graphar/api/arrow_reader.h>
+#include <graphar/api/high_level_reader.h>
+#include <graphar/arrow/chunk_reader.h>
+#include <graphar/expression.h>
+#include <graphar/fwd.h>
+#include <graphar/reader_util.h>
+
+#include <cassert>
+#include <iostream>
 #include <sstream>
+#include <variant>
 
 namespace duckdb {
 
@@ -71,7 +73,7 @@ public:
     vector<std::string>& GetFlattenPropNames() { return flatten_prop_names; }
     vector<std::string>& GetFlattenPropTypes() { return flatten_prop_types; }
 
-   private:
+private:
     vector<vector<std::string>> prop_names;
     vector<std::string> flatten_prop_names;
     vector<vector<std::string>> prop_types;
@@ -117,17 +119,12 @@ private:
 
 template <typename ReadFinal>
 class ReadBase {
-   public:
+public:
     template <typename TypeInfo>
-    requires(std::is_same_v<TypeInfo, graphar::VertexInfo> ||
-             std::is_same_v<TypeInfo, graphar::EdgeInfo>) static void SetBindData(std::shared_ptr<graphar::GraphInfo>
-                                                                                      graph_info,
-                                                                                  const TypeInfo& type_info,
-                                                                                  unique_ptr<ReadBindData>& bind_data,
-                                                                                  string function_name,
-                                                                                  idx_t columns_to_remove = 0,
-                                                                                  idx_t pg_for_id = 0,
-                                                                                  vector<string> id_columns = {}) {
+    requires(std::is_same_v<TypeInfo, graphar::VertexInfo> || std::is_same_v<TypeInfo, graphar::EdgeInfo>)
+    static void SetBindData(std::shared_ptr<graphar::GraphInfo> graph_info, const TypeInfo& type_info,
+                            unique_ptr<ReadBindData>& bind_data, string function_name, idx_t columns_to_remove = 0,
+                            idx_t pg_for_id = 0, vector<string> id_columns = {}) {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadBase::SetBindData");
         bind_data->pgs = type_info.GetPropertyGroups();
         DUCKDB_GRAPHAR_LOG_DEBUG("pgs size " + std::to_string(bind_data->pgs.size()));

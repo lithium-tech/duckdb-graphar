@@ -1,9 +1,10 @@
 
 #pragma once
 
-#include "duckdb/catalog/catalog_entry.hpp"
 #include "storage/graphar_table_entry.hpp"
 #include "storage/graphar_table_information.hpp"
+
+#include <duckdb/catalog/catalog_entry.hpp>
 
 namespace duckdb {
 struct CreateTableInfo;
@@ -27,9 +28,8 @@ public:
 
     template <typename InfoVector>
     requires(std::is_same_v<InfoVector, graphar::VertexInfoVector> ||
-             std::is_same_v<InfoVector, graphar::EdgeInfoVector>) void CreateTables(GraphArCatalog& graphar_catalog,
-                                                                                    const InfoVector& infos,
-                                                                                    GraphArTableType type);
+             std::is_same_v<InfoVector, graphar::EdgeInfoVector>)
+    void CreateTables(GraphArCatalog& graphar_catalog, const InfoVector& infos, GraphArTableType type);
 
 private:
     GraphArSchemaEntry& schema;

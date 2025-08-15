@@ -1,9 +1,10 @@
 #pragma once
 
-#include "duckdb/common/reference_map.hpp"
-#include "duckdb/transaction/transaction_manager.hpp"
 #include "storage/graphar_catalog.hpp"
 #include "storage/graphar_transaction.hpp"
+
+#include <duckdb/common/reference_map.hpp>
+#include <duckdb/transaction/transaction_manager.hpp>
 
 namespace duckdb {
 

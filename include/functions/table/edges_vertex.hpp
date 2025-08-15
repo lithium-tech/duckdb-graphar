@@ -1,9 +1,10 @@
 #pragma once
 
-#include "duckdb/common/named_parameter_map.hpp"
-#include "duckdb/function/table_function.hpp"
-#include "graphar/api/high_level_reader.h"
-#include "graphar/graph_info.h"
+#include <duckdb/common/named_parameter_map.hpp>
+#include <duckdb/function/table_function.hpp>
+
+#include <graphar/api/high_level_reader.h>
+#include <graphar/graph_info.h>
 
 namespace duckdb {
 
@@ -37,7 +38,7 @@ public:
     EdgesVertexGlobalState(ClientContext& context, EdgesVertexBindData& bind_data,
                            std::shared_ptr<graphar::EdgeInfo> edge_info, const std::string& prefix, idx_t iter,
                            idx_t end_iter)
-        : edge_info(edge_info), prefix(prefix), iter(iter), end_iter(end_iter){};
+        : edge_info(edge_info), prefix(prefix), iter(iter), end_iter(end_iter) {};
 
     const std::shared_ptr<graphar::EdgeInfo>& GetEdgeInfo() const { return edge_info; }
     const std::string& GetPrefix() const { return prefix; }
@@ -63,7 +64,7 @@ public:
     EdgesVertexGlobalTableFunctionState(ClientContext& context, EdgesVertexBindData& bind_data,
                                         std::shared_ptr<graphar::EdgeInfo> edge_info, const std::string& prefix,
                                         idx_t iter, idx_t end_iter)
-        : state(context, bind_data, edge_info, prefix, iter, end_iter){};
+        : state(context, bind_data, edge_info, prefix, iter, end_iter) {};
 
     static unique_ptr<GlobalTableFunctionState> Init(ClientContext& context, TableFunctionInitInput& input);
 
