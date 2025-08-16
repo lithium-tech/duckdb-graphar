@@ -1,8 +1,8 @@
 #pragma once
 
-#include <duckdb/catalog/catalog_entry/schema_catalog_entry.hpp>
-
 #include "storage/graphar_table_set.hpp"
+
+#include <duckdb/catalog/catalog_entry/schema_catalog_entry.hpp>
 
 namespace duckdb {
 class GraphArTransaction;

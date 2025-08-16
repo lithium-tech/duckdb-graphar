@@ -1,10 +1,10 @@
 #pragma once
 
-#include <duckdb.hpp>
 #include <duckdb/common/types.hpp>
 #include <duckdb/common/types/value.hpp>
 
 #include <chrono>
+#include <duckdb.hpp>
 #include <string>
 
 namespace duckdb {
