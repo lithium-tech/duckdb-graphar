@@ -1,6 +1,7 @@
 #include "utils/global_log_manager.hpp"
 
 #include "storage/graphar_table_entry.hpp"
+#include "storage/graphar_table_information.hpp"
 
 #include "duckdb/storage/statistics/base_statistics.hpp"
 #include "duckdb/storage/table_storage_info.hpp"
