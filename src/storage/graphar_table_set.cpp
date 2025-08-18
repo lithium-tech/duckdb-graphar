@@ -46,8 +46,9 @@ void GraphArTableSet::Scan(ClientContext& context, const std::function<void(Cata
 }
 
 template <typename InfoVector>
-requires(std::is_same_v<InfoVector, graphar::VertexInfoVector> || std::is_same_v<InfoVector, graphar::EdgeInfoVector>)
-void GraphArTableSet::CreateTables(GraphArCatalog& graphar_catalog, const InfoVector& infos, GraphArTableType type) {
+std::enable_if_t<
+    std::is_same_v<InfoVector, graphar::VertexInfoVector> || std::is_same_v<InfoVector, graphar::EdgeInfoVector>, void>
+GraphArTableSet::CreateTables(GraphArCatalog& graphar_catalog, const InfoVector& infos, GraphArTableType type) {
     DUCKDB_GRAPHAR_LOG_TRACE("GraphArTableSet::CreateTables");
 
     for (auto& info : infos) {

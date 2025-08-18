@@ -14,7 +14,7 @@ include(FetchContent)
 include(GNUInstallDirs)
 include(ExternalProject)
 
-option(BUILD_LOADABLE_EXTENSION "Build as loadable extension" ON) # Does not work as for now
+option(BUILD_LOADABLE_EXTENSION "Build as loadable extension" ON) # Did not check if loadable extension works
 option(LOAD_TESTS "Build extension tests" OFF) # Does not work as for now
 option(SHOW_LOG_STAGES "Display progress logs for each stage" ON)
 
