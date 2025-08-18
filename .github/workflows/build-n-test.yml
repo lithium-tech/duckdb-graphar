@@ -17,8 +17,8 @@ jobs:
           echo "Installing clang-format..."
           sudo apt-get install -y clang-format >/dev/null || { echo "FAILED: clang-format install"; exit 1; }
           echo -n "Checking code style... "
-          find src/ -name '*.cpp' -o -name '*.hpp' | xargs clang-format --dry-run --Werror >/dev/null 2>&1 || { echo "FAILED: Code style check"; exit 1; }
-          find include/ -name '*.cpp' -o -name '*.hpp' | xargs clang-format --dry-run --Werror >/dev/null 2>&1 || { echo "FAILED: Code style check"; exit 1; }
+          find src/ -name '*.cpp' -o -name '*.hpp' | xargs clang-format --dry-run --Werror || { echo "FAILED: Code style check"; exit 1; }
+          find include/ -name '*.cpp' -o -name '*.hpp' | xargs clang-format --dry-run --Werror || { echo "FAILED: Code style check"; exit 1; }
           echo "OK"
 
       - name: Cache Dependencies
