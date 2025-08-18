@@ -121,10 +121,15 @@ template <typename ReadFinal>
 class ReadBase {
 public:
     template <typename TypeInfo>
-    requires(std::is_same_v<TypeInfo, graphar::VertexInfo> || std::is_same_v<TypeInfo, graphar::EdgeInfo>)
-    static void SetBindData(std::shared_ptr<graphar::GraphInfo> graph_info, const TypeInfo& type_info,
-                            unique_ptr<ReadBindData>& bind_data, string function_name, idx_t columns_to_remove = 0,
-                            idx_t pg_for_id = 0, vector<string> id_columns = {}) {
+    requires(std::is_same_v<TypeInfo, graphar::VertexInfo> ||
+             std::is_same_v<TypeInfo, graphar::EdgeInfo>) static void SetBindData(std::shared_ptr<graphar::GraphInfo>
+                                                                                      graph_info,
+                                                                                  const TypeInfo& type_info,
+                                                                                  unique_ptr<ReadBindData>& bind_data,
+                                                                                  string function_name,
+                                                                                  idx_t columns_to_remove = 0,
+                                                                                  idx_t pg_for_id = 0,
+                                                                                  vector<string> id_columns = {}) {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadBase::SetBindData");
         bind_data->pgs = type_info.GetPropertyGroups();
         DUCKDB_GRAPHAR_LOG_DEBUG("pgs size " + std::to_string(bind_data->pgs.size()));
