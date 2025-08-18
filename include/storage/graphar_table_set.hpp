@@ -27,8 +27,9 @@ public:
     void FillEntry(ClientContext& context, GraphArTableInformation& table);
 
     template <typename InfoVector>
-    std::enable_if_t<
-    std::is_same_v<InfoVector, graphar::VertexInfoVector> || std::is_same_v<InfoVector, graphar::EdgeInfoVector>, void>
+    std::enable_if_t<std::is_same_v<InfoVector, graphar::VertexInfoVector> ||
+                         std::is_same_v<InfoVector, graphar::EdgeInfoVector>,
+                     void>
     CreateTables(GraphArCatalog& graphar_catalog, const InfoVector& infos, GraphArTableType type);
 
 private:
