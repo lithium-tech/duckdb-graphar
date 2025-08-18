@@ -1,6 +1,5 @@
 #pragma once
 
-#include <duckdb.hpp>
 #include <duckdb/catalog/catalog.hpp>
 #include <duckdb/catalog/entry_lookup_info.hpp>
 #include <duckdb/common/common.hpp>
@@ -9,6 +8,8 @@
 #include <duckdb/main/client_data.hpp>
 
 #include <graphar/graph_info.h>
+
+#include <duckdb.hpp>
 
 namespace duckdb {
 class GraphArSchemaEntry;
