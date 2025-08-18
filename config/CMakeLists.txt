@@ -28,7 +28,9 @@ set(EXTENSION_INCLUDES
     # $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
 )
 target_include_directories(graphar_duck_extension PUBLIC ${EXTENSION_INCLUDES} $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
-target_include_directories(graphar_duck_loadable_extension PUBLIC ${EXTENSION_INCLUDES} $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+if (BUILD_LOADABLE_EXTENSION)
+    target_include_directories(graphar_duck_loadable_extension PUBLIC ${EXTENSION_INCLUDES} $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+endif()
 
 target_link_libraries(graphar_duck_extension
     duckdb_static

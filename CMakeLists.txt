@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.20...3.50)
 project(graphar_duck)
 string(TOUPPER ${PROJECT_NAME} PROJECT_NAME_UPPERCASE)
 set(EXTENSION_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR} CACHE STRING "Extension root directory")
@@ -14,7 +14,7 @@ include(FetchContent)
 include(GNUInstallDirs)
 include(ExternalProject)
 
-option(BUILD_LOADABLE_EXTENSION "Build as loadable extension" OFF) # Does not work as for now
+option(BUILD_LOADABLE_EXTENSION "Build as loadable extension" ON) # Does not work as for now
 option(LOAD_TESTS "Build extension tests" OFF) # Does not work as for now
 option(SHOW_LOG_STAGES "Display progress logs for each stage" ON)
 
@@ -67,6 +67,8 @@ ExternalProject_Add(
     -DARROW_WITH_LZ4=OFF
     -DARROW_WITH_SNAPPY=ON
     -DARROW_CSV=ON
+    -DARROW_GANDIVA=OFF
+    -DARROW_TESTING=OFF
     -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/arrow-install
   BUILD_ALWAYS OFF
   INSTALL_DIR ${CMAKE_BINARY_DIR}/arrow-install
@@ -110,6 +112,23 @@ set_target_properties(graphar::graphar_shared PROPERTIES
 )
 
 add_dependencies(graphar::graphar_shared graphar arrow)
+
+# Set paths for shared libraries
+set(ARROW_LIB_DIR "${CMAKE_BINARY_DIR}/arrow-install/lib")
+set(GRAPHAR_LIB_DIR "${CMAKE_BINARY_DIR}/graphar-install/lib")
+
+set(CMAKE_BUILD_RPATH
+    "@loader_path"
+    "${GRAPHAR_LIB_DIR}"
+    "${ARROW_LIB_DIR}"
+)
+set(CMAKE_INSTALL_RPATH
+    "@loader_path"
+    "${GRAPHAR_LIB_DIR}"
+    "${ARROW_LIB_DIR}"
+)
+set(CMAKE_SKIP_BUILD_RPATH FALSE)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 
 log_done()
 
