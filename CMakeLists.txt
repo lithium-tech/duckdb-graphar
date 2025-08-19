@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.20...3.50)
+
 project(graphar_duck)
 string(TOUPPER ${PROJECT_NAME} PROJECT_NAME_UPPERCASE)
 set(EXTENSION_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR} CACHE STRING "Extension root directory")
@@ -15,12 +16,12 @@ include(GNUInstallDirs)
 include(ExternalProject)
 
 option(BUILD_LOADABLE_EXTENSION "Build as loadable extension" ON) # Did not check if loadable extension works
-option(LOAD_TESTS "Build extension tests" OFF) # Does not work as for now
+option(LOAD_TESTS "Build extension tests" OFF)
 option(SHOW_LOG_STAGES "Display progress logs for each stage" ON)
 
-# # =============================================
-# # Progress Reporting Functions
-# # =============================================
+# =============================================
+# Progress Reporting Functions
+# =============================================
 function(log_stage MESSAGE)
     if(SHOW_LOG_STAGES)
         message(STATUS ">>> [${PROJECT_NAME}] ${MESSAGE}")
@@ -107,8 +108,6 @@ add_library(graphar::graphar_shared SHARED IMPORTED GLOBAL)
 
 set_target_properties(graphar::graphar_shared PROPERTIES
   IMPORTED_LOCATION "${CMAKE_BINARY_DIR}/graphar-install/lib/libgraphar${CMAKE_SHARED_LIBRARY_SUFFIX}"
-  # INTERFACE_INCLUDE_DIRECTORIES ${graphar_SOURCE_DIR}/graphar-install/include
-  INTERFACE_LINK_LIBRARIES arrow::arrow_shared
 )
 
 add_dependencies(graphar::graphar_shared graphar arrow)
@@ -122,11 +121,13 @@ set(CMAKE_BUILD_RPATH
     "${GRAPHAR_LIB_DIR}"
     "${ARROW_LIB_DIR}"
 )
+
 set(CMAKE_INSTALL_RPATH
     "@loader_path"
     "${GRAPHAR_LIB_DIR}"
     "${ARROW_LIB_DIR}"
 )
+
 set(CMAKE_SKIP_BUILD_RPATH FALSE)
 set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 
@@ -140,7 +141,6 @@ set(BUILD_UNITTESTS OFF CACHE BOOL "")
 set(ENABLE_SANITIZER OFF CACHE BOOL "")
 set(ENABLE_UBSAN OFF CACHE BOOL "")
 set(DISABLE_VPTR_SANITIZER ON CACHE BOOL "")
-# set(SKIP_EXTENSIONS "graphar_duck")
 
 FetchContent_Declare(
     duckdb

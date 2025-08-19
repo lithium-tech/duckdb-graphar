@@ -19,14 +19,13 @@ set(arrow_SOURCE_DIR "${CMAKE_BINARY_DIR}/_deps/arrow-src")
 
 set(EXTENSION_INCLUDES
      $<BUILD_INTERFACE:${EXTENSION_ROOT_DIR}/include>
-    $<BUILD_INTERFACE:${graphar_SOURCE_DIR}/cpp/thirdparty>  # GraphAr thirdparty
-    $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/graphar-install/include>  # GraphAr main includes (?)
-    # $<BUILD_INTERFACE:${graphar_BINARY_DIR}/cpp/src>
-     $<BUILD_INTERFACE:${duckdb_SOURCE_DIR}/src/include>  # DuckDB internal (?)
-    $<BUILD_INTERFACE:${arrow_SOURCE_DIR}/cpp/src>  # Arrow main includes (?)
-    $<BUILD_INTERFACE:${arrow_BINARY_DIR}/cpp/src>  # Generated Arrow headers (?)
-    # $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+    $<BUILD_INTERFACE:${graphar_SOURCE_DIR}/cpp/thirdparty>
+    $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/graphar-install/include>
+    $<BUILD_INTERFACE:${duckdb_SOURCE_DIR}/src/include>
+    $<BUILD_INTERFACE:${arrow_SOURCE_DIR}/cpp/src>
+    $<BUILD_INTERFACE:${arrow_BINARY_DIR}/cpp/src>
 )
+
 target_include_directories(graphar_duck_extension PUBLIC ${EXTENSION_INCLUDES} $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 if (BUILD_LOADABLE_EXTENSION)
     target_include_directories(graphar_duck_loadable_extension PUBLIC ${EXTENSION_INCLUDES} $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
