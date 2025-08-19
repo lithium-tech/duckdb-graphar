@@ -45,6 +45,7 @@ jobs:
               sudo apt-get install -y --no-install-recommends \
                 build-essential \
                 cmake \
+                curl \
                 zlib1g-dev \
                 libzstd-dev \
                 libsnappy-dev \
@@ -54,6 +55,8 @@ jobs:
             deps_command: |
               brew update
               brew install cmake zlib zstd snappy ccache
+              brew install cmake@3.30.2
+              brew link --overwrite cmake@3.30.2
 
     steps:
       - name: Checkout Repository

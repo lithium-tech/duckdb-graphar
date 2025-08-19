@@ -1,7 +1,6 @@
-cmake_minimum_required(VERSION 3.20...3.50)
+cmake_minimum_required(VERSION 3.20)
 
 project(graphar_duck)
-string(TOUPPER ${PROJECT_NAME} PROJECT_NAME_UPPERCASE)
 set(EXTENSION_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR} CACHE STRING "Extension root directory")
 
 # =============================================
@@ -15,7 +14,7 @@ include(FetchContent)
 include(GNUInstallDirs)
 include(ExternalProject)
 
-option(BUILD_LOADABLE_EXTENSION "Build as loadable extension" ON) # Did not check if loadable extension works
+option(BUILD_LOADABLE_EXTENSION "Build as loadable extension" ON)
 option(LOAD_TESTS "Build extension tests" OFF)
 option(SHOW_LOG_STAGES "Display progress logs for each stage" ON)
 
@@ -155,4 +154,4 @@ log_stage("Building DuckDB")
 FetchContent_MakeAvailable(duckdb)
 log_done()
 
-# The rest is in config/CMakeLists.txt
+# The rest is in config/CMakeLists.txt by duck!
