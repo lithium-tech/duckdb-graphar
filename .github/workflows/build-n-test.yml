@@ -42,13 +42,15 @@ jobs:
             ccache_dir: ~/.ccache
             deps_command: |
               sudo apt-get update -qq
+              wget -qO- https://apt.llvm.org/llvm.sh | sudo bash -s -- 19
               sudo apt-get install -y --no-install-recommends \
                 build-essential \
                 cmake \
                 zlib1g-dev \
                 libzstd-dev \
                 libsnappy-dev \
-                ccache
+                ccache \
+                clang-format-19
           - os: macos-latest
             ccache_dir: ~/Library/Caches/ccache
             deps_command: |
@@ -69,7 +71,7 @@ jobs:
           echo "::group::Installing clang-format"
           sudo apt-get install -y clang-format
           echo "::endgroup::"
-          find src/ include/ -name '*.cpp' -o -name '*.hpp' | xargs clang-format --dry-run --Werror
+          find src/ include/ -name '*.cpp' -o -name '*.hpp' | xargs clang-format-19 --dry-run --Werror
 
       - name: Set up ccache
         run: |
