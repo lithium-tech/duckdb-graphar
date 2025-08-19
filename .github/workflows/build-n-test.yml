@@ -46,6 +46,7 @@ jobs:
                 build-essential \
                 cmake \
                 curl \
+                libcurl4-openssl-dev \
                 zlib1g-dev \
                 libzstd-dev \
                 libsnappy-dev \
@@ -54,9 +55,12 @@ jobs:
             ccache_dir: ~/Library/Caches/ccache
             deps_command: |
               brew update
-              brew install cmake zlib zstd snappy ccache
-              brew install cmake@3.30.2
-              brew link --overwrite cmake@3.30.2
+              brew install curl zlib zstd snappy ccache
+              brew install cmake
+              brew extract --version=3.31.6 cmake homebrew/cask
+              brew install cmake@3.31.6
+              brew link --overwrite cmake@3.31.6
+              cmake --version
 
     steps:
       - name: Checkout Repository
