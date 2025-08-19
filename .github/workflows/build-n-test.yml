@@ -68,13 +68,14 @@ jobs:
         run: |
           echo "::group::Installing CLang Format"
           sudo apt-get update
-          sudo apt-get install clang-format-18
+          sudo apt-get install clang-format-19
           echo "::endgroup::"
 
       - name: Check C++ Code Style
+        if: matrix.os == 'ubuntu-latest'
         run: |
           echo "::group::Checking C++ Code Style"
-          find src/ include/ -name '*.cpp' -o -name '*.hpp' | xargs clang-format-18 --dry-run --Werror
+          find src/ include/ -name '*.cpp' -o -name '*.hpp' | xargs clang-format-19 --dry-run --Werror
           echo "::endgroup::"
 
       - name: Set up ccache
