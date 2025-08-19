@@ -11,7 +11,7 @@ jobs:
   pr-title-check:
     name: PR Title Check
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Check PR Title
@@ -36,9 +36,9 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-22.04, macos-15]
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             ccache_dir: ~/.ccache
             deps_command: |
               sudo apt-get update -qq
@@ -52,21 +52,18 @@ jobs:
                 libsnappy-dev \
                 ccache
 
-          - os: macos-latest
+          - os: macos-15
             ccache_path: /opt/homebrew/opt/ccache/libexec
             deps_command: |
               brew update
               brew install curl ccache
-              echo "LDFLAGS=\"-L/opt/homebrew/opt/zlib/lib\"" >> $GITHUB_ENV
-              echo "CPPFLAGS=\"-I/opt/homebrew/opt/zlib/include\"" >> $GITHUB_ENV
-              echo "PKG_CONFIG_PATH=\"/opt/homebrew/opt/zlib/lib/pkgconfig\"" >> $GITHUB_ENV
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Install clang-format
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-22.04'
         run: |
           echo "::group::Installing CLang Format"
           sudo apt-get update
@@ -74,7 +71,7 @@ jobs:
           echo "::endgroup::"
 
       - name: Check C++ Code Style
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-22.04'
         run: |
           echo "::group::Checking C++ Code Style"
           find src/ include/ -name '*.cpp' -o -name '*.hpp' | xargs clang-format-19 --dry-run --Werror
@@ -83,9 +80,9 @@ jobs:
       - name: Set up ccache
         run: |
           echo "CCACHE_DIR=${{ matrix.ccache_dir }}" >> $GITHUB_ENV
-          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+          if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
             echo "/usr/lib/ccache" >> $GITHUB_PATH
-          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
+          elif [ "${{ matrix.os }}" = "macos-15" ]; then
             echo "/usr/local/opt/ccache/libexec" >> $GITHUB_PATH
           fi
 
