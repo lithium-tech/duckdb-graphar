@@ -1,45 +1,119 @@
 name: CI/CD Pipeline
 
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    types: [opened, edited, synchronize]
+  workflow_dispatch:
 
 jobs:
+  pr-title-check:
+    name: PR Title Check
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check PR Title
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const title = context.payload.pull_request.title;
+            const pattern = /(^[mM]erge\s.*$)|(^[rR]evert\s.*$)|(^BREAKING CHANGE:.*$)|(^MINOR\s.*$)|(^(\w+)(?:\(([\w\$\.\-\*\s]+)\))?\:\s(.+)$)/;
+            if (!pattern.test(title)) {
+              core.setFailed(`PR title "${title}" doesn't match required format. Please use one of:
+              - Conventional commit format: "type(scope): description"
+              - Merge format: "Merge ..."
+              - Revert format: "Revert ..."
+              - Breaking change: "BREAKING CHANGE: description"
+              - Minor change: "MINOR description"`);
+            }
+
   build:
-    name: Build and Test (Ubuntu)
-    runs-on: ubuntu-22.04
+    name: ${{ matrix.os }} Build and Test
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            ccache_dir: ~/.ccache
+            deps_command: |
+              sudo apt-get update -qq
+              sudo apt-get install -y --no-install-recommends \
+                build-essential \
+                cmake \
+                curl \
+                libcurl4-openssl-dev \
+                zlib1g-dev \
+                libzstd-dev \
+                libsnappy-dev \
+                ccache
+
+          - os: macos-latest
+            ccache_path: /opt/homebrew/opt/ccache/libexec
+            deps_command: |
+              brew update
+              brew install curl ccache
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Check C++ Code Style
+      - name: Install clang-format
+        if: matrix.os == 'ubuntu-latest'
         run: |
-          echo "Installing clang-format..."
-          sudo apt-get install -y clang-format >/dev/null || { echo "FAILED: clang-format install"; exit 1; }
-          echo -n "Checking code style... "
-          find src/ -name '*.cpp' -o -name '*.hpp' | xargs clang-format --dry-run --Werror || { echo "FAILED: Code style check"; exit 1; }
-          find include/ -name '*.cpp' -o -name '*.hpp' | xargs clang-format --dry-run --Werror || { echo "FAILED: Code style check"; exit 1; }
-          echo "OK"
+          echo "::group::Installing CLang Format"
+          sudo apt-get update
+          sudo apt-get install clang-format-19
+          echo "::endgroup::"
+
+      - name: Check C++ Code Style
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          echo "::group::Checking C++ Code Style"
+          find src/ include/ -name '*.cpp' -o -name '*.hpp' | xargs clang-format-19 --dry-run --Werror
+          echo "::endgroup::"
+
+      - name: Set up ccache
+        run: |
+          echo "CCACHE_DIR=${{ matrix.ccache_dir }}" >> $GITHUB_ENV
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            echo "/usr/lib/ccache" >> $GITHUB_PATH
+          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
+            echo "/usr/local/opt/ccache/libexec" >> $GITHUB_PATH
+          fi
 
       - name: Cache Dependencies
         uses: actions/cache@v4
         with:
           path: |
-            ~/.ccache
+            ${{ matrix.ccache_dir }}
             build/_deps
-          key: ${{ runner.os }}-${{ env.BUILD_TYPE }}-deps-${{ hashFiles('CMakeLists.txt') }}
+          key: ${{ runner.os }}-deps-${{ hashFiles('CMakeLists.txt') }}
           restore-keys: |
-            ${{ runner.os }}-${{ env.BUILD_TYPE }}-deps-
+            ${{ runner.os }}-deps-
 
       - name: Install System Dependencies
         run: |
-          echo -n "Installing dependencies..."
-          sudo apt-get update -qq || { echo "FAILED: apt update"; exit 1; }
-          sudo apt-get install -y --no-install-recommends \
-            build-essential \
-            cmake \
-            zlib1g-dev \
-            libzstd-dev \
-            libsnappy-dev \
-            ccache >/dev/null || { echo "FAILED: Dependency install"; exit 1; }
-          echo "OK"
+          echo "::group::Installing dependencies"
+          ${{ matrix.deps_command }}
+          echo "::endgroup::"
+
+      - name: Configure CMake
+        run: |
+          mkdir -p build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release ..
+
+      - name: Build
+        run: |
+          cd build
+          make -j$(getconf _NPROCESSORS_ONLN)
+
+      - name: Show Build Summary
+        run: |
+          echo "Build succeeded on ${{ matrix.os }}"
+          ccache -s
