@@ -55,22 +55,13 @@ jobs:
             ccache_dir: ~/Library/Caches/ccache
             deps_command: |
               brew update
-              brew install curl zlib zstd snappy ccache
-              brew install cmake
-              brew extract --version=3.31.6 cmake homebrew/cask
-              brew install cmake@3.31.6
-              brew link --overwrite cmake@3.31.6
               cmake --version
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install Xcode CLI Tools (macOS)
-        if: matrix.os == 'macos-latest'
-        run: xcode-select --install || true
-
-      - name: Install Latest clang-format (Ubuntu)
+      - name: Install clang-format (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
         run: |
           echo "::group::Installing CLang Format"
