@@ -42,15 +42,13 @@ jobs:
             ccache_dir: ~/.ccache
             deps_command: |
               sudo apt-get update -qq
-              wget -qO- https://apt.llvm.org/llvm.sh | sudo bash -s -- 19
               sudo apt-get install -y --no-install-recommends \
                 build-essential \
                 cmake \
                 zlib1g-dev \
                 libzstd-dev \
                 libsnappy-dev \
-                ccache \
-                clang-format-19
+                ccache
           - os: macos-latest
             ccache_dir: ~/Library/Caches/ccache
             deps_command: |
@@ -65,13 +63,19 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: xcode-select --install || true
 
-      - name: Check C++ Code Style (Ubuntu)
+      - name: Install Latest clang-format (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          echo "::group::Installing clang-format"
-          sudo apt-get install -y clang-format
+          echo "::group::Installing LLVM 19"
+          wget -qO- https://apt.llvm.org/llvm.sh | sudo bash -s -- 19
+          sudo apt-get install -y clang-format-19
           echo "::endgroup::"
+
+      - name: Check C++ Code Style
+        run: |
+          echo "::group::Checking C++ Code Style"
           find src/ include/ -name '*.cpp' -o -name '*.hpp' | xargs clang-format-19 --dry-run --Werror
+          echo "::endgroup::"
 
       - name: Set up ccache
         run: |
