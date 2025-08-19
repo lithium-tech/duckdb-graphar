@@ -66,15 +66,15 @@ jobs:
       - name: Install Latest clang-format (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          echo "::group::Installing LLVM 19"
-          wget -qO- https://apt.llvm.org/llvm.sh | sudo bash -s -- 19
-          sudo apt-get install -y clang-format-19
+          echo "::group::Installing CLang Format"
+          sudo apt-get update
+          sudo apt-get install clang-format-18
           echo "::endgroup::"
 
       - name: Check C++ Code Style
         run: |
           echo "::group::Checking C++ Code Style"
-          find src/ include/ -name '*.cpp' -o -name '*.hpp' | xargs clang-format --dry-run --Werror
+          find src/ include/ -name '*.cpp' -o -name '*.hpp' | xargs clang-format-18 --dry-run --Werror
           echo "::endgroup::"
 
       - name: Set up ccache
