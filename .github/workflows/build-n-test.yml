@@ -51,17 +51,21 @@ jobs:
                 libzstd-dev \
                 libsnappy-dev \
                 ccache
+
           - os: macos-latest
-            ccache_dir: ~/Library/Caches/ccache
+            ccache_path: /opt/homebrew/opt/ccache/libexec
             deps_command: |
               brew update
-              cmake --version
+              brew install curl ccache
+              echo "LDFLAGS=\"-L/opt/homebrew/opt/zlib/lib\"" >> $GITHUB_ENV
+              echo "CPPFLAGS=\"-I/opt/homebrew/opt/zlib/include\"" >> $GITHUB_ENV
+              echo "PKG_CONFIG_PATH=\"/opt/homebrew/opt/zlib/lib/pkgconfig\"" >> $GITHUB_ENV
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install clang-format (Ubuntu)
+      - name: Install clang-format
         if: matrix.os == 'ubuntu-latest'
         run: |
           echo "::group::Installing CLang Format"

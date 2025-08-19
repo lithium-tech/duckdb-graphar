@@ -154,4 +154,4 @@ log_stage("Building DuckDB")
 FetchContent_MakeAvailable(duckdb)
 log_done()
 
-# The rest is in config/CMakeLists.txt by duck!
+# The next part of build is in config/CMakeLists.txt
