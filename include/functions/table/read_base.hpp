@@ -58,6 +58,8 @@ static graphar::Status seek_vid(Reader& reader, graphar::IdType vid, std::string
                     return r.seek_src(vid);
                 } else if (filter_column == DST_GID_COLUMN) {
                     return r.seek_dst(vid);
+                } else {
+                    return graphar::Status::TypeError("unknown filter_column value");
                 }
             } else {
                 return graphar::Status::TypeError("seek_vid is not implemented for this type of reader");
