@@ -48,6 +48,24 @@ static graphar::Status seek_chunk_index(Reader& reader, graphar::IdType vertex_c
         reader);
 }
 
+static graphar::Status seek_vid(Reader& reader, graphar::IdType vid, std::string& filter_column) {
+    return std::visit(
+        [&](auto& r) {
+            if (filter_column == GID_COLUMN_INTERNAL) {
+                return r.seek(vid);
+            } else if constexpr ( requires { r.seek_src(vid); }) {
+                if (filter_column == SRC_GID_COLUMN) {
+                    return r.seek_src(vid);
+                }  else if (filter_column == DST_GID_COLUMN) {
+                    return r.seek_dst(vid);
+                }
+            } else {
+                return graphar::Status::TypeError("seek_vid is not implemented for this type of reader");
+            }
+        },
+        reader);
+}
+
 static void Filter(Reader& reader, graphar::util::Filter filter) {
     return std::visit(
         [&](auto& r) {
@@ -348,43 +366,37 @@ public:
         DUCKDB_GRAPHAR_LOG_DEBUG("Chunk " + std::to_string(gstate.chunk_count) + ": Begin iteration");
 
         idx_t num_rows = STANDARD_VECTOR_SIZE;
-        for (idx_t i = 0; i < gstate.readers.size(); i++) {
-            if (gstate.indices[i][0] == gstate.sizes[i][0] and
-                gstate.chunk_ids[i][0] + 1 == gstate.tables[i]->column(0)->num_chunks()) {
-                if (not next_chunk(*gstate.readers[i]).ok()) {
-                    num_rows = 0;
-                    break;
-                }
-            }
-        }
-        if (num_rows > 0) {
-            for (idx_t i = 0; i < gstate.readers.size(); i++) {
-                for (int prop_i = 0; prop_i < gstate.prop_names[i].size(); ++prop_i) {
-                    if (gstate.indices[i][prop_i] == gstate.sizes[i][prop_i]) {
-                        gstate.chunk_ids[i][prop_i]++;
-                        if (gstate.tables[i]->column(prop_i)->num_chunks() == gstate.chunk_ids[i][prop_i]) {
-                            auto result = NextChunk(gstate.readers[i], gstate.first_chunk[i], gstate);
-                            assert(!result.has_error());
-                            gstate.tables[i] = result.value();
-                            for (int prop_ii = 0; prop_ii < gstate.prop_names[i].size(); ++prop_ii) {
-                                gstate.chunk_ids[i][prop_ii] = 0;
-                                gstate.sizes[i][prop_ii] =
-                                    gstate.tables[i]->column(prop_ii)->chunk(gstate.chunk_ids[i][prop_ii])->length();
-                                gstate.indices[i][prop_ii] = 0;
-                            }
-                        } else {
-                            gstate.sizes[i][prop_i] =
-                                gstate.tables[i]->column(prop_i)->chunk(gstate.chunk_ids[i][prop_i])->length();
-                            gstate.indices[i][prop_i] = 0;
+        for (idx_t i = 0; i < gstate.readers.size() && num_rows; i++) {
+            for (int prop_i = 0; prop_i < gstate.prop_names[i].size(); ++prop_i) {
+                if (gstate.indices[i][prop_i] == gstate.sizes[i][prop_i]) {
+                    gstate.chunk_ids[i][prop_i]++;
+                    if (gstate.tables[i]->column(prop_i)->num_chunks() == gstate.chunk_ids[i][prop_i]) {
+                        auto result = NextChunk(gstate.readers[i], gstate.first_chunk[i], gstate);
+                        if (result.has_error()) {
+                            num_rows = 0;
+                            break;
                         }
+                        gstate.tables[i] = result.value();
+                        for (int prop_ii = 0; prop_ii < gstate.prop_names[i].size(); ++prop_ii) {
+                            gstate.chunk_ids[i][prop_ii] = 0;
+                            gstate.sizes[i][prop_ii] =
+                                gstate.tables[i]->column(prop_ii)->chunk(gstate.chunk_ids[i][prop_ii])->length();
+                            gstate.indices[i][prop_ii] = 0;
+                        }
+                    } else {
+                        gstate.sizes[i][prop_i] =
+                            gstate.tables[i]->column(prop_i)->chunk(gstate.chunk_ids[i][prop_i])->length();
+                        gstate.indices[i][prop_i] = 0;
                     }
                 }
-                for (int prop_i = 0; prop_i < gstate.prop_names[i].size(); ++prop_i) {
-                    num_rows = std::min(num_rows, gstate.sizes[i][prop_i] - gstate.indices[i][prop_i]);
-                }
             }
-            DUCKDB_GRAPHAR_LOG_DEBUG("num rows final: " + std::to_string(num_rows));
+            for (int prop_i = 0; prop_i < gstate.prop_names[i].size(); ++prop_i) {
+                num_rows = std::min(num_rows, gstate.sizes[i][prop_i] - gstate.indices[i][prop_i]);
+            }
+        }
+        DUCKDB_GRAPHAR_LOG_DEBUG("num rows final: " + std::to_string(num_rows));
 
+        if (num_rows > 0) {
             auto fake_wrapper = make_uniq<ArrowArrayWrapper>();
             fake_wrapper->arrow_array.length = num_rows;
             fake_wrapper->arrow_array.release = release_children_only;
@@ -398,9 +410,9 @@ public:
                     gstate.ptrs[i][prop_i] = std::make_shared<ArrowArray>();
                     gstate.ptrs[i][prop_i]->release = release_children_only;
                     auto raw_arr_ptr = gstate.tables[i]
-                                           ->column(prop_i)
-                                           ->chunk(gstate.chunk_ids[i][prop_i])
-                                           ->Slice(gstate.indices[i][prop_i], num_rows);
+                                        ->column(prop_i)
+                                        ->chunk(gstate.chunk_ids[i][prop_i])
+                                        ->Slice(gstate.indices[i][prop_i], num_rows);
                     arrow::Status status = arrow::ExportArray(*raw_arr_ptr, gstate.ptrs[i][prop_i].get(), nullptr);
                     assert(status.ok());
 

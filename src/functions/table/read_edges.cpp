@@ -125,13 +125,16 @@ void ReadEdges::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData
         throw NotImplementedException("Only src and dst filters are supported");
     }
     graphar::IdType vid = std::stoll(filter_value);
+    if (vid < 0 || vid >= bind_data.graph_info->VertexInfoNum()) {
+        throw BinderException("Vertex id out of range");
+    }
     offset_reader->seek(vid);
     for (idx_t i = 0; i < gstate.readers.size(); ++i) {
-        seek_chunk_index(*gstate.readers[i], offset_reader->GetChunkIndex());
+        seek_vid(*gstate.readers[i], vid, filter_column);
     }
     auto offset_arr = offset_reader->GetChunk().value();
-    gstate.filter_range.first = GetInt64Value(offset_arr, 0);
-    gstate.filter_range.second = GetInt64Value(offset_arr, 1);
+    gstate.filter_range.first = 0;
+    gstate.filter_range.second = GetInt64Value(offset_arr, 1) - GetInt64Value(offset_arr, 0);
 }
 //-------------------------------------------------------------------
 // GetFunction

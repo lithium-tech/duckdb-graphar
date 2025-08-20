@@ -13,6 +13,12 @@ SELECT * FROM read_vertices('__WORKING_DIRECTORY__/test/data/git/Git.yaml', type
 0
 
 query II
+SELECT * FROM read_vertices('__WORKING_DIRECTORY__/test/data/soc-LiveJournal1/LiveJournal.yaml', type='Person') WHERE _graphArVertexIndex=1000000;
+----
+1000000
+1000000
+
+query II
 SELECT * FROM read_vertices('__WORKING_DIRECTORY__/test/data/git/Git.yaml', type='Person') WHERE hash_phone_no=42;
 ----
 42
