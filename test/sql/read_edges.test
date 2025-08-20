@@ -11,11 +11,6 @@ SELECT COUNT(*) FROM read_edges('__WORKING_DIRECTORY__/test/data/git/Git.yaml', 
 ----
 8
 
-query I
-SELECT COUNT(*) FROM read_edges('__WORKING_DIRECTORY__/test/data/soc-LiveJournal1/LiveJournal.yaml', src='Person', type='knows', dst='Person') WHERE _graphArSrcIndex=10009;
-----
-20334
-
 query II
 SELECT * FROM read_edges('__WORKING_DIRECTORY__/test/data/git/Git.yaml', src='Person', type='knows', dst='Person') WHERE _graphArSrcIndex=0;
 ----

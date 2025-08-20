@@ -1,8 +1,0 @@
-edges: 
-  - Person_knows_Person.edge.yaml
-name: LiveJournal
-
-version: gar/v1
-vertices: 
-  - Person.vertex.yaml
-
