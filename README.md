@@ -1,5 +1,6 @@
-> **Disclaimer:** This extension is currently in an experimental state.
-> Feel free to try it out, but be aware that things may not work as expected
+> **Disclaimer:**  This extension is currently in an **experimental state**.
+> While functional, it may contain unstable features, unexpected behavior, or breaking changes in future releases.
+> Use with appropriate caution in non-production environments.
 
 # DuckDB <img src="docs/logo.png" alt="DuckDB-GraphAr" width="28" height="28"/> GraphAr
 

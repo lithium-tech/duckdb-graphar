@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(graphar_duck)
+project(duckdb_graphar)
 set(EXTENSION_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR} CACHE STRING "Extension root directory")
 
 # =============================================
@@ -14,7 +14,6 @@ include(FetchContent)
 include(GNUInstallDirs)
 include(ExternalProject)
 
-option(BUILD_LOADABLE_EXTENSION "Build as loadable extension" ON)
 option(LOAD_TESTS "Build extension tests" OFF)
 option(SHOW_LOG_STAGES "Display progress logs for each stage" ON)
 
@@ -36,12 +35,22 @@ endfunction()
 # =============================================
 # Dependency Management
 # =============================================
+set(DEPS_INSTALL_DIR ${CMAKE_BINARY_DIR}/_deps)
+set(ARROW_INSTALL_DIR ${DEPS_INSTALL_DIR}/arrow-install)
+set(GRAPHAR_INSTALL_DIR ${DEPS_INSTALL_DIR}/graphar-install)
+
+set(ARROW_PREFIX_DIR ${DEPS_INSTALL_DIR}/arrow-prefix)
+set(GRAPHAR_PREFIX_DIR ${DEPS_INSTALL_DIR}/graphar-prefix)
+
+set(ARROW_LIB_DIR ${ARROW_INSTALL_DIR}/lib)
+set(GRAPHAR_LIB_DIR ${GRAPHAR_INSTALL_DIR}/lib)
 
 # Arrow
 log_stage("Configuring Apache Arrow...")
 
 ExternalProject_Add(
   arrow
+  PREFIX ${ARROW_PREFIX_DIR}
   GIT_REPOSITORY https://github.com/apache/arrow.git
   GIT_TAG apache-arrow-17.0.0
   SOURCE_SUBDIR cpp
@@ -53,6 +62,7 @@ ExternalProject_Add(
     -DARROW_BUILD_BENCHMARKS=OFF
     -DARROW_BUILD_EXAMPLES=OFF
     -DARROW_DEPENDENCY_SOURCE=BUNDLED
+    -DARROW_OPTIONAL_INSTALL=ON
     -DARROW_COMPUTE=ON
     -DARROW_DATASET=ON
     -DARROW_FILESYSTEM=ON
@@ -69,17 +79,17 @@ ExternalProject_Add(
     -DARROW_CSV=ON
     -DARROW_GANDIVA=OFF
     -DARROW_TESTING=OFF
-    -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/arrow-install
+    -DCMAKE_INSTALL_PREFIX=${ARROW_INSTALL_DIR}
   BUILD_ALWAYS OFF
-  INSTALL_DIR ${CMAKE_BINARY_DIR}/arrow-install
+  INSTALL_DIR ${ARROW_INSTALL_DIR}
 )
 
 add_library(arrow::arrow_shared SHARED IMPORTED GLOBAL)
 
-file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/arrow-install/include")
+file(MAKE_DIRECTORY "${ARROW_INSTALL_DIR}/include")
 set_target_properties(arrow::arrow_shared PROPERTIES
-  IMPORTED_LOCATION "${CMAKE_BINARY_DIR}/arrow-install/lib/libarrow${CMAKE_SHARED_LIBRARY_SUFFIX}"
-  INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_BINARY_DIR}/arrow-install/include
+  IMPORTED_LOCATION "${ARROW_LIB_DIR}/libarrow${CMAKE_SHARED_LIBRARY_SUFFIX}"
+  INTERFACE_INCLUDE_DIRECTORIES ${ARROW_INSTALL_DIR}/include
 )
 
 add_dependencies(arrow::arrow_shared arrow)
@@ -90,31 +100,29 @@ log_stage("Setting up GraphAR...")
 
 ExternalProject_Add(
   graphar
+  PREFIX ${GRAPHAR_PREFIX_DIR}
   GIT_REPOSITORY https://github.com/apache/incubator-graphar.git
   # GIT_TAG main
   GIT_TAG 1a44bc343e0e846df129c78152f6310a1d678429
   SOURCE_SUBDIR cpp
   CMAKE_ARGS
-    -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/graphar-install
-    -DCMAKE_PREFIX_PATH=${CMAKE_BINARY_DIR}/arrow-install
-    -DProtobuf_INCLUDE_DIR=${CMAKE_BINARY_DIR}/arrow-prefix/src/arrow-build/protobuf_ep-install/include
-    -DProtobuf_LIBRARIES=${CMAKE_BINARY_DIR}/arrow-prefix/src/arrow-build/protobuf_ep-install/lib/libprotobuf.a
-  INSTALL_DIR ${CMAKE_BINARY_DIR}/graphar-install
+    -DCMAKE_INSTALL_PREFIX=${GRAPHAR_INSTALL_DIR}
+    -DCMAKE_PREFIX_PATH=${ARROW_INSTALL_DIR}
+    -DProtobuf_INCLUDE_DIR=${ARROW_PREFIX_DIR}/src/arrow-build/protobuf_ep-install/include
+    -DProtobuf_LIBRARIES=${ARROW_PREFIX_DIR}/src/arrow-build/protobuf_ep-install/lib/libprotobuf.a
+  INSTALL_DIR ${GRAPHAR_INSTALL_DIR}
   DEPENDS arrow
 )
 
 add_library(graphar::graphar_shared SHARED IMPORTED GLOBAL)
 
 set_target_properties(graphar::graphar_shared PROPERTIES
-  IMPORTED_LOCATION "${CMAKE_BINARY_DIR}/graphar-install/lib/libgraphar${CMAKE_SHARED_LIBRARY_SUFFIX}"
+  IMPORTED_LOCATION "${GRAPHAR_LIB_DIR}/libgraphar${CMAKE_SHARED_LIBRARY_SUFFIX}"
 )
 
 add_dependencies(graphar::graphar_shared graphar arrow)
 
 # Set paths for shared libraries
-set(ARROW_LIB_DIR "${CMAKE_BINARY_DIR}/arrow-install/lib")
-set(GRAPHAR_LIB_DIR "${CMAKE_BINARY_DIR}/graphar-install/lib")
-
 set(CMAKE_BUILD_RPATH
     "@loader_path"
     "${GRAPHAR_LIB_DIR}"
@@ -154,4 +162,4 @@ log_stage("Building DuckDB")
 FetchContent_MakeAvailable(duckdb)
 log_done()
 
-# The next part of build is in config/CMakeLists.txt
+# Final build steps (DuckDB + extensions) is configured in config/CMakeLists.txt

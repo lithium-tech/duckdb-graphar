@@ -1,19 +1,19 @@
-# name: test/sql/graphar_duck.test
-# description: test graphar_duck extension
-# group: [graphar_duck]
+# name: test/sql/duckdb_graphar.test
+# description: test duckdb_graphar extension
+# group: [duckdb_graphar]
 
 # Before we load the extension, this will fail
 statement error
-SELECT graphar_duck('Sam');
+SELECT duckdb_graphar('Sam');
 ----
-Catalog Error: Scalar Function with name graphar_duck does not exist!
+Catalog Error: Scalar Function with name duckdb_graphar does not exist!
 
 # Require statement will ensure this test is run with this extension loaded
-require graphar_duck
+require duckdb_graphar
 
 # Confirm the extension works
 query I
-SELECT graphar_duck('Sam');
+SELECT duckdb_graphar('Sam');
 ----
-GraphArDuck Sam 🐥
+DuckDB_Graphar Sam 🐥
 
