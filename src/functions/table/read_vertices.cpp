@@ -14,6 +14,7 @@
 #include <graphar/api/high_level_reader.h>
 #include <graphar/arrow/chunk_reader.h>
 #include <graphar/expression.h>
+#include <graphar/filesystem.h>
 #include <graphar/fwd.h>
 
 #include <cassert>
@@ -92,8 +93,11 @@ void ReadVertices::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindD
     }
     if (filter_column == GID_COLUMN_INTERNAL) {
         graphar::IdType vid = std::stoll(filter_value);
-        gstate.filter_range.first = vid;
-        gstate.filter_range.second = vid + 1;
+        for (idx_t i = 0; i < gstate.readers.size(); ++i) {
+            seek_vid(*gstate.readers[i], vid, filter_column);
+        }
+        gstate.filter_range.first = 0;
+        gstate.filter_range.second = 1;
     } else {
         auto g_filter = GraphArFunctions::GetFilter(filter_type, filter_value, filter_column);
         for (idx_t i = 0; i < gstate.readers.size(); ++i) {
