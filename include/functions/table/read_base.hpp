@@ -207,7 +207,7 @@ public:
         } else {
             auto is_next = next_chunk(*reader);
             if (not is_next.ok()) {
-                return is_next;
+                return nullptr;
             }
         }
         auto result = GetChunk(*reader);
@@ -215,7 +215,7 @@ public:
         auto table = result.value();
         if (gstate.filter_range.first != -1) {
             if (gstate.total_rows >= gstate.filter_range.second) {
-                return graphar::Status::IndexError("No more filtered data");
+                return nullptr;
             } else if (gstate.total_rows + table->num_rows() < gstate.filter_range.first) {
                 return NextChunk(reader, is_first, gstate);
             } else {
@@ -374,11 +374,12 @@ public:
                     gstate.chunk_ids[i][prop_i]++;
                     if (gstate.tables[i]->column(prop_i)->num_chunks() == gstate.chunk_ids[i][prop_i]) {
                         auto result = NextChunk(gstate.readers[i], gstate.first_chunk[i], gstate);
-                        if (result.has_error()) {
+                        assert(!result.has_error());
+                        gstate.tables[i] = result.value();
+                        if (gstate.tables[i] == nullptr) {
                             num_rows = 0;
                             break;
                         }
-                        gstate.tables[i] = result.value();
                         for (int prop_ii = 0; prop_ii < gstate.prop_names[i].size(); ++prop_ii) {
                             gstate.chunk_ids[i][prop_ii] = 0;
                             gstate.sizes[i][prop_ii] =
@@ -403,8 +404,8 @@ public:
             fake_wrapper->arrow_array.length = num_rows;
             fake_wrapper->arrow_array.release = release_children_only;
             fake_wrapper->arrow_array.n_children = gstate.total_props_num;
-            fake_wrapper->arrow_array.children =
-                (class ArrowArray**)malloc(gstate.total_props_num * sizeof(class ArrowArray*));
+            auto children_ptr = make_unsafe_uniq_array_uninitialized<ArrowArray*>(gstate.total_props_num);
+            fake_wrapper->arrow_array.children = children_ptr.release();
 
             idx_t props_before = 0;
             for (idx_t i = 0; i < gstate.readers.size(); i++) {
