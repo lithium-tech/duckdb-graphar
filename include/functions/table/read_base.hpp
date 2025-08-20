@@ -53,10 +53,10 @@ static graphar::Status seek_vid(Reader& reader, graphar::IdType vid, std::string
         [&](auto& r) {
             if (filter_column == GID_COLUMN_INTERNAL) {
                 return r.seek(vid);
-            } else if constexpr ( requires { r.seek_src(vid); }) {
+            } else if constexpr (requires { r.seek_src(vid); }) {
                 if (filter_column == SRC_GID_COLUMN) {
                     return r.seek_src(vid);
-                }  else if (filter_column == DST_GID_COLUMN) {
+                } else if (filter_column == DST_GID_COLUMN) {
                     return r.seek_dst(vid);
                 }
             } else {
@@ -410,9 +410,9 @@ public:
                     gstate.ptrs[i][prop_i] = std::make_shared<ArrowArray>();
                     gstate.ptrs[i][prop_i]->release = release_children_only;
                     auto raw_arr_ptr = gstate.tables[i]
-                                        ->column(prop_i)
-                                        ->chunk(gstate.chunk_ids[i][prop_i])
-                                        ->Slice(gstate.indices[i][prop_i], num_rows);
+                                           ->column(prop_i)
+                                           ->chunk(gstate.chunk_ids[i][prop_i])
+                                           ->Slice(gstate.indices[i][prop_i], num_rows);
                     arrow::Status status = arrow::ExportArray(*raw_arr_ptr, gstate.ptrs[i][prop_i].get(), nullptr);
                     assert(status.ok());
 
