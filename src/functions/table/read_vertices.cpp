@@ -72,10 +72,9 @@ unique_ptr<FunctionData> ReadVertices::Bind(ClientContext& context, TableFunctio
 //-------------------------------------------------------------------
 // GetReader
 //-------------------------------------------------------------------
-std::shared_ptr<Reader> ReadVertices::GetReader(const ReadBaseGlobalTableFunctionState& gstate,
-                                                const ReadBindData& bind_data, idx_t ind,
-                                                const std::string& filter_value, const std::string& filter_column,
-                                                const std::string& filter_type) {
+std::shared_ptr<Reader> ReadVertices::GetReader(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
+                                                idx_t ind, const std::string& filter_value,
+                                                const std::string& filter_column, const std::string& filter_type) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadVertices::GetReader");
     auto maybe_reader =
         graphar::VertexPropertyArrowChunkReader::Make(bind_data.graph_info, bind_data.params[0], bind_data.pgs[ind]);
