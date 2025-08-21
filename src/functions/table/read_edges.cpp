@@ -74,8 +74,8 @@ unique_ptr<FunctionData> ReadEdges::Bind(ClientContext& context, TableFunctionBi
 //-------------------------------------------------------------------
 // GetReader
 //-------------------------------------------------------------------
-std::shared_ptr<Reader> ReadEdges::GetReader(const ReadBaseGlobalTableFunctionState& gstate,
-                                             const ReadBindData& bind_data, idx_t ind, const std::string& filter_value,
+std::shared_ptr<Reader> ReadEdges::GetReader(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
+                                             idx_t ind, const std::string& filter_value,
                                              const std::string& filter_column, const std::string& filter_type) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader");
     graphar::AdjListType adj_list_type;

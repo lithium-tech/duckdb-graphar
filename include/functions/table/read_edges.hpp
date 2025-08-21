@@ -20,8 +20,8 @@ public:
     static unique_ptr<FunctionData> Bind(ClientContext& context, TableFunctionBindInput& input,
                                          vector<LogicalType>& return_types, vector<string>& names);
 
-    static std::shared_ptr<Reader> GetReader(const ReadBaseGlobalTableFunctionState& gstate,
-                                             const ReadBindData& bind_data, idx_t ind, const std::string& filter_value,
+    static std::shared_ptr<Reader> GetReader(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
+                                             idx_t ind, const std::string& filter_value,
                                              const std::string& filter_column, const std::string& filter_type);
 
     static TableFunction GetFunction();
