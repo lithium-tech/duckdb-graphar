@@ -27,7 +27,7 @@ private:
 
 struct TwoHopGlobalState {
 public:
-    TwoHopGlobalState(ClientContext& context, TwoHopBindData bind_data)
+    TwoHopGlobalState(ClientContext& context, const TwoHopBindData& bind_data)
         : src_reader(MyAdjReaderOrdSrc(bind_data.GetEdgeInfo(), bind_data.GetPrefix())) {
         src_reader.find_src(bind_data.GetSrcId());
         hop_ids.reserve(src_reader.size());
@@ -70,7 +70,7 @@ struct TwoHop {
 
 struct OneMoreHopGlobalState {
 public:
-    OneMoreHopGlobalState(ClientContext& context, TwoHopBindData bind_data)
+    OneMoreHopGlobalState(ClientContext& context, const TwoHopBindData& bind_data)
         : src_reader(MyAdjReaderOrdSrc(bind_data.GetEdgeInfo(), bind_data.GetPrefix())) {
         src_reader.find_src(bind_data.GetSrcId());
         hop_ids.reserve(src_reader.size());
@@ -96,9 +96,6 @@ public:
 };
 
 struct OneMoreHop {
-    // static unique_ptr<FunctionData> Bind(ClientContext &context,
-    // TableFunctionBindInput &input, vector<LogicalType> &return_types,
-    // vector<string> &names);
     static void Execute(ClientContext& context, TableFunctionInput& data, DataChunk& output);
     static void Register(DatabaseInstance& db);
     static TableFunction GetFunction();

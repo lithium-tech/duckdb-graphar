@@ -58,23 +58,24 @@ unique_ptr<FunctionData> ReadVertices::Bind(ClientContext& context, TableFunctio
     SetBindData(graph_info, *vertex_info, bind_data);
 
     names = bind_data->flatten_prop_names;
-    for (auto& return_type : bind_data->flatten_prop_types) {
-        return_types.emplace_back(GraphArFunctions::graphArT2duckT(return_type));
-    }
+    std::transform(bind_data->flatten_prop_types.begin(), bind_data->flatten_prop_types.end(),
+                   std::back_inserter(return_types),
+                   [](const auto& return_type) { return GraphArFunctions::graphArT2duckT(return_type); });
 
     DUCKDB_GRAPHAR_LOG_DEBUG("Bind finish");
     if (time_logging) {
         t.print();
     }
 
-    return std::move(bind_data);
+    return bind_data;
 }
 //-------------------------------------------------------------------
 // GetReader
 //-------------------------------------------------------------------
-std::shared_ptr<Reader> ReadVertices::GetReader(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
-                                                idx_t ind, const std::string& filter_value,
-                                                const std::string& filter_column, const std::string& filter_type) {
+std::shared_ptr<Reader> ReadVertices::GetReader(const ReadBaseGlobalTableFunctionState& gstate,
+                                                const ReadBindData& bind_data, idx_t ind,
+                                                const std::string& filter_value, const std::string& filter_column,
+                                                const std::string& filter_type) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadVertices::GetReader");
     auto maybe_reader =
         graphar::VertexPropertyArrowChunkReader::Make(bind_data.graph_info, bind_data.params[0], bind_data.pgs[ind]);
@@ -85,8 +86,9 @@ std::shared_ptr<Reader> ReadVertices::GetReader(ReadBaseGlobalTableFunctionState
 //-------------------------------------------------------------------
 // SetFilter
 //-------------------------------------------------------------------
-void ReadVertices::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
-                             std::string& filter_value, std::string& filter_column, std::string& filter_type) {
+void ReadVertices::SetFilter(ReadBaseGlobalTableFunctionState& gstate, const ReadBindData& bind_data,
+                             const std::string& filter_value, const std::string& filter_column,
+                             const std::string& filter_type) {
     if (filter_column == "") {
         return;
     }

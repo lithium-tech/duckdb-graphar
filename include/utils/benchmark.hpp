@@ -14,10 +14,10 @@ class ScopedTimer {
     std::string name;
 
 public:
-    ScopedTimer(const std::string& name);
+    explicit ScopedTimer(const std::string& name);
     ~ScopedTimer() {};
-    void print(const std::string msg, bool all);
-    void print(const std::string msg) { print(msg, false); };
+
+    void print(const std::string& msg, bool all = false);
     void print() { print("", true); };
 };
 
