@@ -27,7 +27,7 @@ public:
     static TableFunction GetFunction();
     static TableFunction GetScanFunction();
 
-    static void SetFilter(ReadBaseGlobalTableFunctionState& gstate, const ReadBindData& bind_data,
+    static void SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
                           const std::string& filter_value, const std::string& filter_column,
                           const std::string& filter_type);
 };

@@ -104,7 +104,7 @@ std::shared_ptr<Reader> ReadEdges::GetReader(ReadBaseGlobalTableFunctionState& g
 //-------------------------------------------------------------------
 // SetFilter
 //-------------------------------------------------------------------
-void ReadEdges::SetFilter(ReadBaseGlobalTableFunctionState& gstate, const ReadBindData& bind_data,
+void ReadEdges::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
                           const std::string& filter_value, const std::string& filter_column,
                           const std::string& filter_type) {
     if (filter_column == "") {
