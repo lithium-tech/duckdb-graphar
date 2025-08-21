@@ -28,8 +28,7 @@ public:
 
     static TableFunction GetScanFunction();
 
-    static void SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
-                          const std::string& filter_value, const std::string& filter_column,
-                          const std::string& filter_type);
+    static void SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data, std::string& filter_value,
+                          std::string& filter_column, std::string& filter_type);
 };
 }  // namespace duckdb
