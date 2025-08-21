@@ -13,7 +13,7 @@ struct EdgesVertexGlobalTableFunctionState;
 
 class EdgesVertexBindData final : public TableFunctionData {
 public:
-    EdgesVertexBindData(std::string file_path) : file_path(file_path) {};
+    explicit EdgesVertexBindData(const std::string& file_path) : file_path(file_path) {};
 
     const std::string& GetFilePath() const { return file_path; }
     void SetFilePath(const std::string& path) { file_path = path; }

@@ -49,8 +49,9 @@ struct GraphArFunctions {
             throw NotImplementedException("Unsupported type");
         }
     };
-    static std::shared_ptr<graphar::Expression> GetFilter(const std::string filter_type, const std::string filter_value,
-                                                          const std::string filter_column);
+    static std::shared_ptr<graphar::Expression> GetFilter(const std::string& filter_type,
+                                                          const std::string& filter_value,
+                                                          const std::string& filter_column);
 };
 
 inline std::pair<int64_t, int64_t> GetChunkAndOffset(graphar::IdType chunk_size, graphar::IdType offset) {
@@ -165,7 +166,7 @@ public:
 private:
     const std::shared_ptr<graphar::EdgeInfo> edge_info_;
     const std::string prefix_;
-    int64_t size_;
+    int64_t size_ = 0;
     std::shared_ptr<graphar::AdjListArrowChunkReader> reader_;
     std::pair<int64_t, int64_t> start_;
     std::pair<int64_t, int64_t> end_;
@@ -183,7 +184,7 @@ inline void PrintArrowTable(const std::shared_ptr<arrow::Table>& table, int64_t 
         std::cout << table->field(col)->name();
         if (col < num_columns - 1) std::cout << "\t";
     }
-    std::cout << "\n";
+    std::cout << std::endl;
     if (limit > 0) {
         num_rows = std::min(num_rows, limit);
     }
@@ -208,12 +209,12 @@ inline void PrintArrowTable(const std::shared_ptr<arrow::Table>& table, int64_t 
             }
             if (col < num_columns - 1) std::cout << "\t";
         }
-        std::cout << "\n";
+        std::cout << std::endl;
     }
 }
 
 std::string GetYamlContent(const std::string& path);
 std::string GetDirectory(const std::string& path);
 std::int64_t GetCount(const std::string& path);
-std::int64_t GetVertexCount(const std::shared_ptr<graphar::EdgeInfo>& edge_info, std::string& directory);
+std::int64_t GetVertexCount(const std::shared_ptr<graphar::EdgeInfo>& edge_info, const std::string& directory);
 }  // namespace duckdb

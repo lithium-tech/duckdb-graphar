@@ -56,7 +56,7 @@ unique_ptr<FunctionData> EdgesVertex::Bind(ClientContext& context, TableFunction
         t.print();
     }
 
-    return std::move(bind_data);
+    return bind_data;
 }
 //-------------------------------------------------------------------
 // State Init
@@ -76,13 +76,13 @@ unique_ptr<GlobalTableFunctionState> EdgesVertexGlobalTableFunctionState::Init(C
         t.print("cast");
     }
 
-    if (time_logging) {
-        t.print("edges");
-    }
-
     auto prefix = GetDirectory(bind_data.GetFilePath());
     auto vertex_count = GetVertexCount(bind_data.GetEdgeInfo(), prefix);
     idx_t iter = 0, end_iter = vertex_count;
+
+    if (time_logging) {
+        t.print("edges");
+    }
 
     if (input.filters) {
         DUCKDB_GRAPHAR_LOG_DEBUG("Found filters");
@@ -128,8 +128,6 @@ unique_ptr<GlobalTableFunctionState> EdgesVertexGlobalTableFunctionState::Init(C
 graphar::Result<vector<std::pair<graphar::IdType, graphar::IdType>>> EdgesVertex::GetAdjListOffsetOfVertices(
     ClientContext& context, const std::shared_ptr<graphar::EdgeInfo>& edge_info, const std::string& prefix,
     graphar::AdjListType adj_list_type, idx_t start, idx_t end) {
-    bool time_logging = GraphArSettings::is_time_logging(context);
-
     ScopedTimer t("GetAdjListOffsetOfVertices");
 
     if (start >= end) {

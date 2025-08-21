@@ -60,16 +60,16 @@ unique_ptr<FunctionData> ReadEdges::Bind(ClientContext& context, TableFunctionBi
     SetBindData(graph_info, *edge_info, bind_data);
 
     names = bind_data->flatten_prop_names;
-    for (auto& return_type : bind_data->flatten_prop_types) {
-        return_types.emplace_back(GraphArFunctions::graphArT2duckT(return_type));
-    }
+    std::transform(bind_data->flatten_prop_types.begin(), bind_data->flatten_prop_types.end(),
+                   std::back_inserter(return_types),
+                   [](const auto& return_type) { return GraphArFunctions::graphArT2duckT(return_type); });
 
     DUCKDB_GRAPHAR_LOG_DEBUG("Bind finish");
     if (time_logging) {
         t.print();
     }
 
-    return std::move(bind_data);
+    return bind_data;
 }
 //-------------------------------------------------------------------
 // GetReader

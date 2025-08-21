@@ -53,7 +53,7 @@ unique_ptr<FunctionData> TwoHop::Bind(ClientContext& context, TableFunctionBindI
         t.print();
     }
 
-    return std::move(bind_data);
+    return bind_data;
 }
 //-------------------------------------------------------------------
 // State Init
@@ -214,7 +214,7 @@ inline void OneMoreHop::Execute(ClientContext& context, TableFunctionInput& inpu
             while (gstate.hop_i != gstate.hop_ids.end() && gstate.src_reader.finish()) {
                 DUCKDB_GRAPHAR_LOG_DEBUG("Find next hop " + std::to_string(*gstate.hop_i));
                 gstate.src_reader.find_src(*gstate.hop_i);
-                gstate.hop_i++;
+                ++gstate.hop_i;
             }
         }
     } while (row_count == 0 && !is_one_hop && !gstate.src_reader.finish());

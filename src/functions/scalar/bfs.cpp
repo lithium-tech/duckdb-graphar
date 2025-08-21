@@ -16,14 +16,8 @@
 
 namespace duckdb {
 
-template <typename T>
-void clear(std::queue<T>& q) {
-    std::queue<T> empty;
-    std::swap(q, empty);
-}
-
 void Bfs::WayLength(DataChunk& args, ExpressionState& state, Vector& result) {
-    auto& context = state.GetContext();
+    const auto& context = state.GetContext();
     bool time_logging = GraphArSettings::is_time_logging(context);
 
     ScopedTimer t("Bfs::WayLength");
@@ -40,7 +34,11 @@ void Bfs::WayLength(DataChunk& args, ExpressionState& state, Vector& result) {
 
     DUCKDB_GRAPHAR_LOG_DEBUG("Read Graph info: " + path_graph);
 
-    auto graph_info = graphar::GraphInfo::Load(path_graph).value();
+    auto maybe_graph_info = graphar::GraphInfo::Load(path_graph);
+    if (!maybe_graph_info.has_value()) {
+        throw InvalidInputException("Failed to load GraphInfo from path: " + path_graph);
+    }
+    auto graph_info = maybe_graph_info.value();
     std::string type = graph_info->GetVertexInfoByIndex(0)->GetType();
 
     DUCKDB_GRAPHAR_LOG_DEBUG("Making Vertex reader: " + type);
@@ -49,6 +47,9 @@ void Bfs::WayLength(DataChunk& args, ExpressionState& state, Vector& result) {
     }
 
     auto maybe_vertices = graphar::VerticesCollection::Make(graph_info, type);
+    if (!maybe_vertices.has_value()) {
+        throw InvalidInputException("Failed to create vertices collection for type: " + type);
+    }
     auto& vertices = maybe_vertices.value();
     auto vert_num = vertices->size();
 
@@ -72,6 +73,10 @@ void Bfs::WayLength(DataChunk& args, ExpressionState& state, Vector& result) {
 
     auto maybe_edges = graphar::EdgesCollection::Make(graph_info, src_type, edge_type, dst_type,
                                                       graphar::AdjListType::ordered_by_source);
+    if (!maybe_edges.has_value()) {
+        throw InvalidInputException("Failed to create edges collection for: " + src_type + "--" + edge_type + "->" +
+                                    dst_type);
+    }
     auto& edges = maybe_edges.value();
 
     DUCKDB_GRAPHAR_LOG_DEBUG("Edges number: " + std::to_string(edges->size()));
@@ -97,7 +102,6 @@ void Bfs::WayLength(DataChunk& args, ExpressionState& state, Vector& result) {
         q.push(start);
         visited[start] = 0;
         auto last = 0;
-        auto was = 0;
 
         while (!q.empty()) {
             auto now = visited[q.front()];
@@ -106,18 +110,18 @@ void Bfs::WayLength(DataChunk& args, ExpressionState& state, Vector& result) {
                 last = now;
             }
             ++now;
-            was = q.front();
+
             auto iter = edges->find_src(q.front(), edges->begin());
             q.pop();
             if (iter != edges->end()) {
                 do {
-                    if (visited[iter.destination()] == -1) {
-                        visited[iter.destination()] = now;
-                        q.push(iter.destination());
-                        if (iter.destination() == aim) {
-                            clear(q);
+                    if (const auto dst = iter.destination(); visited[dst] == -1) {
+                        visited[dst] = now;
+                        if (dst == aim) {
+                            q = {};
                             break;
                         }
+                        q.push(dst);
                     }
                 } while (iter.next_src());
             }
@@ -134,7 +138,7 @@ void Bfs::WayLength(DataChunk& args, ExpressionState& state, Vector& result) {
 }
 
 void Bfs::WayExists(DataChunk& args, ExpressionState& state, Vector& result) {
-    auto& context = state.GetContext();
+    const auto& context = state.GetContext();
     bool time_logging = GraphArSettings::is_time_logging(context);
 
     ScopedTimer t("BfsWayExists");

@@ -27,7 +27,7 @@ private:
 
 struct TwoHopGlobalState {
 public:
-    TwoHopGlobalState(ClientContext& context, TwoHopBindData bind_data)
+    TwoHopGlobalState(ClientContext& context, const TwoHopBindData& bind_data)
         : src_reader(MyAdjReaderOrdSrc(bind_data.GetEdgeInfo(), bind_data.GetPrefix())) {
         src_reader.find_src(bind_data.GetSrcId());
         hop_ids.reserve(src_reader.size());
@@ -50,7 +50,8 @@ private:
 
 struct TwoHopGlobalTableFunctionState : public GlobalTableFunctionState {
 public:
-    TwoHopGlobalTableFunctionState(ClientContext& context, TwoHopBindData& bind_data) : state(context, bind_data) {};
+    TwoHopGlobalTableFunctionState(ClientContext& context, const TwoHopBindData& bind_data)
+        : state(context, bind_data) {};
 
     static unique_ptr<GlobalTableFunctionState> Init(ClientContext& context, TableFunctionInitInput& input);
 
@@ -70,7 +71,7 @@ struct TwoHop {
 
 struct OneMoreHopGlobalState {
 public:
-    OneMoreHopGlobalState(ClientContext& context, TwoHopBindData bind_data)
+    OneMoreHopGlobalState(ClientContext& context, const TwoHopBindData& bind_data)
         : src_reader(MyAdjReaderOrdSrc(bind_data.GetEdgeInfo(), bind_data.GetPrefix())) {
         src_reader.find_src(bind_data.GetSrcId());
         hop_ids.reserve(src_reader.size());
@@ -86,7 +87,7 @@ public:
 
 struct OneMoreHopGlobalTableFunctionState : public GlobalTableFunctionState {
 public:
-    OneMoreHopGlobalTableFunctionState(ClientContext& context, TwoHopBindData& bind_data)
+    OneMoreHopGlobalTableFunctionState(ClientContext& context, const TwoHopBindData& bind_data)
         : state(context, bind_data) {};
 
     static unique_ptr<GlobalTableFunctionState> Init(ClientContext& context, TableFunctionInitInput& input);
@@ -96,9 +97,6 @@ public:
 };
 
 struct OneMoreHop {
-    // static unique_ptr<FunctionData> Bind(ClientContext &context,
-    // TableFunctionBindInput &input, vector<LogicalType> &return_types,
-    // vector<string> &names);
     static void Execute(ClientContext& context, TableFunctionInput& data, DataChunk& output);
     static void Register(DatabaseInstance& db);
     static TableFunction GetFunction();

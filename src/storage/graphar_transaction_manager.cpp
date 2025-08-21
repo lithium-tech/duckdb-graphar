@@ -1,6 +1,6 @@
 #include "storage/graphar_transaction_manager.hpp"
 
-#include "duckdb/main/attached_database.hpp"
+#include <duckdb/main/attached_database.hpp>
 
 namespace duckdb {
 
