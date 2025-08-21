@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<config>
+    <check-level>normal</check-level>
+    <checkers>
+        <check name="unusedFunction" enabled="false"/> <!-- Too many false positives -->
+        <check name="missingInclude" enabled="true"/>
+        <check name="style" enabled="true"/>
+        <check name="performance" enabled="true"/>
+        <check name="portability" enabled="true"/>
+        <check name="information" enabled="false"/> <!-- Usually too verbose -->
+    </checkers>
+
+    <standard>c++20</standard>
+
+    <platform>native</platform>
+
+    <suppress>
+        <id>missingIncludeSystem</id>
+        <fileName>.*</fileName>
+    </suppress>
+    <suppress>
+        <id>unmatchedSuppression</id>
+        <fileName>.*</fileName>
+    </suppress>
+</config>
