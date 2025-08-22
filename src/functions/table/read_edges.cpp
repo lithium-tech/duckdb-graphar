@@ -133,6 +133,15 @@ void ReadEdges::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData
         throw NotImplementedException("Only src and dst filters are supported");
     }
     graphar::IdType vid = std::stoll(filter_value);
+    int64_t vertex_num = 0;
+    if (filter_column == SRC_GID_COLUMN) {
+        vertex_num = GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[0]);
+    } else {
+        vertex_num = GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[0]);
+    }
+    if (vid < 0 or vid >= vertex_num) {
+        throw BinderException("Vertex id is out of range");
+    }
     offset_reader->seek(vid);
     for (idx_t i = 0; i < gstate.readers.size(); ++i) {
         seek_vid(*gstate.readers[i], vid, filter_column);

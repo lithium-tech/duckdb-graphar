@@ -32,6 +32,8 @@ struct GraphArFunctions {
     template <typename Info>
     static std::string GetNameFromInfo(const std::shared_ptr<Info>& info);
 
+    static int64_t GetVertexNum(std::shared_ptr<graphar::GraphInfo> graph_info, std::string& type);
+
     template <typename GraphArIter>
     static void setByIter(DataChunk& output, GraphArIter& iter, const int prop_i, const int row_i,
                           const std::string& prop_name, const std::string& prop_type) {

@@ -97,6 +97,10 @@ void ReadVertices::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindD
     }
     if (filter_column == GID_COLUMN_INTERNAL) {
         graphar::IdType vid = std::stoll(filter_value);
+        int64_t vertex_num = GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[0]);
+        if (vid < 0 or vid >= vertex_num) {
+            throw BinderException("Vertex id is out of range");
+        }
         for (idx_t i = 0; i < gstate.readers.size(); ++i) {
             seek_vid(*gstate.readers[i], vid, filter_column);
         }

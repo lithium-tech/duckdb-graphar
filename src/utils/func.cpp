@@ -62,6 +62,16 @@ std::string GraphArFunctions::GetNameFromInfo(const std::shared_ptr<graphar::Edg
     return info->GetSrcType() + "_" + info->GetEdgeType() + "_" + info->GetDstType() + ".edge";
 }
 
+int64_t GraphArFunctions::GetVertexNum(std::shared_ptr<graphar::GraphInfo> graph_info, std::string& type) {
+    auto vertex_info = graph_info->GetVertexInfo(type);
+    GAR_ASSIGN_OR_RAISE_ERROR(auto num_file_path, vertex_info->GetVerticesNumFilePath());
+    num_file_path = graph_info->GetPrefix() + num_file_path;
+    GAR_ASSIGN_OR_RAISE_ERROR(auto fs, graphar::FileSystemFromUriOrPath(num_file_path));
+    GAR_ASSIGN_OR_RAISE_ERROR(auto vertex_num,
+                              fs->ReadFileToValue<graphar::IdType>(num_file_path));
+    return vertex_num;
+}
+
 graphar::Result<std::shared_ptr<arrow::Schema>> GraphArFunctions::NamesAndTypesToArrowSchema(
     const vector<std::string>& names, const vector<std::string>& types) {
     DUCKDB_GRAPHAR_LOG_TRACE("NamesAndTypesToArrowSchema");
