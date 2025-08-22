@@ -31,8 +31,7 @@ void GraphArTableSet::FillEntry(ClientContext& context, GraphArTableInformation&
     if (table.IsFilled()) {
         return;
     }
-
-    auto& graphar_catalog = catalog.Cast<GraphArCatalog>();
+    // Does nothing as for now, but can be useful in future
 }
 
 void GraphArTableSet::Scan(ClientContext& context, const std::function<void(CatalogEntry&)>& callback) {

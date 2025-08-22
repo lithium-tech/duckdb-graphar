@@ -32,7 +32,7 @@ void GraphArTransactionManager::RollbackTransaction(Transaction& transaction) {
 }
 
 void GraphArTransactionManager::Checkpoint(ClientContext& context, bool force) {
-    auto& transaction = GraphArTransaction::Get(context, db.GetCatalog());
+    throw NotImplementedException("GraphArTransactionManager::Checkpoint");
 }
 
 }  // namespace duckdb

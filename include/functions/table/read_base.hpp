@@ -368,6 +368,9 @@ public:
         DUCKDB_GRAPHAR_LOG_DEBUG("Chunk " + std::to_string(gstate.chunk_count) + ": Begin iteration");
 
         idx_t num_rows = STANDARD_VECTOR_SIZE;
+        if (gstate.filter_range.first != -1 && gstate.total_rows == gstate.filter_range.second - gstate.filter_range.first) {
+            num_rows = 0;
+        }
         for (idx_t i = 0; i < gstate.readers.size() && num_rows; i++) {
             for (int prop_i = 0; prop_i < gstate.prop_names[i].size(); ++prop_i) {
                 if (gstate.indices[i][prop_i] == gstate.sizes[i][prop_i]) {

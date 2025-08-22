@@ -46,7 +46,11 @@ unique_ptr<FunctionData> ReadVertices::Bind(ClientContext& context, TableFunctio
     DUCKDB_GRAPHAR_LOG_DEBUG("Get type " + v_type + '\n' + "Load Graph Info and Vertex Info");
 
     auto bind_data = make_uniq<ReadBindData>();
-    auto graph_info = graphar::GraphInfo::Load(file_path).value();
+    auto maybe_graph_info = graphar::GraphInfo::Load(file_path);
+    if (maybe_graph_info.has_error()) {
+        throw IOException("Failed to load graph info from path: %s", file_path);
+    }
+    auto graph_info = maybe_graph_info.value();
 
     auto vertex_info = graph_info->GetVertexInfo(v_type);
 
