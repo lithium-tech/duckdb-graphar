@@ -92,22 +92,6 @@ std::shared_ptr<Reader> ReadEdges::GetReader(ReadBaseGlobalTableFunctionState& g
     }
     if (ind == 0) {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader: making src and dst reader...");
-        // std::cout << "params: " << bind_data.params[0] << " " << bind_data.params[1] << " " << bind_data.params[2] << std::endl;
-        // // std::cout << "adj_list_type: " << adj_list_type << std::endl;
-        // // Check if the adjacency list type exists
-        // auto edge_info = bind_data.graph_info->GetEdgeInfo(
-        //     bind_data.params[0], bind_data.params[1], bind_data.params[2]);
-        // if (edge_info && !edge_info->HasAdjacentListType(adj_list_type)) {
-        //     std::cout << "Edge doesn't support adj_list_type" << std::endl;
-        // }
-        // // Check if the prefix path is valid
-        // std::cout << "Graph prefix: " << bind_data.graph_info->GetPrefix() << std::endl;
-
-        // // Test file system creation separately
-        // auto fs_result = graphar::FileSystemFromUriOrPath(bind_data.graph_info->GetPrefix());
-        // if (fs_result.has_error()) {
-        //     std::cout << "FileSystem creation failed: " << fs_result.status().message() << std::endl;
-        // }
         auto maybe_reader = graphar::AdjListArrowChunkReader::Make(
             bind_data.graph_info, bind_data.params[0], bind_data.params[1], bind_data.params[2], adj_list_type);
         assert(maybe_reader.status().ok());
