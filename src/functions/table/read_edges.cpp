@@ -141,7 +141,6 @@ void ReadEdges::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData
     gstate.filter_range.first = 0;
     gstate.filter_range.second = GetInt64Value(offset_arr, 1) - GetInt64Value(offset_arr, 0);
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::SetFilter: finished");
-
 }
 //-------------------------------------------------------------------
 // GetFunction

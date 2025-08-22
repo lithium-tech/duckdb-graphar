@@ -202,15 +202,16 @@ public:
 
     static graphar::Result<std::shared_ptr<arrow::Table>> NextChunk(idx_t reader_i,
                                                                     ReadBaseGlobalTableFunctionState& gstate) {
-        auto &reader = gstate.readers[reader_i];
-        int &is_first = gstate.is_first_chunk[reader_i];
+        auto& reader = gstate.readers[reader_i];
+        int& is_first = gstate.is_first_chunk[reader_i];
         if (is_first) {
             is_first = false;
         } else {
             auto is_next = next_chunk(*reader);
             if (not is_next.ok()) {
                 DUCKDB_GRAPHAR_LOG_DEBUG("No next chunk");
-                return GraphArFunctions::EmptyTableFromNamesAndTypes(gstate.prop_names[reader_i], gstate.prop_types[reader_i]);
+                return GraphArFunctions::EmptyTableFromNamesAndTypes(gstate.prop_names[reader_i],
+                                                                     gstate.prop_types[reader_i]);
             }
         }
         auto result = GetChunk(*reader);
@@ -219,7 +220,8 @@ public:
         if (gstate.filter_range.first != -1) {
             if (gstate.total_rows >= gstate.filter_range.second) {
                 DUCKDB_GRAPHAR_LOG_DEBUG("All rows read");
-                return GraphArFunctions::EmptyTableFromNamesAndTypes(gstate.prop_names[reader_i], gstate.prop_types[reader_i]);
+                return GraphArFunctions::EmptyTableFromNamesAndTypes(gstate.prop_names[reader_i],
+                                                                     gstate.prop_types[reader_i]);
             } else if (gstate.total_rows + table->num_rows() < gstate.filter_range.first) {
                 return NextChunk(reader_i, gstate);
             } else {
@@ -372,7 +374,8 @@ public:
         DUCKDB_GRAPHAR_LOG_DEBUG("Chunk " + std::to_string(gstate.chunk_count) + ": Begin iteration");
 
         idx_t num_rows = STANDARD_VECTOR_SIZE;
-        if (gstate.filter_range.first != -1 && gstate.total_rows == gstate.filter_range.second - gstate.filter_range.first) {
+        if (gstate.filter_range.first != -1 &&
+            gstate.total_rows == gstate.filter_range.second - gstate.filter_range.first) {
             num_rows = 0;
         }
         for (idx_t i = 0; i < gstate.readers.size() && num_rows; i++) {

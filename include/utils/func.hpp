@@ -52,10 +52,11 @@ struct GraphArFunctions {
         }
     };
 
-    static graphar::Result<std::shared_ptr<arrow::Schema>> NamesAndTypesToArrowSchema(
-    const vector<std::string>& names, const vector<std::string>& types);
+    static graphar::Result<std::shared_ptr<arrow::Schema>> NamesAndTypesToArrowSchema(const vector<std::string>& names,
+                                                                                      const vector<std::string>& types);
 
-    static std::shared_ptr<arrow::Table> EmptyTableFromNamesAndTypes(const vector<std::string>& names, const vector<std::string>& types);
+    static std::shared_ptr<arrow::Table> EmptyTableFromNamesAndTypes(const vector<std::string>& names,
+                                                                     const vector<std::string>& types);
 
     static std::shared_ptr<graphar::Expression> GetFilter(const std::string& filter_type,
                                                           const std::string& filter_value,

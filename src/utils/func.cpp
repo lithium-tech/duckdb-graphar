@@ -64,17 +64,17 @@ std::string GraphArFunctions::GetNameFromInfo(const std::shared_ptr<graphar::Edg
 
 graphar::Result<std::shared_ptr<arrow::Schema>> GraphArFunctions::NamesAndTypesToArrowSchema(
     const vector<std::string>& names, const vector<std::string>& types) {
-  DUCKDB_GRAPHAR_LOG_TRACE("NamesAndTypesToArrowSchema");
-  std::vector<std::shared_ptr<arrow::Field>> fields;
-  for (idx_t i = 0; i < names.size(); ++i) {
-    fields.push_back(std::make_shared<arrow::Field>(
-        names[i], graphArT2arrowT(types[i])));
-  }
-  DUCKDB_GRAPHAR_LOG_TRACE("NamesAndTypesToArrowSchema: returning...");
-  return arrow::schema(fields);
+    DUCKDB_GRAPHAR_LOG_TRACE("NamesAndTypesToArrowSchema");
+    std::vector<std::shared_ptr<arrow::Field>> fields;
+    for (idx_t i = 0; i < names.size(); ++i) {
+        fields.push_back(std::make_shared<arrow::Field>(names[i], graphArT2arrowT(types[i])));
+    }
+    DUCKDB_GRAPHAR_LOG_TRACE("NamesAndTypesToArrowSchema: returning...");
+    return arrow::schema(fields);
 }
 
-std::shared_ptr<arrow::Table> GraphArFunctions::EmptyTableFromNamesAndTypes(const vector<std::string>& names, const vector<std::string>& types) {
+std::shared_ptr<arrow::Table> GraphArFunctions::EmptyTableFromNamesAndTypes(const vector<std::string>& names,
+                                                                            const vector<std::string>& types) {
     auto maybe_schema = NamesAndTypesToArrowSchema(names, types);
     if (maybe_schema.has_error()) {
         throw InternalException(maybe_schema.error().message());
