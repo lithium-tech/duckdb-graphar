@@ -25,6 +25,8 @@ const std::string DST_GID_COLUMN = "_graphArDstIndex";
 struct GraphArFunctions {
     static LogicalTypeId graphArT2duckT(const std::string& name);
 
+    static std::shared_ptr<arrow::DataType> graphArT2arrowT(const std::string& name);
+
     static unique_ptr<ArrowTypeInfo> graphArT2ArrowTypeInfo(const std::string& name);
 
     template <typename Info>
@@ -49,6 +51,12 @@ struct GraphArFunctions {
             throw NotImplementedException("Unsupported type");
         }
     };
+
+    static graphar::Result<std::shared_ptr<arrow::Schema>> NamesAndTypesToArrowSchema(
+    const vector<std::string>& names, const vector<std::string>& types);
+
+    static std::shared_ptr<arrow::Table> EmptyTableFromNamesAndTypes(const vector<std::string>& names, const vector<std::string>& types);
+
     static std::shared_ptr<graphar::Expression> GetFilter(const std::string& filter_type,
                                                           const std::string& filter_value,
                                                           const std::string& filter_column);
