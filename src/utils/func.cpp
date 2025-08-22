@@ -67,8 +67,7 @@ int64_t GraphArFunctions::GetVertexNum(std::shared_ptr<graphar::GraphInfo> graph
     GAR_ASSIGN_OR_RAISE_ERROR(auto num_file_path, vertex_info->GetVerticesNumFilePath());
     num_file_path = graph_info->GetPrefix() + num_file_path;
     GAR_ASSIGN_OR_RAISE_ERROR(auto fs, graphar::FileSystemFromUriOrPath(num_file_path));
-    GAR_ASSIGN_OR_RAISE_ERROR(auto vertex_num,
-                              fs->ReadFileToValue<graphar::IdType>(num_file_path));
+    GAR_ASSIGN_OR_RAISE_ERROR(auto vertex_num, fs->ReadFileToValue<graphar::IdType>(num_file_path));
     return vertex_num;
 }
 
