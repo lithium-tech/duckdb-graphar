@@ -120,7 +120,7 @@ private:
     idx_t total_props_num = 0;
     vector<std::shared_ptr<Reader>> readers;
     vector<vector<std::shared_ptr<ArrowArray>>> ptrs;
-    vector<int> is_first_chunk;
+    vector<int> first_chunk_flags;
     vector<std::shared_ptr<arrow::Table>> tables;
     vector<vector<idx_t>> indices;
     vector<vector<idx_t>> chunk_ids;
@@ -203,7 +203,7 @@ public:
     static graphar::Result<std::shared_ptr<arrow::Table>> NextChunk(idx_t reader_i,
                                                                     ReadBaseGlobalTableFunctionState& gstate) {
         auto& reader = gstate.readers[reader_i];
-        int& is_first = gstate.is_first_chunk[reader_i];
+        int& is_first = gstate.first_chunk_flags[reader_i];
         if (is_first) {
             is_first = false;
         } else {
@@ -267,7 +267,7 @@ public:
         gstate.pgs = bind_data.pgs;
         gstate.column_ids = input.column_ids;
         gstate.readers.resize(bind_data.prop_types.size());
-        gstate.is_first_chunk.resize(gstate.readers.size(), true);
+        gstate.first_chunk_flags.resize(gstate.readers.size(), true);
         gstate.tables.resize(gstate.readers.size());
         gstate.sizes.resize(gstate.readers.size());
         gstate.indices.resize(gstate.readers.size());
@@ -386,10 +386,6 @@ public:
                         auto result = NextChunk(i, gstate);
                         assert(!result.has_error());
                         gstate.tables[i] = result.value();
-                        // if (gstate.tables[i] == nullptr) {
-                        //     num_rows = 0;
-                        //     break;
-                        // }
                         for (int prop_ii = 0; prop_ii < gstate.prop_names[i].size(); ++prop_ii) {
                             gstate.chunk_ids[i][prop_ii] = 0;
                             gstate.sizes[i][prop_ii] =

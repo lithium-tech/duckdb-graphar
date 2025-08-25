@@ -28,9 +28,9 @@ void Bfs::WayLength(DataChunk& args, ExpressionState& state, Vector& result) {
     auto& start_vector = args.data[0];
     auto& aim_vector = args.data[1];
     auto& graphar_info_vector = args.data[2];
-    const auto& number = args.size();
+    const auto number = args.size();
 
-    std::string file_path = graphar_info_vector.GetValue(0).GetValue<std::string>();
+    const std::string file_path = graphar_info_vector.GetValue(0).GetValue<std::string>();
 
     DUCKDB_GRAPHAR_LOG_DEBUG("Read Graph info: " + file_path);
 
@@ -146,7 +146,7 @@ void Bfs::WayExists(DataChunk& args, ExpressionState& state, Vector& result) {
     DUCKDB_GRAPHAR_LOG_TRACE("Starting Bfs::WayExists");
     DUCKDB_GRAPHAR_LOG_TRACE("Running auxiliary Bfs::WayLength function");
 
-    const auto& number = args.size();
+    const auto number = args.size();
     auto result_temp = Vector(LogicalType::BIGINT, true, true, number);
     Bfs::WayLength(args, state, result_temp);
 
