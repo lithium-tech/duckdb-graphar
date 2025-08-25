@@ -2,12 +2,12 @@
 <config>
     <check-level>normal</check-level>
     <checkers>
-        <check name="unusedFunction" enabled="false"/> <!-- Too many false positives -->
+        <check name="unusedFunction" enabled="false"/>
         <check name="missingInclude" enabled="true"/>
         <check name="style" enabled="true"/>
         <check name="performance" enabled="true"/>
         <check name="portability" enabled="true"/>
-        <check name="information" enabled="false"/> <!-- Usually too verbose -->
+        <check name="information" enabled="false"/>
     </checkers>
 
     <standard>c++20</standard>
