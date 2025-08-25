@@ -117,3 +117,7 @@ jobs:
         run: |
           echo "Build succeeded on ${{ matrix.os }}"
           ccache -s
+
+      - name: Run Tests
+        run: |
+          ./build/_deps/duckdb-build/test/unittest "[graphar]"
