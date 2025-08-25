@@ -176,10 +176,10 @@ graphar::Result<vector<std::pair<graphar::IdType, graphar::IdType>>> EdgesVertex
 
     for (idx_t i = 0; i < chunks_num; ++i) {
         const auto values = arrays[i]->raw_values();
-        int64_t len = arrays[i]->length();
+        int64_t arr_len = arrays[i]->length();
         int64_t current = values[0], nxt{};
-        for (idx_t j = 0; j < len; ++j) {
-            if (j < len - 1) {
+        for (idx_t j = 0; j < arr_len; ++j) {
+            if (j < arr_len - 1) {
                 nxt = values[j + 1];
             } else if (i < chunks_num - 1) {
                 nxt = arrays[i + 1]->raw_values()[0];
