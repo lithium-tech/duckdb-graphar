@@ -203,9 +203,9 @@ public:
     static graphar::Result<std::shared_ptr<arrow::Table>> NextChunk(idx_t reader_i,
                                                                     ReadBaseGlobalTableFunctionState& gstate) {
         auto& reader = gstate.readers[reader_i];
-        int& is_first = gstate.first_chunk_flags[reader_i];
-        if (is_first) {
-            is_first = false;
+        int& first_chunk_flag = gstate.first_chunk_flags[reader_i];
+        if (first_chunk_flag) {
+            first_chunk_flag = false;
         } else {
             auto is_next = next_chunk(*reader);
             if (not is_next.ok()) {
