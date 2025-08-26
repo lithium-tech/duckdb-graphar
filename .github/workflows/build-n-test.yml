@@ -120,4 +120,4 @@ jobs:
 
       - name: Run Tests
         run: |
-          ./build/_deps/duckdb-build/test/unittest "[graphar]"
+          ./build/_deps/duckdb-build/test/unittest "[graphar]" --reporter console  || exit 1
