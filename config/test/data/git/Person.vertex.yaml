@@ -1,7 +1,7 @@
 chunk_size: 1048576
 prefix: vertex/Person/
 property_groups: 
-  - file_type: parquet
+  - file_type: csv
     prefix: hash_phone_no/
     properties: 
       - data_type: int32

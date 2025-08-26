@@ -1,10 +1,10 @@
 adj_lists: 
   - aligned_by: src
-    file_type: parquet
+    file_type: csv
     ordered: true
     prefix: ordered_by_source/
   - aligned_by: dst
-    file_type: parquet
+    file_type: csv
     ordered: true
     prefix: ordered_by_dest/
 chunk_size: 4194304
