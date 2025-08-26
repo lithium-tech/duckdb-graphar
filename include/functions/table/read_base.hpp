@@ -120,7 +120,7 @@ private:
     idx_t total_props_num = 0;
     vector<std::shared_ptr<Reader>> readers;
     vector<vector<std::shared_ptr<ArrowArray>>> ptrs;
-    vector<int> first_chunk;
+    vector<int> first_chunk_flags;
     vector<std::shared_ptr<arrow::Table>> tables;
     vector<vector<idx_t>> indices;
     vector<vector<idx_t>> chunk_ids;
@@ -200,14 +200,18 @@ public:
         return ReadFinal::Bind(context, input, return_types, names);
     }
 
-    static graphar::Result<std::shared_ptr<arrow::Table>> NextChunk(std::shared_ptr<Reader> reader, int& is_first,
+    static graphar::Result<std::shared_ptr<arrow::Table>> NextChunk(idx_t reader_i,
                                                                     ReadBaseGlobalTableFunctionState& gstate) {
-        if (is_first) {
-            is_first = false;
+        auto& reader = gstate.readers[reader_i];
+        int& first_chunk_flag = gstate.first_chunk_flags[reader_i];
+        if (first_chunk_flag) {
+            first_chunk_flag = false;
         } else {
             auto is_next = next_chunk(*reader);
             if (not is_next.ok()) {
-                return nullptr;
+                DUCKDB_GRAPHAR_LOG_DEBUG("No next chunk");
+                return GraphArFunctions::EmptyTableFromNamesAndTypes(gstate.prop_names[reader_i],
+                                                                     gstate.prop_types[reader_i]);
             }
         }
         auto result = GetChunk(*reader);
@@ -215,9 +219,11 @@ public:
         auto table = result.value();
         if (gstate.filter_range.first != -1) {
             if (gstate.total_rows >= gstate.filter_range.second) {
-                return nullptr;
+                DUCKDB_GRAPHAR_LOG_DEBUG("All rows read");
+                return GraphArFunctions::EmptyTableFromNamesAndTypes(gstate.prop_names[reader_i],
+                                                                     gstate.prop_types[reader_i]);
             } else if (gstate.total_rows + table->num_rows() < gstate.filter_range.first) {
-                return NextChunk(reader, is_first, gstate);
+                return NextChunk(reader_i, gstate);
             } else {
                 auto start = std::max(static_cast<int64_t>(0), gstate.filter_range.first - gstate.total_rows);
                 auto end =
@@ -261,7 +267,7 @@ public:
         gstate.pgs = bind_data.pgs;
         gstate.column_ids = input.column_ids;
         gstate.readers.resize(bind_data.prop_types.size());
-        gstate.first_chunk.resize(gstate.readers.size(), true);
+        gstate.first_chunk_flags.resize(gstate.readers.size(), true);
         gstate.tables.resize(gstate.readers.size());
         gstate.sizes.resize(gstate.readers.size());
         gstate.indices.resize(gstate.readers.size());
@@ -311,8 +317,11 @@ public:
             t.print("filter setting");
         }
 
+        gstate.prop_names = bind_data.prop_names;
+        gstate.prop_types = bind_data.prop_types;
+
         for (idx_t i = 0; i < gstate.readers.size(); i++) {
-            auto result = NextChunk(gstate.readers[i], gstate.first_chunk[i], gstate);
+            auto result = NextChunk(i, gstate);
             if (time_logging) {
                 t.print("get_chunk");
             }
@@ -341,9 +350,6 @@ public:
         }
         DUCKDB_GRAPHAR_LOG_DEBUG("total props num: " + std::to_string(gstate.total_props_num));
 
-        gstate.prop_names = bind_data.prop_names;
-        gstate.prop_types = bind_data.prop_types;
-
         if (time_logging) {
             t.print("additional info");
         }
@@ -368,18 +374,18 @@ public:
         DUCKDB_GRAPHAR_LOG_DEBUG("Chunk " + std::to_string(gstate.chunk_count) + ": Begin iteration");
 
         idx_t num_rows = STANDARD_VECTOR_SIZE;
+        if (gstate.filter_range.first != -1 &&
+            gstate.total_rows == gstate.filter_range.second - gstate.filter_range.first) {
+            num_rows = 0;
+        }
         for (idx_t i = 0; i < gstate.readers.size() && num_rows; i++) {
             for (int prop_i = 0; prop_i < gstate.prop_names[i].size(); ++prop_i) {
                 if (gstate.indices[i][prop_i] == gstate.sizes[i][prop_i]) {
                     gstate.chunk_ids[i][prop_i]++;
                     if (gstate.tables[i]->column(prop_i)->num_chunks() == gstate.chunk_ids[i][prop_i]) {
-                        auto result = NextChunk(gstate.readers[i], gstate.first_chunk[i], gstate);
+                        auto result = NextChunk(i, gstate);
                         assert(!result.has_error());
                         gstate.tables[i] = result.value();
-                        if (gstate.tables[i] == nullptr) {
-                            num_rows = 0;
-                            break;
-                        }
                         for (int prop_ii = 0; prop_ii < gstate.prop_names[i].size(); ++prop_ii) {
                             gstate.chunk_ids[i][prop_ii] = 0;
                             gstate.sizes[i][prop_ii] =

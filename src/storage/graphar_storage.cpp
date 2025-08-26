@@ -20,7 +20,11 @@ static unique_ptr<Catalog> GraphArAttach(StorageExtensionInfo* storage_info, Cli
                                          AttachedDatabase& db, const string& name, AttachInfo& info,
                                          AccessMode access_mode) {
     DUCKDB_GRAPHAR_LOG_TRACE("GraphArAttach");
-    auto graph_info = graphar::GraphInfo::Load(info.path).value();
+    auto maybe_graph_info = graphar::GraphInfo::Load(info.path);
+    if (maybe_graph_info.has_error()) {
+        throw IOException("Failed to load graph info from path: %s", info.path);
+    }
+    auto graph_info = maybe_graph_info.value();
     return make_uniq<GraphArCatalog>(db, info.path, graph_info, context, db.name);
 }
 

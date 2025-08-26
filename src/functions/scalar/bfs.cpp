@@ -28,15 +28,15 @@ void Bfs::WayLength(DataChunk& args, ExpressionState& state, Vector& result) {
     auto& start_vector = args.data[0];
     auto& aim_vector = args.data[1];
     auto& graphar_info_vector = args.data[2];
-    const auto& number = args.size();
+    const auto number = args.size();
 
-    std::string path_graph = graphar_info_vector.GetValue(0).GetValue<std::string>();
+    const std::string file_path = graphar_info_vector.GetValue(0).GetValue<std::string>();
 
-    DUCKDB_GRAPHAR_LOG_DEBUG("Read Graph info: " + path_graph);
+    DUCKDB_GRAPHAR_LOG_DEBUG("Read Graph info: " + file_path);
 
-    auto maybe_graph_info = graphar::GraphInfo::Load(path_graph);
+    auto maybe_graph_info = graphar::GraphInfo::Load(file_path);
     if (!maybe_graph_info.has_value()) {
-        throw InvalidInputException("Failed to load GraphInfo from path: " + path_graph);
+        throw InvalidInputException("Failed to load GraphInfo from path: " + file_path);
     }
     auto graph_info = maybe_graph_info.value();
     std::string type = graph_info->GetVertexInfoByIndex(0)->GetType();
@@ -146,7 +146,7 @@ void Bfs::WayExists(DataChunk& args, ExpressionState& state, Vector& result) {
     DUCKDB_GRAPHAR_LOG_TRACE("Starting Bfs::WayExists");
     DUCKDB_GRAPHAR_LOG_TRACE("Running auxiliary Bfs::WayLength function");
 
-    const auto& number = args.size();
+    const auto number = args.size();
     auto result_temp = Vector(LogicalType::BIGINT, true, true, number);
     Bfs::WayLength(args, state, result_temp);
 
