@@ -82,7 +82,7 @@ std::shared_ptr<Reader> ReadVertices::GetReader(ReadBaseGlobalTableFunctionState
                                                 const std::string& filter_column, const std::string& filter_type) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadVertices::GetReader");
     auto maybe_reader =
-        graphar::VertexPropertyArrowChunkReader::Make(bind_data.graph_info, bind_data.params[0], bind_data.pgs[ind]);
+        graphar::VertexPropertyChunkInfoReader::Make(bind_data.graph_info, bind_data.params[0], bind_data.pgs[ind]);
     assert(maybe_reader.status().ok());
     Reader result = *maybe_reader.value();
     return std::make_shared<Reader>(std::move(result));
@@ -92,26 +92,45 @@ std::shared_ptr<Reader> ReadVertices::GetReader(ReadBaseGlobalTableFunctionState
 //-------------------------------------------------------------------
 void ReadVertices::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
                              std::string& filter_value, std::string& filter_column, std::string& filter_type) {
+    DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::SetFilter");
     if (filter_column == "") {
         return;
+    } else if (filter_column != GID_COLUMN_INTERNAL) {
+        throw NotImplementedException("Only vertex id filter is supported");
     }
-    if (filter_column == GID_COLUMN_INTERNAL) {
-        graphar::IdType vid = std::stoll(filter_value);
-        int64_t vertex_num = GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[0]);
-        if (vid < 0 or vid >= vertex_num) {
-            throw BinderException("Vertex id is out of range");
-        }
-        for (idx_t i = 0; i < gstate.readers.size(); ++i) {
-            seek_vid(*gstate.readers[i], vid, filter_column);
-        }
-        gstate.filter_range.first = 0;
-        gstate.filter_range.second = 1;
+    graphar::IdType vid = std::stoll(filter_value);
+    int64_t vertex_num = 0;
+    if (filter_column == SRC_GID_COLUMN) {
+        vertex_num = GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[0]);
     } else {
-        auto g_filter = GraphArFunctions::GetFilter(filter_type, filter_value, filter_column);
-        for (idx_t i = 0; i < gstate.readers.size(); ++i) {
-            Filter(*gstate.readers[i], g_filter);
-        }
+        vertex_num = GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[0]);
     }
+    if (vid < 0 or vid >= vertex_num) {
+        throw BinderException("Vertex id is out of range");
+    }
+    for (idx_t i = 0; i < gstate.readers.size(); ++i) {
+        seek_vid(*gstate.readers[i], vid, filter_column);
+    }
+    // if (filter_column == "") {
+    //     return;
+    // }
+    // if (filter_column == GID_COLUMN_INTERNAL) {
+    //     graphar::IdType vid = std::stoll(filter_value);
+    //     int64_t vertex_num = GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[0]);
+    //     if (vid < 0 or vid >= vertex_num) {
+    //         throw BinderException("Vertex id is out of range");
+    //     }
+    //     for (idx_t i = 0; i < gstate.readers.size(); ++i) {
+    //         seek_vid(*gstate.readers[i], vid, filter_column);
+    //     }
+    //     gstate.filter_range.first = 0;
+    //     gstate.filter_range.second = 1;
+    // } else {
+    //     auto g_filter = GraphArFunctions::GetFilter(filter_type, filter_value, filter_column);
+    //     for (idx_t i = 0; i < gstate.readers.size(); ++i) {
+    //         Filter(*gstate.readers[i], g_filter);
+    //     }
+    // }
 }
 //-------------------------------------------------------------------
 // GetFunction
