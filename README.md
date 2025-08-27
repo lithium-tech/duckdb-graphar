@@ -24,3 +24,8 @@ mkdir build && cd build
 cmake .. -DLOAD_TESTS=ON
 make
 ```
+
+Run test:
+```bash
+./build/_deps/duckdb-build/test/unittest "[graphar]"
+```

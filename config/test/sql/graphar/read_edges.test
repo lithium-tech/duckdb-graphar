@@ -1,0 +1,40 @@
+require duckdb_graphar
+
+
+query I
+SELECT COUNT(*) FROM read_edges('__WORKING_DIRECTORY__/test/data/git/Git.yaml', src='Person', type='knows', dst='Person');
+----
+578006
+
+query I
+SELECT COUNT(*) FROM read_edges('__WORKING_DIRECTORY__/test/data/git/Git.yaml', src='Person', type='knows', dst='Person') WHERE _graphArSrcIndex=1;
+----
+8
+
+query II
+SELECT * FROM read_edges('__WORKING_DIRECTORY__/test/data/git/Git.yaml', src='Person', type='knows', dst='Person') WHERE _graphArSrcIndex=0;
+----
+0
+23977
+
+statement ok
+ATTACH '__WORKING_DIRECTORY__/test/data/git/Git.yaml' as test_db (type duckdb_graphar);
+
+query I
+SELECT _graphArDstIndex FROM 'Person_knows_Person.edge' LIMIT 1;
+----
+23977
+
+query I
+SELECT _graphArDstIndex FROM 'Person_knows_Person.edge' WHERE _graphArSrcIndex=3;
+----
+4950
+5916
+34935
+3358
+18029
+
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person.edge';
+----
+578006

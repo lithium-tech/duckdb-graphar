@@ -29,15 +29,22 @@ set(EXTENSION_INCLUDES
 target_include_directories(duckdb_graphar_extension PUBLIC ${EXTENSION_INCLUDES} $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 target_include_directories(duckdb_graphar_loadable_extension PUBLIC ${EXTENSION_INCLUDES} $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
+set(EXT_LIBS
+    arrow::arrow_shared
+    graphar::graphar_shared)
+
+if (NOT APPLE)
+    list(APPEND EXT_LIBS "-Wl,--disable-new-dtags") # Use rpath for ubuntu build
+endif()
+
+
 target_link_libraries(duckdb_graphar_extension
     duckdb_static
-    arrow::arrow_shared
-    graphar::graphar_shared
+    ${EXT_LIBS}
 )
 
 target_link_libraries(duckdb_graphar_loadable_extension
-    arrow::arrow_shared
-    graphar::graphar_shared
+    ${EXT_LIBS}
 )
 
 # =============================================
