@@ -33,11 +33,13 @@ target_link_libraries(duckdb_graphar_extension
     duckdb_static
     arrow::arrow_shared
     graphar::graphar_shared
+    "-Wl, --disable-new-dtags"  # Use rpath for ubuntu build
 )
 
 target_link_libraries(duckdb_graphar_loadable_extension
     arrow::arrow_shared
     graphar::graphar_shared
+    "-Wl, --disable-new-dtags"  # Use rpath for ubuntu build
 )
 
 # =============================================
