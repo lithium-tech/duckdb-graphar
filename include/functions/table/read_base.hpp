@@ -38,6 +38,7 @@ static graphar::Result<std::string> GetChunk(Reader& reader) {
 }
 
 static graphar::Status seek_vid(Reader& reader, graphar::IdType vid, std::string& filter_column) {
+    DUCKDB_GRAPHAR_LOG_TRACE("seek_vid");
     return std::visit(
         [&](auto& r) {
             if (filter_column == GID_COLUMN_INTERNAL) {
@@ -182,7 +183,7 @@ public:
         ReadFinal::SetFilter(gstate, bind_data, filter_value, filter_column, filter_type);
     }
 
-    static void SetQueryString(ReadBaseGlobalTableFunctionState& gstate) {
+    static void SetQueryString(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data) {
         gstate.query_string = "SELECT ";
         if (gstate.column_ids.size() == 1 and gstate.column_ids[0] == COLUMN_IDENTIFIER_ROW_ID) {
             gstate.query_string += "#1 ";
@@ -193,7 +194,27 @@ public:
             gstate.query_string.pop_back();
             gstate.query_string += " ";
         }
-        gstate.query_string += "FROM read_parquet($1)";
+        auto file_type = bind_data.graph_info->GetVertexInfoByIndex(0)->GetPropertyGroupByIndex(0)->GetFileType();
+        std::string read_function_name;
+        switch (file_type) {
+            case graphar::FileType::PARQUET:
+                read_function_name = "read_parquet";
+                break;
+            case graphar::FileType::CSV:
+                throw NotImplementedException("CSV file format is not supported yet");
+                break;
+            case graphar::FileType::JSON:
+                throw NotImplementedException("JSON file format is not supported yet");
+                break;
+            case graphar::FileType::ORC:
+                throw NotImplementedException("ORC file format is not supported yet");
+                break;
+            default:
+                throw NotImplementedException("Unknown file type");
+        }
+        gstate.query_string += "FROM ";
+        gstate.query_string += read_function_name;
+        gstate.query_string += "($1)";
         if (gstate.filter_column != "") {
             gstate.query_string += " WHERE " + gstate.filter_column + " = " + gstate.filter_value;
         }
@@ -216,7 +237,7 @@ public:
         t.print("GetChunk");
         Value path_list_val = Value::LIST(path_list);
         gstate.cur_result = std::move(gstate.conn->Query(gstate.query_string, path_list_val));
-        t.print("read_parquet");
+        t.print("read_parquet (or other read function)");
         DUCKDB_GRAPHAR_LOG_TRACE("ReadBase::NextResult finished");
         return true;
     }
@@ -290,7 +311,7 @@ public:
             t.print("filter setting");
         }
 
-        SetQueryString(gstate);
+        SetQueryString(gstate, bind_data);
         t.print("SetQueryString");
         for (idx_t i = 0; i < gstate.readers.size(); i++) {
             NextResult(gstate, true);

@@ -44,7 +44,7 @@ unique_ptr<FunctionData> ReadEdges::Bind(ClientContext& context, TableFunctionBi
     const std::string dst_type = StringValue::Get(input.named_parameters.at("dst"));
     const std::string e_type = StringValue::Get(input.named_parameters.at("type"));
 
-    DUCKDB_GRAPHAR_LOG_DEBUG(src_type + "--" + e_type + "->" + dst_type + "\nLoad Graph Info and Edge Info");
+    DUCKDB_GRAPHAR_LOG_DEBUG(src_type + "--" + e_type + "->" + dst_type + " Load Graph Info and Edge Info");
 
     auto bind_data = make_uniq<ReadBindData>();
     DUCKDB_GRAPHAR_LOG_DEBUG("file path " + file_path);
@@ -125,7 +125,7 @@ void ReadEdges::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData
     if (filter_column == SRC_GID_COLUMN) {
         vertex_num = GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[0]);
     } else {
-        vertex_num = GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[0]);
+        vertex_num = GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[2]);
     }
     if (vid < 0 or vid >= vertex_num) {
         throw BinderException("Vertex id is out of range");
