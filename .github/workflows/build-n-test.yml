@@ -36,7 +36,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-14]
         include:
           - os: ubuntu-latest
             ccache_dir: ~/.ccache
@@ -52,7 +52,7 @@ jobs:
                 libsnappy-dev \
                 ccache
 
-          - os: macos-latest
+          - os: macos-14
             ccache_path: /opt/homebrew/opt/ccache/libexec
             deps_command: |
               brew update
@@ -82,7 +82,7 @@ jobs:
           echo "CCACHE_DIR=${{ matrix.ccache_dir }}" >> $GITHUB_ENV
           if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
             echo "/usr/lib/ccache" >> $GITHUB_PATH
-          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
+          elif [ "${{ matrix.os }}" = "macos-14" ]; then
             echo "/usr/local/opt/ccache/libexec" >> $GITHUB_PATH
           fi
 
