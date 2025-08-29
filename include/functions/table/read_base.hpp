@@ -57,18 +57,6 @@ static graphar::Status seek_vid(Reader& reader, graphar::IdType vid, std::string
         reader);
 }
 
-// static void Filter(Reader& reader, graphar::util::Filter filter) {
-//     return std::visit(
-//         [&](auto& r) {
-//             if constexpr (requires { r.Filter(filter); }) {
-//                 r.Filter(filter);
-//             } else {
-//                 return;
-//             }
-//         },
-//         reader);
-// }
-
 template <typename ReadFinal>
 class ReadBase;
 
