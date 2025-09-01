@@ -184,15 +184,17 @@ public:
     }
 
     static void SetQueryString(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data) {
-        gstate.query_string = "SELECT ";
-        if (gstate.column_ids.size() == 1 and gstate.column_ids[0] == COLUMN_IDENTIFIER_ROW_ID) {
-            gstate.query_string += "#1 ";
+        std::ostringstream query;
+        query << "SELECT ";
+        if (gstate.column_ids.size() == 1 && gstate.column_ids[0] == COLUMN_IDENTIFIER_ROW_ID) {
+            query << "#1 ";
         } else {
-            for (auto& column_id : gstate.column_ids) {
-                gstate.query_string += "#" + std::to_string(column_id + 1) + ",";
+            for (idx_t i = 0; i < gstate.column_ids.size(); ++i) {
+                query << "#" << std::to_string(gstate.column_ids[i] + 1);
+                if (i != gstate.column_ids.size() - 1) {
+                    query << ", ";
+                }
             }
-            gstate.query_string.pop_back();
-            gstate.query_string += " ";
         }
         auto file_type = bind_data.graph_info->GetVertexInfoByIndex(0)->GetPropertyGroupByIndex(0)->GetFileType();
         std::string read_function_name;
@@ -212,27 +214,29 @@ public:
             default:
                 throw NotImplementedException("Unknown file type");
         }
-        gstate.query_string += "FROM ";
-        gstate.query_string += read_function_name;
-        gstate.query_string += "($1)";
+        query << "FROM " << read_function_name << "($1)";
         if (gstate.filter_column != "") {
-            gstate.query_string += " WHERE " + gstate.filter_column + " = " + gstate.filter_value;
+            query << " WHERE " << gstate.filter_column << " = " << gstate.filter_value;
         }
-        gstate.query_string += ";";
+        query << ";";
+        gstate.query_string = std::move(query).str();
     }
 
     static bool NextResult(ReadBaseGlobalTableFunctionState& gstate, bool is_first_result = false) {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadBase::NextResult");
         ScopedTimer t("NextResult");
         vector<Value> path_list;
+        path_list.reserve(gstate.readers.size());
         for (auto& reader : gstate.readers) {
             if (!is_first_result && !next_chunk(*reader).ok()) {
                 return false;
             }
             auto maybe_next_path = GetChunk(*reader);
-            assert(!maybe_next_path.has_error());
+            if (maybe_next_path.has_error()) {
+                throw std::runtime_error("Failed to get chunk: " + maybe_next_path.error().message());
+            }
             auto next_path = maybe_next_path.value();
-            path_list.emplace_back(next_path);
+            path_list.emplace_back(std::move(next_path));
         }
         t.print("GetChunk");
         Value path_list_val = Value::LIST(path_list);
