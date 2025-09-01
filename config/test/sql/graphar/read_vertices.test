@@ -2,27 +2,27 @@ require duckdb_graphar
 
 
 query I
-SELECT COUNT(*) FROM read_vertices('__WORKING_DIRECTORY__/test/data/git/Git.yaml', type='Person');
+SELECT COUNT(*) FROM read_vertices('__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml', type='Person');
 ----
 37700
 
 query II
-SELECT * FROM read_vertices('__WORKING_DIRECTORY__/test/data/git/Git.yaml', type='Person') WHERE _grapharVertexIndex=0;
+SELECT * FROM read_vertices('__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml', type='Person') WHERE _grapharVertexIndex=0;
 ----
 0
 0
 
 query II
-SELECT * FROM read_vertices('__WORKING_DIRECTORY__/test/data/git/Git.yaml', type='Person') WHERE hash_phone_no=42;
+SELECT * FROM read_vertices('__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml', type='Person') WHERE hash_phone_no=42;
 ----
 42
 42
 
 statement ok
-ATTACH '__WORKING_DIRECTORY__/test/data/git/Git.yaml' as test_db (type duckdb_graphar);
+ATTACH '__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml' as test_db (type duckdb_graphar);
 
 query I
-SELECT hash_phone_no FROM 'Person.vertex' LIMIT 4;
+SELECT id FROM 'Person.vertex' LIMIT 4;
 ----
 0
 1
@@ -30,7 +30,7 @@ SELECT hash_phone_no FROM 'Person.vertex' LIMIT 4;
 3
 
 query I
-SELECT hash_phone_no FROM 'Person.vertex' WHERE _graphArVertexIndex=4;
+SELECT id FROM 'Person.vertex' WHERE _graphArVertexIndex=4;
 ----
 4
 
