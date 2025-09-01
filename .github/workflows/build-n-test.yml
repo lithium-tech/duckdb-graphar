@@ -63,19 +63,18 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install clang-format
-        if: matrix.os == 'macos-14'
+        if: matrix.os == 'ubuntu-22.04'
         run: |
           echo "::group::Installing CLang Format"
-          brew install llvm@19
-          brew --prefix llvm@19
-          export PATH="$(brew --prefix llvm@19)/bin:$PATH"
+          sudo apt-get update
+          sudo apt-get install clang-format-15
           echo "::endgroup::"
 
       - name: Check C++ Code Style
-        if: matrix.os == 'macos-14'
+        if: matrix.os == 'ubuntu-22.04'
         run: |
           echo "::group::Checking C++ Code Style"
-          find src/ include/ -name '*.cpp' -o -name '*.hpp' | xargs clang-format --dry-run --Werror
+          find src/ include/ -name '*.cpp' -o -name '*.hpp' | xargs clang-format-15 --dry-run --Werror
           echo "::endgroup::"
 
       - name: Set up ccache
