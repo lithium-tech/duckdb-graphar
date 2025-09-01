@@ -67,7 +67,7 @@ jobs:
         run: |
           echo "::group::Installing CLang Format"
           brew install llvm@19
-          export PATH="/opt/homebrew/opt/llvm@19/bin:$PATH"
+          export PATH="/usr/local/opt/llvm@19/bin:$PATH"
           echo "::endgroup::"
 
       - name: Check C++ Code Style
