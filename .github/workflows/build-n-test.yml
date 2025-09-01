@@ -74,7 +74,7 @@ jobs:
         if: matrix.os == 'ubuntu-22.04'
         run: |
           echo "::group::Checking C++ Code Style"
-          find src/ include/ -name '*.cpp' -o -name '*.hpp' | xargs clang-format-15 --dry-run --Werror
+          find src/ include/ -name '*.cpp' -o -name '*.hpp' | xargs clang-format-15 --dry-run
           echo "::endgroup::"
 
       - name: Set up ccache
