@@ -92,9 +92,9 @@ jobs:
           path: |
             ${{ matrix.ccache_dir }}
             build/_deps
-          key: ${{ runner.os }}-deps-${{ hashFiles('CMakeLists.txt') }}
+          key: ${{ runner.os }}-deps-ubuntu-22-${{ hashFiles('CMakeLists.txt') }}
           restore-keys: |
-            ${{ runner.os }}-deps-
+            ${{ runner.os }}-deps-ubuntu-22
 
       - name: Install System Dependencies
         run: |
