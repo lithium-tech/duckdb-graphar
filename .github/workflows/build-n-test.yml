@@ -118,24 +118,10 @@ jobs:
           echo "Build succeeded on ${{ matrix.os }}"
           ccache -s
 
-      - name: Install GraphAr CLI dependencies
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          echo "::group::Installing GraphAr CLI dependencies"
-          wget -c https://apache.jfrog.io/artifactory/arrow/"$(lsb_release --id --short | tr 'A-Z' 'a-z')"/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb \
-          -P /tmp/
-          sudo apt-get install -y /tmp/apache-arrow-apt-source-latest-"$(lsb_release --codename --short)".deb
-          sudo apt-get update -y
-          sudo apt install -y libarrow-dev=17.0.0-1 \
-                              libarrow-dataset-dev=17.0.0-1 \
-                              libarrow-acero-dev=17.0.0-1 \
-                              libparquet-dev=17.0.0-1
-          echo "::endgroup::"
-
       - name: Install GraphAr CLI
         if: matrix.os == 'ubuntu-latest'
         run: |
-          pip install ./build/_deps/graphar-prefix/src/graphar/cli
+          ./scripts/install-cli.sh
 
       - name: Generate GraphAr data
         if: matrix.os == 'ubuntu-latest'
