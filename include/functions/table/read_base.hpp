@@ -38,13 +38,13 @@ static graphar::Result<std::string> GetChunk(Reader& reader) {
 }
 
 static graphar::Status seek(Reader& reader, graphar::IdType id) {
-    DUCKDB_GRAPHAR_LOG_TRACE("seek_vid");
+    DUCKDB_GRAPHAR_LOG_TRACE("seek");
     return std::visit(
         [&](auto& r) {
             if constexpr (requires { r.seek(id); }) {
                 return r.seek(id);
             } else {
-                return graphar::Status::TypeError("seek_chunk is not implemented for this type of reader");
+                return graphar::Status::TypeError("seek is not implemented for this type of reader");
             }
         },
         reader);
