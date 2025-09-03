@@ -54,12 +54,12 @@ std::string GraphArFunctions::GetNameFromInfo(const std::shared_ptr<Info>& info)
 
 template <>
 std::string GraphArFunctions::GetNameFromInfo(const std::shared_ptr<graphar::VertexInfo>& info) {
-    return info->GetType() + ".vertex";
+    return info->GetType();
 }
 
 template <>
 std::string GraphArFunctions::GetNameFromInfo(const std::shared_ptr<graphar::EdgeInfo>& info) {
-    return info->GetSrcType() + "_" + info->GetEdgeType() + "_" + info->GetDstType() + ".edge";
+    return info->GetSrcType() + "_" + info->GetEdgeType() + "_" + info->GetDstType();
 }
 
 int64_t GraphArFunctions::GetVertexNum(std::shared_ptr<graphar::GraphInfo> graph_info, std::string& type) {

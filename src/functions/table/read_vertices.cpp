@@ -109,8 +109,9 @@ void ReadVertices::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindD
         throw BinderException("Vertex id is out of range");
     }
     for (idx_t i = 0; i < gstate.readers.size(); ++i) {
-        seek_vid(*gstate.readers[i], vid, filter_column);
+        seek(*gstate.readers[i], vid);
     }
+    gstate.filter_range = {vid, vid + 1};
 }
 //-------------------------------------------------------------------
 // GetFunction
