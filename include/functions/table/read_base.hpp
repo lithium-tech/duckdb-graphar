@@ -146,6 +146,7 @@ private:
     vector<unique_ptr<QueryResult>> cur_results;
     vector<unique_ptr<DataChunk>> cur_chunks;
     vector<idx_t> num_read_rows;
+    idx_t total_rows = 0;
 
     std::string filter_column;
     std::string filter_value;
@@ -231,6 +232,9 @@ public:
     static void SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data, std::string& filter_value,
                           std::string& filter_column, std::string& filter_type) {
         ReadFinal::SetFilter(gstate, bind_data, filter_value, filter_column, filter_type);
+        gstate.total_rows = gstate.filter_range.second - gstate.filter_range.first;
+        gstate.filter_range.first %= gstate.chunk_size;
+        gstate.filter_range.second %= gstate.chunk_size;
     }
 
     static bool NextResult(ReadBaseGlobalTableFunctionState& gstate, bool is_first_result = false) {
@@ -238,12 +242,12 @@ public:
         QueryStringConstructor::QueryType query_type = QueryStringConstructor::QueryType::MIDDLE;
         if (!gstate.filter_column.empty()) {
             if (gstate.read_rows == 0) {
-                if (gstate.chunk_size >= gstate.filter_range.second - gstate.filter_range.first) {
+                if (gstate.chunk_size >= gstate.total_rows) {
                     query_type = QueryStringConstructor::QueryType::SINGLE;
                 } else {
                     query_type = QueryStringConstructor::QueryType::FIRST;
                 }
-            } else if (gstate.read_rows + gstate.chunk_size >= gstate.filter_range.second - gstate.filter_range.first) {
+            } else if (gstate.read_rows + gstate.chunk_size >= gstate.total_rows) {
                 query_type = QueryStringConstructor::QueryType::LAST;
             }
         }
@@ -427,7 +431,7 @@ public:
         DUCKDB_GRAPHAR_LOG_DEBUG("Chunk " + std::to_string(gstate.chunk_count) + ": Begin iteration");
         idx_t num_rows = STANDARD_VECTOR_SIZE;
         if (!gstate.filter_column.empty() &&
-            gstate.read_rows == gstate.filter_range.second - gstate.filter_range.first) {
+            gstate.read_rows == gstate.total_rows) {
             num_rows = 0;
         }
         for (idx_t i = 0; i < gstate.readers.size() && num_rows; ++i) {
