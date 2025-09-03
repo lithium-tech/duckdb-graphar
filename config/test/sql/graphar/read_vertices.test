@@ -11,10 +11,18 @@ SELECT * FROM read_vertices('__WORKING_DIRECTORY__/../data/snap-musae-github/gra
 ----
 0
 0
+Eiryyy
+false
+0
+0
 
 query II
-SELECT * FROM read_vertices('__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml', type='Person') WHERE hash_phone_no=42;
+SELECT * FROM read_vertices('__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml', type='Person') WHERE id=42;
 ----
+42
+42
+indreklasn
+false
 42
 42
 
