@@ -84,7 +84,8 @@ private:
 class QueryStringConstructor {
 public:
     enum class QueryType { FIRST, MIDDLE, LAST, SINGLE };
-    std::string GetQueryString(std::string &projected_columns_string, QueryType query_type, graphar::IdType filter_val = 0) {
+    std::string GetQueryString(std::string& projected_columns_string, QueryType query_type,
+                               graphar::IdType filter_val = 0) {
         std::ostringstream ss;
         ss << SQL_SELECT_CLAUSE << " " << projected_columns_string << " " << SQL_FROM_CLAUSE << " ";
         switch (file_type) {
@@ -109,19 +110,22 @@ public:
         } else if (query_type == QueryType::LAST) {
             ss << " " << SQL_WHERE_CLAUSE << " " << FILE_ROW_NUMBER_CLAUSE << " < $2";
         } else if (query_type == QueryType::SINGLE) {
-            ss << " " << SQL_WHERE_CLAUSE << " " << FILE_ROW_NUMBER_CLAUSE << " >= $2 AND " << FILE_ROW_NUMBER_CLAUSE << " < $3";
+            ss << " " << SQL_WHERE_CLAUSE << " " << FILE_ROW_NUMBER_CLAUSE << " >= $2 AND " << FILE_ROW_NUMBER_CLAUSE
+               << " < $3";
         }
         ss << ";";
         return ss.str();
     }
 
     void SetFileType(graphar::FileType file_type_) { file_type = file_type_; }
+
 private:
     static constexpr std::string_view SQL_SELECT_CLAUSE = "SELECT";
     static constexpr std::string_view SQL_FROM_CLAUSE = "FROM";
     static constexpr std::string_view SQL_WHERE_CLAUSE = "WHERE";
     static constexpr std::string_view READ_PARQUET_FUNCTION = "read_parquet";
     static constexpr std::string_view FILE_ROW_NUMBER_CLAUSE = "file_row_number";
+
 private:
     graphar::FileType file_type;
 };
@@ -253,15 +257,23 @@ public:
                 throw std::runtime_error("Failed to get chunk: " + maybe_next_path.error().message());
             }
             auto next_path = maybe_next_path.value();
-            auto query_string = std::move(gstate.query_string_constructor.GetQueryString(gstate.projected_columns_strings[i], query_type));
+            auto query_string = std::move(
+                gstate.query_string_constructor.GetQueryString(gstate.projected_columns_strings[i], query_type));
             if (query_type == QueryStringConstructor::QueryType::MIDDLE) {
                 gstate.cur_results[i] = std::move(gstate.conn->Query(query_string, Value(std::move(next_path))));
             } else if (query_type == QueryStringConstructor::QueryType::FIRST) {
-                gstate.cur_results[i] = std::move(gstate.conn->Query(query_string, Value(std::move(next_path)), Value::BIGINT(gstate.filter_range.first % gstate.chunk_size)));
+                gstate.cur_results[i] =
+                    std::move(gstate.conn->Query(query_string, Value(std::move(next_path)),
+                                                 Value::BIGINT(gstate.filter_range.first % gstate.chunk_size)));
             } else if (query_type == QueryStringConstructor::QueryType::LAST) {
-                gstate.cur_results[i] = std::move(gstate.conn->Query(query_string, Value(std::move(next_path)), Value::BIGINT(gstate.filter_range.second % gstate.chunk_size)));
+                gstate.cur_results[i] =
+                    std::move(gstate.conn->Query(query_string, Value(std::move(next_path)),
+                                                 Value::BIGINT(gstate.filter_range.second % gstate.chunk_size)));
             } else if (query_type == QueryStringConstructor::QueryType::SINGLE) {
-                gstate.cur_results[i] = std::move(gstate.conn->Query(query_string, Value(std::move(next_path)), Value::BIGINT(gstate.filter_range.first % gstate.chunk_size), Value::BIGINT(gstate.filter_range.second % gstate.chunk_size)));
+                gstate.cur_results[i] =
+                    std::move(gstate.conn->Query(query_string, Value(std::move(next_path)),
+                                                 Value::BIGINT(gstate.filter_range.first % gstate.chunk_size),
+                                                 Value::BIGINT(gstate.filter_range.second % gstate.chunk_size)));
             }
         }
         DUCKDB_GRAPHAR_LOG_TRACE("ReadBase::NextResult finished");
@@ -288,7 +300,8 @@ public:
 
         gstate.function_name = bind_data.function_name;
         gstate.column_ids = input.column_ids;
-        gstate.query_string_constructor.SetFileType(bind_data.graph_info->GetVertexInfoByIndex(0)->GetPropertyGroupByIndex(0)->GetFileType());
+        gstate.query_string_constructor.SetFileType(
+            bind_data.graph_info->GetVertexInfoByIndex(0)->GetPropertyGroupByIndex(0)->GetFileType());
         gstate.chunk_size = bind_data.chunk_size;
 
         std::string filter_value, filter_column, filter_type;
@@ -330,7 +343,8 @@ public:
 
         gstate.projected_columns_strings.reserve(bind_data.prop_types.size());
         gstate.readers.reserve(bind_data.prop_types.size());
-        if (gstate.column_ids.empty() || gstate.column_ids.size() == 1 && gstate.column_ids[0] == COLUMN_IDENTIFIER_ROW_ID) {
+        if (gstate.column_ids.empty() ||
+            gstate.column_ids.size() == 1 && gstate.column_ids[0] == COLUMN_IDENTIFIER_ROW_ID) {
             DUCKDB_GRAPHAR_LOG_DEBUG("Returning any column");
             gstate.projected_columns_strings.emplace_back("#1");
             gstate.readers.emplace_back(GetReader(gstate, bind_data, 0, filter_value, filter_column, filter_type));
@@ -379,7 +393,6 @@ public:
 
         DUCKDB_GRAPHAR_LOG_DEBUG("readers num: " + std::to_string(gstate.readers.size()));
 
-
         if (time_logging) {
             t.print("readers creation");
         }
@@ -413,7 +426,8 @@ public:
 
         DUCKDB_GRAPHAR_LOG_DEBUG("Chunk " + std::to_string(gstate.chunk_count) + ": Begin iteration");
         idx_t num_rows = STANDARD_VECTOR_SIZE;
-        if (!gstate.filter_column.empty() && gstate.read_rows == gstate.filter_range.second - gstate.filter_range.first) {
+        if (!gstate.filter_column.empty() &&
+            gstate.read_rows == gstate.filter_range.second - gstate.filter_range.first) {
             num_rows = 0;
         }
         for (idx_t i = 0; i < gstate.readers.size() && num_rows; ++i) {
@@ -440,7 +454,8 @@ public:
             idx_t it = 0;
             for (idx_t i = 0; i < gstate.readers.size(); i++) {
                 for (idx_t j = 0; j < gstate.cur_chunks[i]->ColumnCount(); j++) {
-                    Vector vec_slice(gstate.cur_chunks[i]->data[j], gstate.num_read_rows[i], gstate.num_read_rows[i] + num_rows);
+                    Vector vec_slice(gstate.cur_chunks[i]->data[j], gstate.num_read_rows[i],
+                                     gstate.num_read_rows[i] + num_rows);
                     output.data[it++].Reference(vec_slice);
                 }
                 gstate.num_read_rows[i] += num_rows;

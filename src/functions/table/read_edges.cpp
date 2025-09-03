@@ -130,9 +130,10 @@ void ReadEdges::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData
         throw BinderException("Vertex id is out of range");
     }
     auto edge_info = bind_data.graph_info->GetEdgeInfo(bind_data.params[0], bind_data.params[1], bind_data.params[2]);
-    auto adj_list_type = (filter_column == SRC_GID_COLUMN) ? graphar::AdjListType::ordered_by_source : graphar::AdjListType::ordered_by_dest;
-    auto maybe_offset_pair = graphar::util::GetAdjListOffsetOfVertex(edge_info, bind_data.graph_info->GetPrefix(),
-                                                       adj_list_type, vid);
+    auto adj_list_type = (filter_column == SRC_GID_COLUMN) ? graphar::AdjListType::ordered_by_source
+                                                           : graphar::AdjListType::ordered_by_dest;
+    auto maybe_offset_pair =
+        graphar::util::GetAdjListOffsetOfVertex(edge_info, bind_data.graph_info->GetPrefix(), adj_list_type, vid);
     if (maybe_offset_pair.has_error()) {
         throw InternalException("Failed to get adj list offset of vertex: %s", maybe_offset_pair.status().message());
     }
@@ -147,7 +148,8 @@ void ReadEdges::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData
     }
     gstate.filter_range = offset_pair;
     std::cout << "filter range: " << offset_pair.first << " " << offset_pair.second << std::endl;
-    DUCKDB_GRAPHAR_LOG_DEBUG("Filter range: " + std::to_string(offset_pair.first) + " " + std::to_string(offset_pair.second));
+    DUCKDB_GRAPHAR_LOG_DEBUG("Filter range: " + std::to_string(offset_pair.first) + " " +
+                             std::to_string(offset_pair.second));
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::SetFilter: finished");
 }
 //-------------------------------------------------------------------
