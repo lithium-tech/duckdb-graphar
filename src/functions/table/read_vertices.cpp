@@ -48,7 +48,7 @@ unique_ptr<FunctionData> ReadVertices::Bind(ClientContext& context, TableFunctio
     auto bind_data = make_uniq<ReadBindData>();
     auto maybe_graph_info = graphar::GraphInfo::Load(file_path);
     if (maybe_graph_info.has_error()) {
-        throw IOException("Failed to load graph info from path: %s", file_path);
+        throw IOException("Failed to load graph info from path: %s, error: %s", file_path, maybe_graph_info.status().message());
     }
     auto graph_info = maybe_graph_info.value();
 

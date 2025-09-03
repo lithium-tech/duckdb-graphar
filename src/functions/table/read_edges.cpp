@@ -50,7 +50,7 @@ unique_ptr<FunctionData> ReadEdges::Bind(ClientContext& context, TableFunctionBi
     DUCKDB_GRAPHAR_LOG_DEBUG("file path " + file_path);
     auto maybe_graph_info = graphar::GraphInfo::Load(file_path);
     if (maybe_graph_info.has_error()) {
-        throw IOException("Failed to load graph info from path: %s", file_path);
+        throw IOException("Failed to load graph info from path: %s, error: %s", file_path, maybe_graph_info.status().message());
     }
     auto graph_info = maybe_graph_info.value();
 
