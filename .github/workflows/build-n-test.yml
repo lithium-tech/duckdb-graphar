@@ -122,14 +122,14 @@ jobs:
         if: matrix.os == 'ubuntu-22.04'
         run: |
           pip3 install --upgrade pip
-          ./scripts/install-cli.sh
+          scripts/install-cli.sh
 
       - name: Generate GraphAr data
         if: matrix.os == 'ubuntu-22.04'
         run: |
-          ./scripts/generate-graphar-data.sh
+          scripts/generate-graphar-data.sh
 
       - name: Run Tests
         if: matrix.os == 'ubuntu-22.04'
         run: |
-          ./build/_deps/duckdb-build/test/unittest "[graphar]" --reporter console  || exit 1
+          build/_deps/duckdb-build/test/unittest "[graphar]" --reporter console  || exit 1
