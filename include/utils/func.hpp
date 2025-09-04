@@ -67,6 +67,18 @@ struct GraphArFunctions {
                                                           const std::string& filter_column);
 };
 
+template <>
+inline std::string GraphArFunctions::GetNameFromInfo<graphar::VertexInfo>(
+    const std::shared_ptr<graphar::VertexInfo>& info) {
+    return info->GetType() + "_vertex";
+}
+
+template <>
+inline std::string GraphArFunctions::GetNameFromInfo<graphar::EdgeInfo>(
+    const std::shared_ptr<graphar::EdgeInfo>& info) {
+    return info->GetSrcType() + "_" + info->GetEdgeType() + "_" + info->GetDstType() + "_edge";
+}
+
 inline std::pair<int64_t, int64_t> GetChunkAndOffset(graphar::IdType chunk_size, graphar::IdType offset) {
     int64_t chunk_num = offset / chunk_size;
     int64_t offset_in_chunk = offset % chunk_size;
