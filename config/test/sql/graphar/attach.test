@@ -7,11 +7,11 @@ ATTACH '__WORKING_DIRECTORY__/test/data/git/Git.yaml' as test_db (type duckdb_gr
 query I
 SELECT name from (SHOW ALL TABLES);
 ----
-Person.vertex
-Person_knows_Person.edge
+Person_vertex
+Person_knows_Person_edge
 
 query I
 SELECT name from (SHOW TABLES);
 ----
-Person.vertex
-Person_knows_Person.edge
+Person_vertex
+Person_knows_Person_edge

@@ -84,7 +84,7 @@ std::shared_ptr<Reader> ReadEdges::GetReader(ReadBaseGlobalTableFunctionState& g
                                              const std::string& filter_column, const std::string& filter_type) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader");
     graphar::AdjListType adj_list_type;
-    if (filter_column == "" or filter_column == SRC_GID_COLUMN) {
+    if (filter_column == "" || filter_column == SRC_GID_COLUMN) {
         adj_list_type = graphar::AdjListType::ordered_by_source;
     } else if (filter_column == DST_GID_COLUMN) {
         adj_list_type = graphar::AdjListType::ordered_by_dest;
@@ -127,7 +127,7 @@ void ReadEdges::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData
     } else {
         vertex_num = GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[2]);
     }
-    if (vid < 0 or vid >= vertex_num) {
+    if (vid < 0 || vid >= vertex_num) {
         throw BinderException("Vertex id is out of range");
     }
     auto edge_info = bind_data.graph_info->GetEdgeInfo(bind_data.params[0], bind_data.params[1], bind_data.params[2]);

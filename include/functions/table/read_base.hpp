@@ -73,7 +73,7 @@ private:
     vector<std::string> params;
     graphar::PropertyGroupVector pgs;
     idx_t columns_to_remove = 0;
-    idx_t chunk_size;
+    idx_t chunk_size = 0;
 
     template <typename ReadFinal>
     friend class ReadBase;
@@ -131,20 +131,19 @@ private:
 };
 
 class ReadBaseGlobalTableFunctionState : public GlobalTableFunctionState {
-private:
     idx_t chunk_count = 0;
     vector<std::shared_ptr<Reader>> readers;
     std::string function_name;
     vector<column_t> column_ids;
     std::pair<row_t, row_t> filter_range = {-1, -1};
 
-    idx_t chunk_size;
+    idx_t chunk_size = 0;
 
     QueryStringConstructor query_string_constructor;
     vector<std::string> projected_columns_strings;
     unique_ptr<Connection> conn;
-    vector<unique_ptr<QueryResult>> cur_results;
-    vector<unique_ptr<DataChunk>> cur_chunks;
+    vector<unique_ptr<QueryResult>> current_queries_results_;
+    vector<unique_ptr<DataChunk>> current_results_chunks_;
     vector<idx_t> num_read_rows;
     idx_t total_rows = 0;
 
@@ -171,7 +170,8 @@ public:
         bind_data->pgs = type_info.GetPropertyGroups();
         DUCKDB_GRAPHAR_LOG_DEBUG("pgs size " + std::to_string(bind_data->pgs.size()));
         bind_data->prop_types.resize(bind_data->pgs.size() + pg_for_id);
-        bind_data->prop_names.resize(bind_data->prop_types.size());
+        const auto prop_types_size = bind_data->prop_types.size();
+        bind_data->prop_names.resize(prop_types_size);
 
         idx_t total_props_num = id_columns.size();
         for (idx_t i = 0; i < bind_data->pgs.size(); ++i) {
@@ -208,6 +208,9 @@ public:
         bind_data->flatten_prop_names = std::move(names);
         bind_data->columns_to_remove = columns_to_remove;
         bind_data->chunk_size = type_info.GetChunkSize();
+        if (bind_data->chunk_size == 0) {
+            throw IOException("Chunk size can not be 0");
+        }
         if constexpr (std::is_same_v<TypeInfo, graphar::VertexInfo>) {
             bind_data->params = {type_info.GetType()};
         } else {
@@ -233,8 +236,6 @@ public:
                           std::string& filter_column, std::string& filter_type) {
         ReadFinal::SetFilter(gstate, bind_data, filter_value, filter_column, filter_type);
         gstate.total_rows = gstate.filter_range.second - gstate.filter_range.first;
-        gstate.filter_range.first %= gstate.chunk_size;
-        gstate.filter_range.second %= gstate.chunk_size;
     }
 
     static bool NextResult(ReadBaseGlobalTableFunctionState& gstate, bool is_first_result = false) {
@@ -263,22 +264,29 @@ public:
             auto next_path = maybe_next_path.value();
             auto query_string = std::move(
                 gstate.query_string_constructor.GetQueryString(gstate.projected_columns_strings[i], query_type));
-            if (query_type == QueryStringConstructor::QueryType::MIDDLE) {
-                gstate.cur_results[i] = std::move(gstate.conn->Query(query_string, Value(std::move(next_path))));
-            } else if (query_type == QueryStringConstructor::QueryType::FIRST) {
-                gstate.cur_results[i] =
-                    std::move(gstate.conn->Query(query_string, Value(std::move(next_path)),
-                                                 Value::BIGINT(gstate.filter_range.first % gstate.chunk_size)));
-            } else if (query_type == QueryStringConstructor::QueryType::LAST) {
-                gstate.cur_results[i] =
-                    std::move(gstate.conn->Query(query_string, Value(std::move(next_path)),
-                                                 Value::BIGINT(gstate.filter_range.second % gstate.chunk_size)));
-            } else if (query_type == QueryStringConstructor::QueryType::SINGLE) {
-                gstate.cur_results[i] =
-                    std::move(gstate.conn->Query(query_string, Value(std::move(next_path)),
-                                                 Value::BIGINT(gstate.filter_range.first % gstate.chunk_size),
-                                                 Value::BIGINT(gstate.filter_range.second % gstate.chunk_size)));
+            unique_ptr<QueryResult> query_result = nullptr;
+            switch (query_tupe) {
+                case QueryStringConstructor::QueryType::MIDDLE:
+                    query_result = std::move(gstate.conn->Query(query_string, Value(std::move(next_path))));
+                    break;
+                case QueryStringConstructor::QueryType::FIRST:
+                    query_result = std::move(gstate.conn->Query(query_string, Value(std::move(next_path)),
+                                                                Value(gstate.filter_range.first % gstate.chunk_size)));
+                    break;
+                case QueryStringConstructor::QueryType::LAST:
+                    query_result = std::move(gstate.conn->Query(query_string, Value(std::move(next_path)),
+                                                                Value(gstate.filter_range.second % gstate.chunk_size)));
+                    break;
+                case QueryStringConstructor::QueryType::SINGLE:
+                    query_result = std::move(gstate.conn->Query(query_string, Value(std::move(next_path)),
+                                                                Value(gstate.filter_range.first % gstate.chunk_size),
+                                                                Value(gstate.filter_range.second % gstate.chunk_size)));
+                    break;
             }
+            if (query_result->HasError()) {
+                throw std::runtime_error("Failed to execute query: " + query_result->GetError());
+            }
+            gstate.current_queries_results_[i] = std::move(query_result);
         }
         DUCKDB_GRAPHAR_LOG_TRACE("ReadBase::NextResult finished");
         return true;
@@ -339,14 +347,15 @@ public:
             t.print("filter parsing");
         }
 
-        vector<idx_t> columns_pref_num(bind_data.prop_types.size() + 1);
+        const auto prop_types_size = bind_data.prop_types.size();
+        vector<idx_t> columns_pref_num(prop_types_size + 1);
         columns_pref_num[0] = 0;
-        for (idx_t i = 0; i < bind_data.prop_types.size(); i++) {
+        for (idx_t i = 0; i < prop_types_size; i++) {
             columns_pref_num[i + 1] = columns_pref_num[i] + bind_data.prop_types[i].size();
         }
 
-        gstate.projected_columns_strings.reserve(bind_data.prop_types.size());
-        gstate.readers.reserve(bind_data.prop_types.size());
+        gstate.projected_columns_strings.reserve(prop_types_size);
+        gstate.readers.reserve(prop_types_size);
         if (gstate.column_ids.empty() ||
             gstate.column_ids.size() == 1 && gstate.column_ids[0] == COLUMN_IDENTIFIER_ROW_ID) {
             DUCKDB_GRAPHAR_LOG_DEBUG("Returning any column");
@@ -355,14 +364,14 @@ public:
         } else {
             DUCKDB_GRAPHAR_LOG_DEBUG("Returning specific columns");
             idx_t it = 0;
-            vector<vector<idx_t>> column_ids_split_by_reader(bind_data.prop_types.size());
+            vector<vector<idx_t>> column_ids_split_by_reader(prop_types_size);
             for (idx_t i = 1; i < columns_pref_num.size(); ++i) {
                 while (it < gstate.column_ids.size() && gstate.column_ids[it] < columns_pref_num[i]) {
                     column_ids_split_by_reader[i - 1].emplace_back(gstate.column_ids[it] - columns_pref_num[i - 1]);
                     it++;
                 }
             }
-            for (idx_t i = 0; i < bind_data.prop_types.size(); ++i) {
+            for (idx_t i = 0; i < prop_types_size; ++i) {
                 auto& vec = column_ids_split_by_reader[i];
                 if (vec.empty()) {
                     continue;
@@ -388,9 +397,9 @@ public:
             t.print("readers creation");
         }
 
-        gstate.cur_results.resize(bind_data.prop_types.size());
-        gstate.cur_chunks.resize(bind_data.prop_types.size());
-        gstate.num_read_rows.resize(bind_data.prop_types.size());
+        gstate.current_queries_results_.resize(prop_types_size);
+        gstate.current_results_chunks_.resize(prop_types_size);
+        gstate.num_read_rows.resize(prop_types_size);
 
         DatabaseInstance fake_db;
         gstate.conn = std::move(make_uniq<Connection>(*context.db));
@@ -434,15 +443,16 @@ public:
             num_rows = 0;
         }
         for (idx_t i = 0; i < gstate.readers.size() && num_rows; ++i) {
-            if (!gstate.cur_chunks[i] || gstate.cur_chunks[i]->size() == gstate.num_read_rows[i]) {
-                gstate.cur_chunks[i] = gstate.cur_results[i]->Fetch();
-                if (!gstate.cur_chunks[i]) {
+            if (!gstate.current_results_chunks_[i] ||
+                gstate.current_results_chunks_[i]->size() == gstate.num_read_rows[i]) {
+                gstate.current_results_chunks_[i] = gstate.current_queries_results_[i]->Fetch();
+                if (!gstate.current_results_chunks_[i]) {
                     if (!NextResult(gstate, false)) {
                         num_rows = 0;
                         break;
                     }
-                    gstate.cur_chunks[i] = gstate.cur_results[i]->Fetch();
-                    if (!gstate.cur_chunks[i]) {
+                    gstate.current_results_chunks_[i] = gstate.current_queries_results_[i]->Fetch();
+                    if (!gstate.current_results_chunks_[i]) {
                         num_rows = 0;
                         break;
                     }
@@ -452,12 +462,12 @@ public:
         }
         if (num_rows > 0) {
             for (idx_t i = 0; i < gstate.readers.size(); i++) {
-                num_rows = std::min(num_rows, gstate.cur_chunks[i]->size() - gstate.num_read_rows[i]);
+                num_rows = std::min(num_rows, gstate.current_results_chunks_[i]->size() - gstate.num_read_rows[i]);
             }
             idx_t it = 0;
             for (idx_t i = 0; i < gstate.readers.size(); i++) {
-                for (idx_t j = 0; j < gstate.cur_chunks[i]->ColumnCount(); j++) {
-                    Vector vec_slice(gstate.cur_chunks[i]->data[j], gstate.num_read_rows[i],
+                for (idx_t j = 0; j < gstate.current_results_chunks_[i]->ColumnCount(); j++) {
+                    Vector vec_slice(gstate.current_results_chunks_[i]->data[j], gstate.num_read_rows[i],
                                      gstate.num_read_rows[i] + num_rows);
                     output.data[it++].Reference(vec_slice);
                 }

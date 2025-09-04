@@ -48,18 +48,18 @@ unique_ptr<ArrowTypeInfo> GraphArFunctions::graphArT2ArrowTypeInfo(const std::st
 }
 
 template <typename Info>
-std::string GraphArFunctions::GetNameFromInfo(const std::shared_ptr<Info>& info) {
+inline std::string GraphArFunctions::GetNameFromInfo(const std::shared_ptr<Info>& info) {
     throw InternalException("Unsupported info");
 }
 
 template <>
-std::string GraphArFunctions::GetNameFromInfo(const std::shared_ptr<graphar::VertexInfo>& info) {
-    return info->GetType();
+inline std::string GraphArFunctions::GetNameFromInfo(const std::shared_ptr<graphar::VertexInfo>& info) {
+    return info->GetType() + "_vertex";
 }
 
 template <>
-std::string GraphArFunctions::GetNameFromInfo(const std::shared_ptr<graphar::EdgeInfo>& info) {
-    return info->GetSrcType() + "_" + info->GetEdgeType() + "_" + info->GetDstType();
+inline std::string GraphArFunctions::GetNameFromInfo(const std::shared_ptr<graphar::EdgeInfo>& info) {
+    return info->GetSrcType() + "_" + info->GetEdgeType() + "_" + info->GetDstType() + "_edge";
 }
 
 int64_t GraphArFunctions::GetVertexNum(std::shared_ptr<graphar::GraphInfo> graph_info, std::string& type) {
