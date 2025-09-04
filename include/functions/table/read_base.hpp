@@ -265,22 +265,25 @@ public:
             auto query_string = std::move(
                 gstate.query_string_constructor.GetQueryString(gstate.projected_columns_strings[i], query_type));
             unique_ptr<QueryResult> query_result = nullptr;
-            switch (query_tupe) {
+            switch (query_type) {
                 case QueryStringConstructor::QueryType::MIDDLE:
                     query_result = std::move(gstate.conn->Query(query_string, Value(std::move(next_path))));
                     break;
                 case QueryStringConstructor::QueryType::FIRST:
-                    query_result = std::move(gstate.conn->Query(query_string, Value(std::move(next_path)),
-                                                                Value(gstate.filter_range.first % gstate.chunk_size)));
+                    query_result =
+                        std::move(gstate.conn->Query(query_string, Value(std::move(next_path)),
+                                                     Value::BIGINT(gstate.filter_range.first % gstate.chunk_size)));
                     break;
                 case QueryStringConstructor::QueryType::LAST:
-                    query_result = std::move(gstate.conn->Query(query_string, Value(std::move(next_path)),
-                                                                Value(gstate.filter_range.second % gstate.chunk_size)));
+                    query_result =
+                        std::move(gstate.conn->Query(query_string, Value(std::move(next_path)),
+                                                     Value::BIGINT(gstate.filter_range.second % gstate.chunk_size)));
                     break;
                 case QueryStringConstructor::QueryType::SINGLE:
-                    query_result = std::move(gstate.conn->Query(query_string, Value(std::move(next_path)),
-                                                                Value(gstate.filter_range.first % gstate.chunk_size),
-                                                                Value(gstate.filter_range.second % gstate.chunk_size)));
+                    query_result =
+                        std::move(gstate.conn->Query(query_string, Value(std::move(next_path)),
+                                                     Value::BIGINT(gstate.filter_range.first % gstate.chunk_size),
+                                                     Value::BIGINT(gstate.filter_range.second % gstate.chunk_size)));
                     break;
             }
             if (query_result->HasError()) {

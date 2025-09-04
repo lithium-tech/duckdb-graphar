@@ -30,7 +30,19 @@ struct GraphArFunctions {
     static unique_ptr<ArrowTypeInfo> graphArT2ArrowTypeInfo(const std::string& name);
 
     template <typename Info>
-    static std::string GetNameFromInfo(const std::shared_ptr<Info>& info);
+    static inline std::string GetNameFromInfo(const std::shared_ptr<Info>& info) {
+        throw InternalException("Unsupported info");
+    }
+
+    template <>
+    inline std::string GetNameFromInfo(const std::shared_ptr<graphar::VertexInfo>& info) {
+        return info->GetType() + "_vertex";
+    }
+
+    template <>
+    inline std::string GetNameFromInfo(const std::shared_ptr<graphar::EdgeInfo>& info) {
+        return info->GetSrcType() + "_" + info->GetEdgeType() + "_" + info->GetDstType() + "_edge";
+    }
 
     static int64_t GetVertexNum(std::shared_ptr<graphar::GraphInfo> graph_info, std::string& type);
 
