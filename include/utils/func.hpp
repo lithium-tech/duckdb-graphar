@@ -34,16 +34,6 @@ struct GraphArFunctions {
         throw InternalException("Unsupported info");
     }
 
-    template <>
-    inline std::string GetNameFromInfo(const std::shared_ptr<graphar::VertexInfo>& info) {
-        return info->GetType() + "_vertex";
-    }
-
-    template <>
-    inline std::string GetNameFromInfo(const std::shared_ptr<graphar::EdgeInfo>& info) {
-        return info->GetSrcType() + "_" + info->GetEdgeType() + "_" + info->GetDstType() + "_edge";
-    }
-
     static int64_t GetVertexNum(std::shared_ptr<graphar::GraphInfo> graph_info, std::string& type);
 
     template <typename GraphArIter>
