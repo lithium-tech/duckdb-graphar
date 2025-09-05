@@ -142,8 +142,8 @@ class ReadBaseGlobalTableFunctionState : public GlobalTableFunctionState {
     QueryStringConstructor query_string_constructor;
     vector<std::string> projected_columns_strings;
     unique_ptr<Connection> conn;
-    vector<unique_ptr<QueryResult>> current_queries_results_;
-    vector<unique_ptr<DataChunk>> current_results_chunks_;
+    vector<unique_ptr<QueryResult>> current_queries_results;
+    vector<unique_ptr<DataChunk>> current_results_chunks;
     vector<idx_t> num_read_rows;
     idx_t total_rows = 0;
 
@@ -289,7 +289,7 @@ public:
             if (query_result->HasError()) {
                 throw std::runtime_error("Failed to execute query: " + query_result->GetError());
             }
-            gstate.current_queries_results_[i] = std::move(query_result);
+            gstate.current_queries_results[i] = std::move(query_result);
         }
         DUCKDB_GRAPHAR_LOG_TRACE("ReadBase::NextResult finished");
         return true;
@@ -324,6 +324,10 @@ public:
             DUCKDB_GRAPHAR_LOG_DEBUG("Found filters");
 
             if (input.filters->filters.size() > 1) {
+                std::cout << "filters: " << std::endl;
+                for (auto& filter : input.filters->filters) {
+                    std::cout << filter.second->ToString(" ") << std::endl;
+                }
                 throw NotImplementedException("Multiple filters are not supported");
             }
             auto filter_id = input.filters->filters.begin()->first;
@@ -400,8 +404,8 @@ public:
             t.print("readers creation");
         }
 
-        gstate.current_queries_results_.resize(prop_types_size);
-        gstate.current_results_chunks_.resize(prop_types_size);
+        gstate.current_queries_results.resize(prop_types_size);
+        gstate.current_results_chunks.resize(prop_types_size);
         gstate.num_read_rows.resize(prop_types_size);
 
         DatabaseInstance fake_db;
@@ -446,16 +450,16 @@ public:
             num_rows = 0;
         }
         for (idx_t i = 0; i < gstate.readers.size() && num_rows; ++i) {
-            if (!gstate.current_results_chunks_[i] ||
-                gstate.current_results_chunks_[i]->size() == gstate.num_read_rows[i]) {
-                gstate.current_results_chunks_[i] = gstate.current_queries_results_[i]->Fetch();
-                if (!gstate.current_results_chunks_[i]) {
+            if (!gstate.current_results_chunks[i] ||
+                gstate.current_results_chunks[i]->size() == gstate.num_read_rows[i]) {
+                gstate.current_results_chunks[i] = gstate.current_queries_results[i]->Fetch();
+                if (!gstate.current_results_chunks[i]) {
                     if (!NextResult(gstate, false)) {
                         num_rows = 0;
                         break;
                     }
-                    gstate.current_results_chunks_[i] = gstate.current_queries_results_[i]->Fetch();
-                    if (!gstate.current_results_chunks_[i]) {
+                    gstate.current_results_chunks[i] = gstate.current_queries_results[i]->Fetch();
+                    if (!gstate.current_results_chunks[i]) {
                         num_rows = 0;
                         break;
                     }
@@ -465,12 +469,12 @@ public:
         }
         if (num_rows > 0) {
             for (idx_t i = 0; i < gstate.readers.size(); i++) {
-                num_rows = std::min(num_rows, gstate.current_results_chunks_[i]->size() - gstate.num_read_rows[i]);
+                num_rows = std::min(num_rows, gstate.current_results_chunks[i]->size() - gstate.num_read_rows[i]);
             }
             idx_t it = 0;
             for (idx_t i = 0; i < gstate.readers.size(); i++) {
-                for (idx_t j = 0; j < gstate.current_results_chunks_[i]->ColumnCount(); j++) {
-                    Vector vec_slice(gstate.current_results_chunks_[i]->data[j], gstate.num_read_rows[i],
+                for (idx_t j = 0; j < gstate.current_results_chunks[i]->ColumnCount(); j++) {
+                    Vector vec_slice(gstate.current_results_chunks[i]->data[j], gstate.num_read_rows[i],
                                      gstate.num_read_rows[i] + num_rows);
                     output.data[it++].Reference(vec_slice);
                 }

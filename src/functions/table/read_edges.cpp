@@ -84,7 +84,7 @@ std::shared_ptr<Reader> ReadEdges::GetReader(ReadBaseGlobalTableFunctionState& g
                                              const std::string& filter_column, const std::string& filter_type) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader");
     graphar::AdjListType adj_list_type;
-    if (filter_column == "" || filter_column == SRC_GID_COLUMN) {
+    if (filter_column.empty() || filter_column == SRC_GID_COLUMN) {
         adj_list_type = graphar::AdjListType::ordered_by_source;
     } else if (filter_column == DST_GID_COLUMN) {
         adj_list_type = graphar::AdjListType::ordered_by_dest;
