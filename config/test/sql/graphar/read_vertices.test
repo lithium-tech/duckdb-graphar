@@ -21,7 +21,7 @@ statement ok
 ATTACH '__WORKING_DIRECTORY__/test/data/git/Git.yaml' as test_db (type duckdb_graphar);
 
 query I
-SELECT hash_phone_no FROM 'Person_vertex' LIMIT 4;
+SELECT id FROM 'Person_vertex' LIMIT 4;
 ----
 0
 1
@@ -29,7 +29,7 @@ SELECT hash_phone_no FROM 'Person_vertex' LIMIT 4;
 3
 
 query I
-SELECT hash_phone_no FROM 'Person_vertex' WHERE _graphArVertexIndex=4;
+SELECT id FROM 'Person_vertex' WHERE _graphArVertexIndex=4;
 ----
 4
 
