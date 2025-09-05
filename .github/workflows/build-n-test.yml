@@ -106,7 +106,7 @@ jobs:
         run: |
           mkdir -p build
           cd build
-          cmake -DCMAKE_BUILD_TYPE=Release ..
+          cmake -DCMAKE_BUILD_TYPE=Release -DLOAD_TESTS=ON ..
 
       - name: Build
         run: |
@@ -117,3 +117,77 @@ jobs:
         run: |
           echo "Build succeeded on ${{ matrix.os }}"
           ccache -s
+
+      - name: Install GraphAr CLI
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          pip3 install --upgrade pip
+          install_cli() {
+            set -euxo pipefail
+            local ROOT_DIR=$(pwd)
+            local DEPS_DIR=$ROOT_DIR/build/_deps
+            local ARROW_INSTALL_DIR=$DEPS_DIR/arrow-install
+            local ARROW_BUILD_DIR=$DEPS_DIR/arrow-prefix/src/arrow-build
+            local PROTOBUF_INSTALL_DIR=$ARROW_BUILD_DIR/protobuf_ep-install
+            local GRAPHAR_CLI_DIR=$DEPS_DIR/graphar-prefix/src/graphar/cli
+            
+            local CMAKE_ARGS=(
+              --config-settings=cmake.define.Arrow_DIR="$ARROW_INSTALL_DIR/lib/cmake/Arrow"
+              --config-settings=cmake.define.Parquet_DIR="$ARROW_INSTALL_DIR/lib/cmake/Parquet"
+              --config-settings=cmake.define.ArrowDataset_DIR="$ARROW_INSTALL_DIR/lib/cmake/ArrowDataset"
+              --config-settings=cmake.define.ArrowAcero_DIR="$ARROW_INSTALL_DIR/lib/cmake/ArrowAcero"
+              --config-settings=cmake.define.Protobuf_INCLUDE_DIR="$PROTOBUF_INSTALL_DIR/include"
+              --config-settings=cmake.define.Protobuf_LIBRARIES="$PROTOBUF_INSTALL_DIR/lib/libprotobuf.a"
+              --config-settings=cmake.define.CMAKE_INSTALL_RPATH_USE_LINK_PATH=ON
+            )
+            
+            pip3 install "$GRAPHAR_CLI_DIR" "${CMAKE_ARGS[@]}"
+          }
+          install_cli
+
+      - name: Generate GraphAr data
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          generate_graphar_data() {
+            set -euxo pipefail
+            local ROOT_DIR=$(pwd)
+  
+            local GRAPH_DIR=$ROOT_DIR/data/snap-musae-github
+            local GRAPH_IMPORT_TEMPLATE=$GRAPH_DIR/import.script.git.yaml
+            local GRAPH_IMPORT=$GRAPH_DIR/import.git.yaml
+            local GRAPH_RESULT_DIR=$GRAPH_DIR/graphar
+            mkdir -p "$GRAPH_RESULT_DIR"
+            cp "$GRAPH_IMPORT_TEMPLATE" "$GRAPH_IMPORT"
+            sed -i "s|\$DIR_PATH|$GRAPH_DIR|g" "$GRAPH_IMPORT"
+          
+            graphar import -c "$GRAPH_IMPORT"
+            rm "$GRAPH_IMPORT"
+
+            local GRAPH_NAME=$(grep "name:" "$GRAPH_IMPORT_TEMPLATE" | head -n1 | sed 's/^[^:]*:[[:space:]]*//')
+            local GRAPH_INFO_FILE=$GRAPH_RESULT_DIR/$GRAPH_NAME.graph.yaml
+  
+            local edges=$(find "$GRAPH_RESULT_DIR" -maxdepth 1 -type f -name "*edge*" -exec basename {} \;)
+            local vertices=$(find "$GRAPH_RESULT_DIR" -maxdepth 1 -type f -name "*vertex*" -exec basename {} \;)
+            
+            {
+              echo "edges:"
+              for edge in "${edges[@]}"; do
+              echo "  - $edge"
+              done
+          
+              echo "name: $GRAPH_NAME"
+          
+              echo "vertices:"
+              for vertex in "${vertices[@]}"; do
+              echo "  - $vertex"
+              done
+          
+              echo "version: gar/v1"
+            } > "$GRAPH_INFO_FILE"
+          }
+          generate_graphar_data
+
+      - name: Run Tests
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          build/_deps/duckdb-build/test/unittest "[graphar]" --reporter console  || exit 1

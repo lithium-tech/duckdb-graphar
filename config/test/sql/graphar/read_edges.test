@@ -7,23 +7,23 @@ statement ok
 SET autoload_known_extensions=1;
 
 query I
-SELECT COUNT(*) FROM read_edges('__WORKING_DIRECTORY__/test/data/git/Git.yaml', src='Person', type='knows', dst='Person');
+SELECT COUNT(*) FROM read_edges('__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person');
 ----
-578006
+289003
 
 query I
-SELECT COUNT(*) FROM read_edges('__WORKING_DIRECTORY__/test/data/git/Git.yaml', src='Person', type='knows', dst='Person') WHERE _graphArSrcIndex=1;
+SELECT COUNT(*) FROM read_edges('__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArSrcIndex=1;
 ----
 8
 
 query II
-SELECT * FROM read_edges('__WORKING_DIRECTORY__/test/data/git/Git.yaml', src='Person', type='knows', dst='Person') WHERE _graphArSrcIndex=0;
+SELECT * FROM read_edges('__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArSrcIndex=0;
 ----
 0
 23977
 
 statement ok
-ATTACH '__WORKING_DIRECTORY__/test/data/git/Git.yaml' as test_db (type duckdb_graphar);
+ATTACH '__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml' as test_db (type duckdb_graphar);
 
 query I
 SELECT _graphArDstIndex FROM 'Person_knows_Person_edge' LIMIT 1;
@@ -42,4 +42,4 @@ SELECT _graphArDstIndex FROM 'Person_knows_Person_edge' WHERE _graphArSrcIndex=3
 query I
 SELECT COUNT(*) FROM 'Person_knows_Person_edge';
 ----
-578006
+289003

@@ -1,0 +1,52 @@
+graphar:
+  path: $DIR_PATH/graphar/  # DIR_PATH is the directory where this file is located (global path)
+  name: Git
+  validate_level: weak
+  version: gar/v1
+  vertex_chunk_size: 1048576
+  edge_chunk_size: 4194304
+
+import_schema:
+  vertices:
+    - type: Person
+      property_groups:
+        - file_type: parquet
+          properties:
+            - name: id
+              data_type: int32
+              is_primary: true
+              nullable: false
+            - name: name
+              data_type: string
+            - name: ml_target
+              data_type: bool
+            - name: id_1
+              data_type: int32
+            - name: id_2
+              data_type: int32
+      sources:
+        - path: $DIR_PATH/vertices.csv  # DIR_PATH
+          columns:
+            id: id
+            name: name
+            ml_target: ml_target
+            id_1: id_1
+            id_2: id_2
+  edges:
+    - edge_type: knows
+      src_type: Person
+      src_prop: id_1
+      dst_type: Person
+      dst_prop: id_2
+      adj_lists:
+        - ordered: true
+          aligned_by: src
+          file_type: parquet
+        - ordered: true
+          aligned_by: dst
+          file_type: parquet
+      sources:
+        - path: $DIR_PATH/edges.csv  # DIR_PATH
+          columns:
+            id_1: id_1
+            id_2: id_2
