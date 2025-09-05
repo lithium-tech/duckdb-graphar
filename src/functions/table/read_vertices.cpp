@@ -94,7 +94,7 @@ std::shared_ptr<Reader> ReadVertices::GetReader(ReadBaseGlobalTableFunctionState
 void ReadVertices::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
                              std::string& filter_value, std::string& filter_column, std::string& filter_type) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::SetFilter");
-    if (filter_column == "") {
+    if (filter_column.empty()) {
         return;
     } else if (filter_column != GID_COLUMN_INTERNAL) {
         throw NotImplementedException("Only vertex id filter is supported");

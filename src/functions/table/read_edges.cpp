@@ -115,7 +115,7 @@ std::shared_ptr<Reader> ReadEdges::GetReader(ReadBaseGlobalTableFunctionState& g
 void ReadEdges::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data, std::string& filter_value,
                           std::string& filter_column, std::string& filter_type) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::SetFilter");
-    if (filter_column == "") {
+    if (filter_column.empty()) {
         return;
     } else if (filter_column != SRC_GID_COLUMN && filter_column != DST_GID_COLUMN) {
         throw NotImplementedException("Only src and dst filters are supported");
