@@ -147,9 +147,9 @@ void ReadEdges::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData
             seek_dst(*gstate.readers[i], vid, offset_pair);
         }
     }
-    gstate.filter_range = offset_pair;
-    DUCKDB_GRAPHAR_LOG_DEBUG("Filter range: " + std::to_string(offset_pair.first) + " " +
-                             std::to_string(offset_pair.second));
+    gstate.filter_range = std::move(offset_pair);
+    DUCKDB_GRAPHAR_LOG_DEBUG("Filter range: " + std::to_string(gstate.filter_range.first) + " " +
+                             std::to_string(gstate.filter_range.second));
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::SetFilter: finished");
 }
 //-------------------------------------------------------------------
