@@ -1,6 +1,7 @@
 #pragma once
 
 #include "utils/benchmark.hpp"
+#include "utils/custom_chunk_info_reader.hpp"
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
 
@@ -26,8 +27,8 @@
 
 namespace duckdb {
 
-using Reader = std::variant<graphar::VertexPropertyChunkInfoReader, graphar::AdjListChunkInfoReader,
-                            graphar::AdjListPropertyChunkInfoReader>;
+using Reader = std::variant<graphar::VertexPropertyChunkInfoReader, graphar::CustomAdjListChunkInfoReader,
+                            graphar::CustomAdjListPropertyChunkInfoReader>;
 
 static graphar::Status next_chunk(Reader& reader) {
     return std::visit([](auto& r) { return r.next_chunk(); }, reader);
@@ -45,6 +46,32 @@ static graphar::Status seek(Reader& reader, graphar::IdType id) {
                 return r.seek(id);
             } else {
                 return graphar::Status::TypeError("seek is not implemented for this type of reader");
+            }
+        },
+        reader);
+}
+
+static graphar::Status seek_src(Reader& reader, graphar::IdType id, std::pair<graphar::IdType, graphar::IdType> offset_pair) {
+    DUCKDB_GRAPHAR_LOG_TRACE("seek_src");
+    return std::visit(
+        [&](auto& r) {
+            if constexpr (requires { r.seek_src(id, offset_pair); }) {
+                return r.seek_src(id, offset_pair);
+            } else {
+                return graphar::Status::TypeError("seek_src is not implemented for this type of reader");
+            }
+        },
+        reader);
+}
+
+static graphar::Status seek_dst(Reader& reader, graphar::IdType id, std::pair<graphar::IdType, graphar::IdType> offset_pair) {
+    DUCKDB_GRAPHAR_LOG_TRACE("seek_dst");
+    return std::visit(
+        [&](auto& r) {
+            if constexpr (requires { r.seek_dst(id, offset_pair); }) {
+                return r.seek_dst(id, offset_pair);
+            } else {
+                return graphar::Status::TypeError("seek_dst is not implemented for this type of reader");
             }
         },
         reader);

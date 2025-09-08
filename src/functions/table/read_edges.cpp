@@ -93,7 +93,7 @@ std::shared_ptr<Reader> ReadEdges::GetReader(ReadBaseGlobalTableFunctionState& g
     }
     if (ind == 0) {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader: making src and dst reader...");
-        auto maybe_reader = graphar::AdjListChunkInfoReader::Make(
+        auto maybe_reader = graphar::CustomAdjListChunkInfoReader::Make(
             bind_data.graph_info, bind_data.params[0], bind_data.params[1], bind_data.params[2], adj_list_type);
         assert(maybe_reader.status().ok());
         Reader result = *maybe_reader.value();
@@ -102,7 +102,7 @@ std::shared_ptr<Reader> ReadEdges::GetReader(ReadBaseGlobalTableFunctionState& g
     }
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader: making property reader...");
     auto maybe_reader =
-        graphar::AdjListPropertyChunkInfoReader::Make(bind_data.graph_info, bind_data.params[0], bind_data.params[1],
+        graphar::CustomAdjListPropertyChunkInfoReader::Make(bind_data.graph_info, bind_data.params[0], bind_data.params[1],
                                                       bind_data.params[2], bind_data.pgs[ind - 1], adj_list_type);
     assert(maybe_reader.status().ok());
     Reader result = *maybe_reader.value();
@@ -142,9 +142,9 @@ void ReadEdges::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData
 
     for (idx_t i = 0; i < gstate.readers.size(); ++i) {
         if (filter_column == SRC_GID_COLUMN) {
-            seek(*gstate.readers[i], offset_pair.first);
+            seek_src(*gstate.readers[i], vid, offset_pair);
         } else {
-            seek(*gstate.readers[i], offset_pair.second);
+            seek_dst(*gstate.readers[i], vid, offset_pair);
         }
     }
     gstate.filter_range = offset_pair;
