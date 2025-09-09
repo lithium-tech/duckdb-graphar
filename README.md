@@ -8,6 +8,9 @@ A [DuckDB](https://duckdb.org/) extension that enables reading data stored in th
 [Apache GraphAr](https://graphar.apache.org) format.
 It allows you to query vertex and edge tables using SQL, with support for simple filtering.
 
+### DeepWiki
+A high-level introduction to the DuckDB GraphAr extension, explaining its architecture and key components, as well as a description of the overall system design, major subsystems, and how they integrate to enable SQL querying of Apache GraphAr data through DuckDB is contained in the [DeepWiki](https://deepwiki.com/lithium-tech/duckdb-graphar)
+
 ### Dependencies
 
 This extension requires the following dependencies:
