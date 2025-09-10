@@ -146,10 +146,13 @@ void ReadEdges::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData
         } else {
             seek_dst(*gstate.readers[i], vid, offset_pair);
         }
+        DUCKDB_GRAPHAR_LOG_DEBUG("Reader " + std::to_string(i) + ": vertex_chunk_index = " + std::to_string(GetVertexChunkIndex(*gstate.readers[i])) + ", chunk_index = " + std::to_string(GetChunkIndex(*gstate.readers[i])));
     }
     gstate.filter_range = std::move(offset_pair);
     DUCKDB_GRAPHAR_LOG_DEBUG("Filter range: " + std::to_string(gstate.filter_range.first) + " " +
                              std::to_string(gstate.filter_range.second));
+    DUCKDB_GRAPHAR_LOG_DEBUG("Filter range with %: " + std::to_string(gstate.filter_range.first % gstate.chunk_size) + " " +
+                             std::to_string(gstate.filter_range.second % gstate.chunk_size));
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::SetFilter: finished");
 }
 //-------------------------------------------------------------------

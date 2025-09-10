@@ -51,6 +51,32 @@ static graphar::Status seek(Reader& reader, graphar::IdType id) {
         reader);
 }
 
+static graphar::IdType GetChunkIndex(Reader& reader) {
+    return std::visit(
+        [&](auto& r) {
+            if constexpr (requires { r.GetChunkIndex(); }) {
+                return r.GetChunkIndex();
+            } else {
+                // throw InternalException("GetChunkIndex is not implemented for this type of reader");
+                return 0ll;
+            }
+        },
+        reader);
+}
+
+static graphar::IdType GetVertexChunkIndex(Reader& reader) {
+    return std::visit(
+        [&](auto& r) {
+            if constexpr (requires { r.GetVertexChunkIndex(); }) {
+                return r.GetVertexChunkIndex();
+            } else {
+                // throw InternalException("GetChunkIndex is not implemented for this type of reader");
+                return 0ll;
+            }
+        },
+        reader);
+}
+
 static graphar::Status seek_src(Reader& reader, graphar::IdType id, std::pair<graphar::IdType, graphar::IdType> offset_pair) {
     DUCKDB_GRAPHAR_LOG_TRACE("seek_src");
     return std::visit(
@@ -270,7 +296,7 @@ public:
         QueryStringConstructor::QueryType query_type = QueryStringConstructor::QueryType::MIDDLE;
         if (!gstate.filter_column.empty()) {
             if (gstate.read_rows == 0) {
-                if (gstate.chunk_size >= gstate.total_rows) {
+                if (gstate.chunk_size >= gstate.filter_range.first % gstate.chunk_size + gstate.total_rows) {
                     query_type = QueryStringConstructor::QueryType::SINGLE;
                 } else {
                     query_type = QueryStringConstructor::QueryType::FIRST;
@@ -292,6 +318,7 @@ public:
             auto query_string = std::move(
                 gstate.query_string_constructor.GetQueryString(gstate.projected_columns_strings[i], query_type));
             unique_ptr<QueryResult> query_result = nullptr;
+            DUCKDB_GRAPHAR_LOG_DEBUG("Query type: " + std::to_string(static_cast<int>(query_type)));
             switch (query_type) {
                 case QueryStringConstructor::QueryType::MIDDLE:
                     query_result = std::move(gstate.conn->Query(query_string, Value(std::move(next_path))));

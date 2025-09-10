@@ -104,6 +104,9 @@ class CustomAdjListChunkInfoReader {
       const std::string& edge_type, const std::string& dst_type,
       AdjListType adj_list_type);
 
+  IdType GetVertexChunkIndex() const { return vertex_chunk_index_; }
+  IdType GetChunkIndex() const { return chunk_index_; }
+
  private:
   std::shared_ptr<EdgeInfo> edge_info_;
   AdjListType adj_list_type_;
@@ -211,6 +214,9 @@ class CustomAdjListPropertyChunkInfoReader {
       const std::shared_ptr<GraphInfo>& graph_info, const std::string& src_type,
       const std::string& edge_type, const std::string& dst_type,
       const std::string& property_name, AdjListType adj_list_type);
+
+  IdType GetVertexChunkIndex() const { return vertex_chunk_index_; }
+  IdType GetChunkIndex() const { return chunk_index_; }
 
  private:
   std::shared_ptr<EdgeInfo> edge_info_;
