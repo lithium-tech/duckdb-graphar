@@ -115,17 +115,13 @@ private:
     graphar::PropertyGroupVector pgs;
     vector<vector<std::string>> prop_names;
     vector<vector<std::string>> prop_types;
-    vector<vector<LogicalType>> prop_types_duck;
     idx_t chunk_count = 0;
     idx_t total_props_num = 0;
     vector<std::shared_ptr<Reader>> readers;
-    vector<vector<std::shared_ptr<ArrowArray>>> ptrs;
     vector<int> first_chunk_flags;
     vector<std::shared_ptr<arrow::Table>> tables;
-    vector<vector<idx_t>> indices;
-    vector<vector<idx_t>> chunk_ids;
-    vector<vector<idx_t>> sizes;
-    arrow_column_map_t arrow_convert_data;
+    vector<idx_t> indices;
+    vector<idx_t> sizes;
     std::pair<int64_t, int64_t> filter_range = {-1, -1};
     std::string function_name;
     int64_t total_rows = 0;
@@ -266,14 +262,15 @@ public:
         gstate.function_name = bind_data.function_name;
         gstate.pgs = bind_data.pgs;
         gstate.column_ids = input.column_ids;
+        if (gstate.column_ids.empty() ||
+            gstate.column_ids.size() == 1 && gstate.column_ids[0] == COLUMN_IDENTIFIER_ROW_ID) {
+            gstate.column_ids = {0};
+        }
         gstate.readers.resize(bind_data.prop_types.size());
         gstate.first_chunk_flags.resize(gstate.readers.size(), true);
         gstate.tables.resize(gstate.readers.size());
         gstate.sizes.resize(gstate.readers.size());
-        gstate.indices.resize(gstate.readers.size());
-        gstate.chunk_ids.resize(gstate.readers.size());
-        gstate.prop_types_duck.resize(gstate.readers.size());
-        gstate.ptrs.resize(gstate.readers.size());
+        gstate.indices.resize(gstate.readers.size(), 0);
 
         DUCKDB_GRAPHAR_LOG_DEBUG("readers num: " + std::to_string(gstate.readers.size()));
 
@@ -334,18 +331,7 @@ public:
             }
             DUCKDB_GRAPHAR_LOG_DEBUG("Table Schema: " + gstate.tables[i]->schema()->ToString());
 
-            gstate.sizes[i].resize(gstate.tables[i]->num_columns());
-            gstate.indices[i].resize(gstate.sizes[i].size(), 0);
-            gstate.chunk_ids[i].resize(gstate.sizes[i].size(), 0);
-            gstate.prop_types_duck[i].resize(gstate.sizes[i].size());
-            gstate.ptrs[i].resize(gstate.sizes[i].size());
-            for (idx_t j = 0; j < gstate.sizes[i].size(); j++) {
-                gstate.sizes[i][j] = gstate.tables[i]->column(j)->chunk(0)->length();
-                gstate.prop_types_duck[i][j] = GraphArFunctions::graphArT2duckT(bind_data.prop_types[i][j]);
-                gstate.arrow_convert_data[gstate.total_props_num + j] = make_shared_ptr<ArrowType>(
-                    gstate.prop_types_duck[i][j],
-                    std::move(GraphArFunctions::graphArT2ArrowTypeInfo(bind_data.prop_types[i][j])));
-            }
+            gstate.sizes[i] = gstate.tables[i]->num_rows();
             gstate.total_props_num += gstate.tables[i]->num_columns();
         }
         DUCKDB_GRAPHAR_LOG_DEBUG("total props num: " + std::to_string(gstate.total_props_num));
@@ -362,101 +348,53 @@ public:
         return make_uniq<ReadBaseGlobalTableFunctionState>(std::move(gstate));
     }
 
-    static void ConvertArrowTableToDataChunk(arrow::Table& table, DataChunk& output, ClientContext& context) {
-        DUCKDB_GRAPHAR_LOG_DEBUG("Starting conversion of Arrow table to DataChunk");
-
-        auto schema = table.schema();
-        vector<LogicalType> return_types;
-        vector<string> names;
-        ArrowTableType arrow_table;
-
-        auto arrow_schema_wrapper = ArrowSchemaWrapper();
-        DUCKDB_GRAPHAR_LOG_DEBUG("Exporting schema to Arrow C interface");
-        arrow::ExportSchema(*schema, &arrow_schema_wrapper.arrow_schema);
-
-        DUCKDB_GRAPHAR_LOG_DEBUG("Populating Arrow table type with schema info");
-        ArrowTableFunction::PopulateArrowTableType(
-            DBConfig::GetConfig(context),
-            arrow_table,
-            arrow_schema_wrapper,
-            names,
-            return_types
-        );
-
-        DUCKDB_GRAPHAR_LOG_DEBUG("Combining Arrow table chunks into single record batch");
-        auto batch_result = table.CombineChunksToBatch();
-        if (!batch_result.ok()) {
-            DUCKDB_GRAPHAR_LOG_DEBUG("Failed to combine Arrow chunks: " + batch_result.status().ToString());
-            throw InternalException("Failed to combine Arrow chunks");
-        }
-        auto record_batch = batch_result.ValueOrDie();
-        DUCKDB_GRAPHAR_LOG_DEBUG("Record batch created with " + std::to_string(record_batch->num_rows()) + " rows and " + std::to_string(record_batch->num_columns()) + " columns");
-
-        auto wrapper = make_uniq<ArrowArrayWrapper>();
-        DUCKDB_GRAPHAR_LOG_DEBUG("Exporting record batch to Arrow C interface");
-        arrow::Status status = arrow::ExportRecordBatch(*record_batch, &wrapper->arrow_array, nullptr);
-        if (!status.ok()) {
-            DUCKDB_GRAPHAR_LOG_DEBUG("Failed to export Arrow record batch: " + status.ToString());
-            throw InternalException("Failed to export Arrow record batch");
-        }
-
-        DUCKDB_GRAPHAR_LOG_DEBUG("Creating ArrowScanLocalState with exported data");
-        ArrowScanLocalState local_state(std::move(wrapper), context);
-
-        DUCKDB_GRAPHAR_LOG_DEBUG("Initializing array_states for " + std::to_string(return_types.size()) + " columns");
-        for (idx_t col_idx = 0; col_idx < return_types.size(); col_idx++) {
-            auto dummy_wrapper = make_uniq<ArrowArrayWrapper>();
-            auto dummy_local_state = make_uniq<ArrowScanLocalState>(std::move(dummy_wrapper), context);
-            auto array_state = make_uniq<ArrowArrayScanState>(*dummy_local_state, context);
-            array_state->owned_data = local_state.chunk;
-            local_state.array_states[col_idx] = std::move(array_state);
-        }
-
-        DUCKDB_GRAPHAR_LOG_DEBUG("Setting up column IDs for " + std::to_string(return_types.size()) + " columns");
-        local_state.column_ids.clear();
-        for (idx_t i = 0; i < return_types.size(); i++) {
-            local_state.column_ids.push_back(i);
-        }
-
-        idx_t num_rows = record_batch->num_rows();
-        DUCKDB_GRAPHAR_LOG_DEBUG("Setting output cardinality to " + std::to_string(num_rows) + " rows");
-        output.SetCardinality(num_rows);
-
-        DUCKDB_GRAPHAR_LOG_DEBUG("Calling ArrowToDuckDB to perform final conversion");
-        std::cout << "arrow columns size: " << arrow_table.GetColumns().size() << std::endl;
-        std::cout << "output columns size: " << output.ColumnCount() << std::endl;
-        ArrowTableFunction::ArrowToDuckDB(local_state, arrow_table.GetColumns(), output, 0, true);
-
-        DUCKDB_GRAPHAR_LOG_DEBUG("Completed conversion of Arrow table to DataChunk");
-    }
-
     static arrow::Result<std::shared_ptr<arrow::Table>> ConcatenateTables(
         const vector<std::shared_ptr<arrow::Table>>& tables) {
+        DUCKDB_GRAPHAR_LOG_TRACE("ConcatenateTables started");
         if (tables.empty()) {
             return arrow::Status::Invalid("Cannot concatenate empty vector of tables");
         }
 
-        // Validate all tables have the same number of rows
-        int64_t num_rows = tables[0]->num_rows();
-        for (size_t i = 1; i < tables.size(); ++i) {
+        idx_t num_rows = tables[0]->num_rows(), total_columns = 0;
+        for (idx_t i = 1; i < tables.size(); ++i) {
             if (tables[i]->num_rows() != num_rows) {
-            return arrow::Status::Invalid("All tables must have the same number of rows");
+                return arrow::Status::Invalid("All tables must have the same number of rows");
             }
+            total_columns += tables[i]->num_columns();
         }
 
-        // Collect all fields and columns
         vector<std::shared_ptr<arrow::Field>> all_fields;
+        all_fields.reserve(total_columns);
         vector<std::shared_ptr<arrow::ChunkedArray>> all_columns;
+        all_columns.reserve(total_columns);
 
         for (const auto& table : tables) {
-            for (int i = 0; i < table->num_columns(); ++i) {
-            all_fields.push_back(table->field(i));
-            all_columns.push_back(table->column(i));
+            for (idx_t i = 0; i < table->num_columns(); ++i) {
+                all_fields.emplace_back(table->field(i));
+                all_columns.emplace_back(table->column(i));
             }
         }
 
         auto combined_schema = std::make_shared<arrow::Schema>(std::move(all_fields));
         return arrow::Table::Make(std::move(combined_schema), std::move(all_columns), num_rows);
+    }
+
+    static void ConvertArrowTableToDataChunk(const std::shared_ptr<arrow::Table> table, DataChunk& output,
+                                             vector<column_t>& column_ids) {
+        DUCKDB_GRAPHAR_LOG_TRACE("ConvertArrowTableToDataChunk started");
+        auto num_rows = table->num_rows();
+        for (idx_t column_ids_i = 0; column_ids_i < column_ids.size(); column_ids_i++) {
+            auto column_i = column_ids[column_ids_i];
+            for (idx_t row_i = 0; row_i < num_rows; row_i++) {
+                auto maybe_value = table->column(column_i)->GetScalar(row_i);
+                if (!maybe_value.ok()) {
+                    throw std::runtime_error("Failed to get value from table: " + maybe_value.status().ToString());
+                }
+                auto value = maybe_value.ValueOrDie();
+                auto duckdb_value = GraphArFunctions::ArrowScalar2DuckValue(value);
+                output.SetValue(column_ids_i, row_i, duckdb_value);
+            }
+        }
     }
 
     static void Execute(ClientContext& context, TableFunctionInput& input, DataChunk& output) {
@@ -476,110 +414,31 @@ public:
             num_rows = 0;
         }
         for (idx_t i = 0; i < gstate.readers.size() && num_rows; i++) {
-            for (int prop_i = 0; prop_i < gstate.prop_names[i].size(); ++prop_i) {
-                if (gstate.indices[i][prop_i] == gstate.sizes[i][prop_i]) {
-                    gstate.chunk_ids[i][prop_i]++;
-                    if (gstate.tables[i]->column(prop_i)->num_chunks() == gstate.chunk_ids[i][prop_i]) {
-                        auto result = NextChunk(i, gstate);
-                        assert(!result.has_error());
-                        gstate.tables[i] = result.value();
-                        for (int prop_ii = 0; prop_ii < gstate.prop_names[i].size(); ++prop_ii) {
-                            gstate.chunk_ids[i][prop_ii] = 0;
-                            gstate.sizes[i][prop_ii] =
-                                gstate.tables[i]->column(prop_ii)->chunk(gstate.chunk_ids[i][prop_ii])->length();
-                            gstate.indices[i][prop_ii] = 0;
-                        }
-                    } else {
-                        gstate.sizes[i][prop_i] =
-                            gstate.tables[i]->column(prop_i)->chunk(gstate.chunk_ids[i][prop_i])->length();
-                        gstate.indices[i][prop_i] = 0;
-                    }
-                }
+            if (gstate.indices[i] == gstate.sizes[i]) {
+                auto result = NextChunk(i, gstate);
+                assert(!result.has_error());
+                gstate.tables[i] = result.value();
+                gstate.sizes[i] = gstate.tables[i]->num_rows();
+                gstate.indices[i] = 0;
             }
-            for (int prop_i = 0; prop_i < gstate.prop_names[i].size(); ++prop_i) {
-                num_rows = std::min(num_rows, gstate.sizes[i][prop_i] - gstate.indices[i][prop_i]);
-            }
+            num_rows = std::min(num_rows, gstate.sizes[i] - gstate.indices[i]);
         }
         DUCKDB_GRAPHAR_LOG_DEBUG("num rows final: " + std::to_string(num_rows));
 
         if (num_rows > 0) {
             vector<std::shared_ptr<arrow::Table>> tables_to_convert(gstate.tables.size());
             for (idx_t i = 0; i < gstate.tables.size(); i++) {
-                tables_to_convert[i] = gstate.tables[i];
+                tables_to_convert[i] = gstate.tables[i]->Slice(gstate.indices[i], num_rows);
             }
-            auto table_to_convert = ConcatenateTables(tables_to_convert).ValueOrDie();
-            // auto table_to_convert = gstate.tables[0]->Slice(gstate.indices[0][0], num_rows);
-            // gstate.indices[0][0] += num_rows;
-            // for (idx_t i = 0; i < gstate.readers.size(); i++) {
-            //     for (int prop_i = 0; prop_i < gstate.prop_names[i].size(); ++prop_i) {
-            //         // gstate.ptrs[i][prop_i] = std::make_shared<ArrowArray>();
-            //         // gstate.ptrs[i][prop_i]->release = release_children_only;
-            //         // auto raw_arr_ptr = gstate.tables[i]
-            //         //                        ->column(prop_i)
-            //         //                        ->chunk(gstate.chunk_ids[i][prop_i])
-            //         //                        ->Slice(gstate.indices[i][prop_i], num_rows);
-            //         // arrow::Status status = arrow::ExportArray(*raw_arr_ptr, gstate.ptrs[i][prop_i].get(), nullptr);
-            //         // assert(status.ok());
-
-            //         // fake_wrapper->arrow_array.children[props_before + prop_i] = gstate.ptrs[i][prop_i].get();
-            //         arrow::ExportArray
-            //     }
-            // }
-            ConvertArrowTableToDataChunk(*table_to_convert, output, context);
-        }
-
-        // if (num_rows > 0) {
-        //     auto fake_wrapper = make_uniq<ArrowArrayWrapper>();
-        //     fake_wrapper->arrow_array.length = num_rows;
-        //     fake_wrapper->arrow_array.release = release_children_only;
-        //     fake_wrapper->arrow_array.n_children = gstate.total_props_num;
-        //     auto children_ptr = make_unsafe_uniq_array_uninitialized<ArrowArray*>(gstate.total_props_num);
-        //     fake_wrapper->arrow_array.children = children_ptr.release();
-
-        //     idx_t props_before = 0;
-        //     for (idx_t i = 0; i < gstate.readers.size(); i++) {
-        //         for (int prop_i = 0; prop_i < gstate.prop_names[i].size(); ++prop_i) {
-        //             gstate.ptrs[i][prop_i] = std::make_shared<ArrowArray>();
-        //             gstate.ptrs[i][prop_i]->release = release_children_only;
-        //             auto raw_arr_ptr = gstate.tables[i]
-        //                                    ->column(prop_i)
-        //                                    ->chunk(gstate.chunk_ids[i][prop_i])
-        //                                    ->Slice(gstate.indices[i][prop_i], num_rows);
-        //             arrow::Status status = arrow::ExportArray(*raw_arr_ptr, gstate.ptrs[i][prop_i].get(), nullptr);
-        //             assert(status.ok());
-
-        //             fake_wrapper->arrow_array.children[props_before + prop_i] = gstate.ptrs[i][prop_i].get();
-        //         }
-        //         props_before += gstate.prop_names[i].size();
-        //     }
-        //     ArrowScanLocalState local_state(std::move(fake_wrapper), context);
-
-        //     props_before = 0;
-        //     for (idx_t i = 0; i < gstate.readers.size(); i++) {
-        //         for (int prop_i = 0; prop_i < gstate.prop_names[i].size(); ++prop_i) {
-        //             auto wrapper = make_uniq<ArrowArrayWrapper>();
-
-        //             auto fake_local_state = make_uniq<ArrowScanLocalState>(std::move(wrapper), context);
-        //             auto ptrh = make_uniq<ArrowArrayScanState>(*fake_local_state, context);
-        //             local_state.array_states[props_before + prop_i] = std::move(ptrh);
-        //         }
-        //         props_before += gstate.prop_names[i].size();
-        //     }
-        //     local_state.chunk->arrow_array.children[0]->release = release_children_only;
-        //     local_state.chunk->arrow_array.children[0]->length = num_rows;
-        //     local_state.column_ids = gstate.column_ids;
-
-        //     ArrowTableFunction::ArrowToDuckDB(local_state, gstate.arrow_convert_data, output, 0, false);
-
-        //     for (idx_t i = 0; i < gstate.readers.size(); i++) {
-        //         for (int prop_i = 0; prop_i < gstate.prop_names[i].size(); ++prop_i) {
-        //             gstate.indices[i][prop_i] += num_rows;
-        //         }
-        //     }
-        // }
-
-        if (gstate.chunk_count) {
-            num_rows = 0;
+            auto maybe_table = ConcatenateTables(tables_to_convert);
+            if (!maybe_table.ok()) {
+                throw std::runtime_error("Failed to concatenate tables: " + maybe_table.status().ToString());
+            }
+            auto table = maybe_table.ValueOrDie();
+            ConvertArrowTableToDataChunk(table, output, gstate.column_ids);
+            for (idx_t i = 0; i < gstate.tables.size(); i++) {
+                gstate.indices[i] += num_rows;
+            }
         }
 
         output.SetCapacity(num_rows);
