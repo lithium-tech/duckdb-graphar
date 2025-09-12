@@ -4,6 +4,7 @@
 #include "utils/custom_chunk_info_reader.hpp"
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
+#include "utils/query_string_constructor.hpp"
 
 #include <arrow/c/bridge.h>
 
@@ -103,11 +104,25 @@ static graphar::Status seek_dst(Reader& reader, graphar::IdType id, std::pair<gr
         reader);
 }
 
+static void check_ugalov(std::string msg) {
+    std::cout << "ugalov msg: " << msg << std::endl;
+    std::string path = "/Users/m.makhlin/Projects/duckdb-graphar/incubator-graphar-testing/ldbc_sample/csv/ldbc_sample.graph.yml";
+    auto graph_info = graphar::GraphInfo::Load(path).value();
+    auto src = "person", type = "knows", dst = "person";
+    auto edge_info = graph_info->GetEdgeInfo(src, type, dst);
+
+    std::cout << "ugalov prefix: " << graph_info->GetPrefix() << std::endl;
+    auto res = graphar::util::GetAdjListOffsetOfVertex(edge_info, graph_info->GetPrefix(), graphar::AdjListType::ordered_by_source, 1).value();
+    std::cout << res.first << " " << res.second << std::endl;
+}
+
 template <typename ReadFinal>
 class ReadBase;
 
 class ReadVertices;
 class ReadEdges;
+
+class QueryStringConstructor;
 
 class ReadBindData : public TableFunctionData {
 public:
@@ -121,6 +136,7 @@ private:
     vector<std::string> flatten_prop_names;
     vector<vector<std::string>> prop_types;
     vector<std::string> flatten_prop_types;
+    vector<std::string> id_columns;
     std::shared_ptr<graphar::GraphInfo> graph_info;
     std::string function_name;
     vector<std::string> params;
@@ -134,61 +150,17 @@ private:
     friend class ReadEdges;
 };
 
-class QueryStringConstructor {
-public:
-    enum class QueryType { FIRST, MIDDLE, LAST, SINGLE };
-    std::string GetQueryString(std::string& projected_columns_string, QueryType query_type,
-                               graphar::IdType filter_val = 0) {
-        std::ostringstream ss;
-        ss << SQL_SELECT_CLAUSE << " " << projected_columns_string << " " << SQL_FROM_CLAUSE << " ";
-        switch (file_type) {
-            case graphar::FileType::PARQUET:
-                ss << READ_PARQUET_FUNCTION;
-                break;
-            case graphar::FileType::CSV:
-                throw NotImplementedException("CSV file format is not supported yet");
-                break;
-            case graphar::FileType::JSON:
-                throw NotImplementedException("JSON file format is not supported yet");
-                break;
-            case graphar::FileType::ORC:
-                throw NotImplementedException("ORC file format is not supported yet");
-                break;
-            default:
-                throw NotImplementedException("Unknown file type");
-        }
-        ss << "($1, " << FILE_ROW_NUMBER_CLAUSE << "=true)";
-        if (query_type == QueryType::FIRST) {
-            ss << " " << SQL_WHERE_CLAUSE << " " << FILE_ROW_NUMBER_CLAUSE << " >= $2";
-        } else if (query_type == QueryType::LAST) {
-            ss << " " << SQL_WHERE_CLAUSE << " " << FILE_ROW_NUMBER_CLAUSE << " < $2";
-        } else if (query_type == QueryType::SINGLE) {
-            ss << " " << SQL_WHERE_CLAUSE << " " << FILE_ROW_NUMBER_CLAUSE << " >= $2 AND " << FILE_ROW_NUMBER_CLAUSE
-               << " < $3";
-        }
-        ss << ";";
-        return ss.str();
-    }
-
-    void SetFileType(graphar::FileType file_type_) { file_type = file_type_; }
-
-private:
-    static constexpr std::string_view SQL_SELECT_CLAUSE = "SELECT";
-    static constexpr std::string_view SQL_FROM_CLAUSE = "FROM";
-    static constexpr std::string_view SQL_WHERE_CLAUSE = "WHERE";
-    static constexpr std::string_view READ_PARQUET_FUNCTION = "read_parquet";
-    static constexpr std::string_view FILE_ROW_NUMBER_CLAUSE = "file_row_number";
-
-private:
-    graphar::FileType file_type;
-};
-
 class ReadBaseGlobalTableFunctionState : public GlobalTableFunctionState {
     idx_t chunk_count = 0;
     vector<std::shared_ptr<Reader>> readers;
     std::string function_name;
     vector<column_t> column_ids;
     std::pair<row_t, row_t> filter_range = {-1, -1};
+    vector<std::string> id_columns;
+    idx_t columns_to_remove = 0;
+
+    vector<vector<std::string>> prop_names;
+    vector<vector<LogicalType>> prop_types;
 
     idx_t chunk_size = 0;
 
@@ -271,6 +243,7 @@ public:
         }
 
         bind_data->graph_info = graph_info;
+        bind_data->id_columns = std::move(id_columns);
         DUCKDB_GRAPHAR_LOG_TRACE("ReadBase::SetBindData finished");
     }
 
@@ -316,7 +289,7 @@ public:
             }
             auto next_path = maybe_next_path.value();
             auto query_string = std::move(
-                gstate.query_string_constructor.GetQueryString(gstate.projected_columns_strings[i], query_type));
+                gstate.query_string_constructor.GetMainQueryString(gstate.prop_names[i], gstate.prop_types[i], gstate.projected_columns_strings[i], gstate.id_columns, i, gstate.columns_to_remove, query_type));
             unique_ptr<QueryResult> query_result = nullptr;
             DUCKDB_GRAPHAR_LOG_DEBUG("Query type: " + std::to_string(static_cast<int>(query_type)));
             switch (query_type) {
@@ -433,6 +406,8 @@ public:
                 }
             }
             for (idx_t i = 0; i < prop_types_size; ++i) {
+                gstate.prop_names.emplace_back();
+                gstate.prop_types.emplace_back();
                 auto& vec = column_ids_split_by_reader[i];
                 if (vec.empty()) {
                     continue;
@@ -440,14 +415,18 @@ public:
                 std::ostringstream column_ids_str;
                 for (idx_t j = 0; j < vec.size(); ++j) {
                     column_ids_str << "#";
+                    idx_t column_id = 0;
                     if (i != 0) {
-                        column_ids_str << std::to_string(vec[j] + bind_data.columns_to_remove + 1);
+                        column_id = vec[j] + bind_data.columns_to_remove;
                     } else {
-                        column_ids_str << std::to_string(vec[j] + 1);
+                        column_id = vec[j];
                     }
+                    column_ids_str << std::to_string(column_id + 1);
                     if (j != vec.size() - 1) {
                         column_ids_str << ", ";
                     }
+                    gstate.prop_names[i].emplace_back(bind_data.prop_names[i][vec[j]]);
+                    gstate.prop_types[i].emplace_back(GraphArFunctions::graphArT2duckT(bind_data.prop_types[i][vec[j]]));
                 }
                 gstate.projected_columns_strings.emplace_back(std::move(column_ids_str).str());
                 DUCKDB_GRAPHAR_LOG_DEBUG("projected columns: " + gstate.projected_columns_strings.back());
@@ -474,6 +453,9 @@ public:
         if (time_logging) {
             t.print("filter setting");
         }
+
+        gstate.columns_to_remove = bind_data.columns_to_remove;
+        gstate.id_columns = std::move(bind_data.id_columns);
 
         NextResult(gstate, true);
 

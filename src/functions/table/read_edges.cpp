@@ -121,6 +121,7 @@ void ReadEdges::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData
         throw NotImplementedException("Only src and dst filters are supported");
     }
     graphar::IdType vid = std::stoll(filter_value);
+    std::cout << "vid: " << vid << std::endl;
     int64_t vertex_num = 0;
     if (filter_column == SRC_GID_COLUMN) {
         vertex_num = GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[0]);
@@ -133,13 +134,17 @@ void ReadEdges::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData
     auto edge_info = bind_data.graph_info->GetEdgeInfo(bind_data.params[0], bind_data.params[1], bind_data.params[2]);
     auto adj_list_type = (filter_column == SRC_GID_COLUMN) ? graphar::AdjListType::ordered_by_source
                                                            : graphar::AdjListType::ordered_by_dest;
+    DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::SetFilter: GetAdjListOffsetOfVertex");
+    auto query_string = std::move(gstate.query_string_constructor.GetGrapharOffsetQueryString());
     auto maybe_offset_pair =
-        graphar::util::GetAdjListOffsetOfVertex(edge_info, bind_data.graph_info->GetPrefix(), adj_list_type, vid);
+        GraphArFunctions::GetAdjListOffsetOfVertex(edge_info, bind_data.graph_info->GetPrefix(), adj_list_type, vid, *gstate.conn, query_string);
     if (maybe_offset_pair.has_error()) {
         throw InternalException("Failed to get adj list offset of vertex: %s", maybe_offset_pair.status().message());
     }
     auto offset_pair = maybe_offset_pair.value();
 
+    DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::SetFilter: seek");
+    std::cout << "offset_pair: " << offset_pair.first << " " << offset_pair.second << std::endl;
     for (idx_t i = 0; i < gstate.readers.size(); ++i) {
         if (filter_column == SRC_GID_COLUMN) {
             seek_src(*gstate.readers[i], vid, offset_pair);

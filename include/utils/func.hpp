@@ -7,6 +7,7 @@
 #include <duckdb/common/types/data_chunk.hpp>
 #include <duckdb/function/table/arrow/arrow_type_info.hpp>
 #include <duckdb/function/table/arrow/enum/arrow_type_info_type.hpp>
+#include <duckdb/main/connection.hpp>
 
 #include <graphar/api/arrow_reader.h>
 #include <graphar/reader_util.h>
@@ -65,6 +66,10 @@ struct GraphArFunctions {
     static std::shared_ptr<graphar::Expression> GetFilter(const std::string& filter_type,
                                                           const std::string& filter_value,
                                                           const std::string& filter_column);
+
+    static graphar::Result<std::pair<graphar::IdType, graphar::IdType>> GetAdjListOffsetOfVertex(
+    const std::shared_ptr<graphar::EdgeInfo>& edge_info, const std::string& prefix,
+    graphar::AdjListType adj_list_type, graphar::IdType vid, Connection& conn, std::string& query_string);
 };
 
 template <>

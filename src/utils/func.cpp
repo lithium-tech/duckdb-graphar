@@ -48,11 +48,13 @@ unique_ptr<ArrowTypeInfo> GraphArFunctions::graphArT2ArrowTypeInfo(const std::st
 }
 
 int64_t GraphArFunctions::GetVertexNum(std::shared_ptr<graphar::GraphInfo> graph_info, std::string& type) {
+    DUCKDB_GRAPHAR_LOG_TRACE("GetVertexNum");
     auto vertex_info = graph_info->GetVertexInfo(type);
     GAR_ASSIGN_OR_RAISE_ERROR(auto num_file_path, vertex_info->GetVerticesNumFilePath());
     num_file_path = graph_info->GetPrefix() + num_file_path;
     GAR_ASSIGN_OR_RAISE_ERROR(auto fs, graphar::FileSystemFromUriOrPath(num_file_path));
     GAR_ASSIGN_OR_RAISE_ERROR(auto vertex_num, fs->ReadFileToValue<graphar::IdType>(num_file_path));
+    DUCKDB_GRAPHAR_LOG_TRACE("GetVertexNum: returning...");
     return vertex_num;
 }
 
@@ -104,6 +106,37 @@ std::shared_ptr<graphar::Expression> GraphArFunctions::GetFilter(const std::stri
     // TODO: bool?
 
     throw NotImplementedException("Unsupported filter type: " + filter_type);
+}
+
+graphar::Result<std::pair<graphar::IdType, graphar::IdType>> GraphArFunctions::GetAdjListOffsetOfVertex(
+    const std::shared_ptr<graphar::EdgeInfo>& edge_info, const std::string& prefix,
+    graphar::AdjListType adj_list_type, graphar::IdType vid, Connection& conn, std::string& query_string) {
+    graphar::IdType vertex_chunk_size;
+    if (adj_list_type == graphar::AdjListType::ordered_by_source) {
+        vertex_chunk_size = edge_info->GetSrcChunkSize();
+    } else if (adj_list_type == graphar::AdjListType::ordered_by_dest) {
+        vertex_chunk_size = edge_info->GetDstChunkSize();
+    } else {
+        return graphar::Status::Invalid(
+            "The adj list type has to be ordered_by_source or ordered_by_dest, but "
+            "got ",
+            std::string(AdjListTypeToString(adj_list_type)));
+    }
+
+    graphar::IdType offset_chunk_index = vid / vertex_chunk_size;
+    graphar::IdType offset_in_file = vid % vertex_chunk_size;
+    GAR_ASSIGN_OR_RAISE(
+        auto offset_file_path,
+        edge_info->GetAdjListOffsetFilePath(offset_chunk_index, adj_list_type));
+    std::string out_prefix;
+    GAR_ASSIGN_OR_RAISE(auto fs, graphar::FileSystemFromUriOrPath(prefix, &out_prefix));
+    std::string path = out_prefix + offset_file_path;
+    auto query_result = std::move(conn.Query(query_string, Value(path), Value(offset_in_file)));
+    if (query_result->HasError()) {
+        return graphar::Status::Invalid("Failed to execute query: " + query_result->GetError());
+    }
+    auto chunk = query_result->Fetch();
+    return std::make_pair(chunk->GetValue(0, 0).GetValue<graphar::IdType>(), chunk->GetValue(0, 1).GetValue<graphar::IdType>());
 }
 
 std::string GetYamlContent(const std::string& path) {
