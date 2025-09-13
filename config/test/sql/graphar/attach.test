@@ -5,13 +5,13 @@ statement ok
 ATTACH '__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml' as test_db (type duckdb_graphar);
 
 query I
-SELECT name from (SHOW ALL TABLES);
+SELECT name from (SHOW ALL TABLES) ORDER BY name;
 ----
-Person.vertex
-Person_knows_Person.edge
+Person_knows_Person_edge
+Person_vertex
 
 query I
-SELECT name from (SHOW TABLES);
+SELECT name from (SHOW TABLES) ORDER BY name;
 ----
-Person.vertex
-Person_knows_Person.edge
+Person_knows_Person_edge
+Person_vertex
