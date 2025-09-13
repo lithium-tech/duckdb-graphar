@@ -25,7 +25,7 @@ statement ok
 ATTACH '__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml' as test_db (type duckdb_graphar);
 
 query I
-SELECT id FROM 'Person.vertex' LIMIT 4;
+SELECT id FROM 'Person_vertex' LIMIT 4;
 ----
 0
 1
@@ -33,11 +33,11 @@ SELECT id FROM 'Person.vertex' LIMIT 4;
 3
 
 query I
-SELECT id FROM 'Person.vertex' WHERE _graphArVertexIndex=4;
+SELECT id FROM 'Person_vertex' WHERE _graphArVertexIndex=4;
 ----
 4
 
 query I
-SELECT COUNT(*) FROM 'Person.vertex';
+SELECT COUNT(*) FROM 'Person_vertex';
 ----
 37700

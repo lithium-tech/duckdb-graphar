@@ -26,12 +26,12 @@ statement ok
 ATTACH '__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml' as test_db (type duckdb_graphar);
 
 query I
-SELECT _graphArDstIndex FROM 'Person_knows_Person.edge' LIMIT 1;
+SELECT _graphArDstIndex FROM 'Person_knows_Person_edge' LIMIT 1;
 ----
 23977
 
 query I
-SELECT _graphArDstIndex FROM 'Person_knows_Person.edge' WHERE _graphArSrcIndex=3;
+SELECT _graphArDstIndex FROM 'Person_knows_Person_edge' WHERE _graphArSrcIndex=3;
 ----
 4950
 5916
@@ -40,6 +40,6 @@ SELECT _graphArDstIndex FROM 'Person_knows_Person.edge' WHERE _graphArSrcIndex=3
 18029
 
 query I
-SELECT COUNT(*) FROM 'Person_knows_Person.edge';
+SELECT COUNT(*) FROM 'Person_knows_Person_edge';
 ----
 289003
