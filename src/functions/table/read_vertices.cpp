@@ -17,7 +17,6 @@
 #include <graphar/filesystem.h>
 #include <graphar/fwd.h>
 
-#include <cassert>
 #include <iostream>
 
 namespace duckdb {
@@ -83,7 +82,9 @@ std::shared_ptr<Reader> ReadVertices::GetReader(ReadBaseGlobalTableFunctionState
     DUCKDB_GRAPHAR_LOG_TRACE("ReadVertices::GetReader");
     auto maybe_reader =
         graphar::VertexPropertyArrowChunkReader::Make(bind_data.graph_info, bind_data.params[0], bind_data.pgs[ind]);
-    assert(maybe_reader.status().ok());
+    if (maybe_reader.has_error()) {
+        throw std::runtime_error("Failed to create vertex property reader: " + maybe_reader.status().message());
+    }
     Reader result = *maybe_reader.value();
     return std::make_shared<Reader>(std::move(result));
 }

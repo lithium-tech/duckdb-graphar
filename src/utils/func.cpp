@@ -49,23 +49,23 @@ unique_ptr<ArrowTypeInfo> GraphArFunctions::graphArT2ArrowTypeInfo(const std::st
 
 Value GraphArFunctions::ArrowScalar2DuckValue(const std::shared_ptr<arrow::Scalar>& scalar) {
     if (!scalar->is_valid) {
-        return duckdb::Value();
+        return Value();
     }
 
     switch (scalar->type->id()) {
         case arrow::Type::BOOL:
-            return duckdb::Value::BOOLEAN(static_cast<const arrow::BooleanScalar&>(*scalar).value);
+            return Value::BOOLEAN(static_cast<const arrow::BooleanScalar&>(*scalar).value);
         case arrow::Type::INT32:
-            return duckdb::Value::INTEGER(static_cast<const arrow::Int32Scalar&>(*scalar).value);
+            return Value::INTEGER(static_cast<const arrow::Int32Scalar&>(*scalar).value);
         case arrow::Type::INT64:
-            return duckdb::Value::BIGINT(static_cast<const arrow::Int64Scalar&>(*scalar).value);
+            return Value::BIGINT(static_cast<const arrow::Int64Scalar&>(*scalar).value);
         case arrow::Type::FLOAT:
-            return duckdb::Value::FLOAT(static_cast<const arrow::FloatScalar&>(*scalar).value);
+            return Value::FLOAT(static_cast<const arrow::FloatScalar&>(*scalar).value);
         case arrow::Type::DOUBLE:
-            return duckdb::Value::DOUBLE(static_cast<const arrow::DoubleScalar&>(*scalar).value);
+            return Value::DOUBLE(static_cast<const arrow::DoubleScalar&>(*scalar).value);
         case arrow::Type::STRING:
         case arrow::Type::LARGE_STRING:
-            return duckdb::Value(static_cast<const arrow::StringScalar&>(*scalar).value->ToString());
+            return Value(static_cast<const arrow::StringScalar&>(*scalar).value->ToString());
         default:
             throw duckdb::NotImplementedException("Arrow scalar type not supported: " + scalar->type->ToString());
     }

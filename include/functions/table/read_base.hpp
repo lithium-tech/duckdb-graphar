@@ -18,7 +18,6 @@
 #include <graphar/fwd.h>
 #include <graphar/reader_util.h>
 
-#include <cassert>
 #include <iostream>
 #include <sstream>
 #include <variant>
@@ -211,7 +210,9 @@ public:
             }
         }
         auto result = GetChunk(*reader);
-        assert(!result.has_error());
+        if (result.has_error()) {
+            throw std::runtime_error("Failed to get chunk" + result.status().message());
+        }
         auto table = result.value();
         if (gstate.filter_range.first != -1) {
             if (gstate.total_rows >= gstate.filter_range.second) {
@@ -322,7 +323,9 @@ public:
             if (time_logging) {
                 t.print("get_chunk");
             }
-            assert(!result.has_error());
+            if (result.has_error()) {
+                throw std::runtime_error("Error while getting chunk: " + result.status().message());
+            }
             gstate.tables[i] = result.value();
             if (i) {
                 for (idx_t j = 0; j < bind_data.columns_to_remove; j++) {
@@ -355,7 +358,8 @@ public:
             return arrow::Status::Invalid("Cannot concatenate empty vector of tables");
         }
 
-        idx_t num_rows = tables[0]->num_rows(), total_columns = 0;
+        const idx_t num_rows = tables[0]->num_rows();
+        idx_t total_columns = 0;
         for (idx_t i = 1; i < tables.size(); ++i) {
             if (tables[i]->num_rows() != num_rows) {
                 return arrow::Status::Invalid("All tables must have the same number of rows");
@@ -375,16 +379,16 @@ public:
             }
         }
 
-        auto combined_schema = std::make_shared<arrow::Schema>(std::move(all_fields));
+        const auto combined_schema = std::make_shared<arrow::Schema>(std::move(all_fields));
         return arrow::Table::Make(std::move(combined_schema), std::move(all_columns), num_rows);
     }
 
     static void ConvertArrowTableToDataChunk(const std::shared_ptr<arrow::Table> table, DataChunk& output,
                                              vector<column_t>& column_ids) {
         DUCKDB_GRAPHAR_LOG_TRACE("ConvertArrowTableToDataChunk started");
-        auto num_rows = table->num_rows();
+        const auto num_rows = table->num_rows();
         for (idx_t column_ids_i = 0; column_ids_i < column_ids.size(); column_ids_i++) {
-            auto column_i = column_ids[column_ids_i];
+            const auto column_i = column_ids[column_ids_i];
             for (idx_t row_i = 0; row_i < num_rows; row_i++) {
                 auto maybe_value = table->column(column_i)->GetScalar(row_i);
                 if (!maybe_value.ok()) {
@@ -408,15 +412,16 @@ public:
 
         DUCKDB_GRAPHAR_LOG_DEBUG("Chunk " + std::to_string(gstate.chunk_count) + ": Begin iteration");
 
-        idx_t num_rows = STANDARD_VECTOR_SIZE;
-        if (gstate.filter_range.first != -1 &&
-            gstate.total_rows == gstate.filter_range.second - gstate.filter_range.first) {
-            num_rows = 0;
-        }
+        idx_t num_rows = (gstate.filter_range.first != -1 &&
+                          gstate.total_rows == (gstate.filter_range.second - gstate.filter_range.first))
+                             ? static_cast<idx_t>(0)
+                             : STANDARD_VECTOR_SIZE;
         for (idx_t i = 0; i < gstate.readers.size() && num_rows; i++) {
             if (gstate.indices[i] == gstate.sizes[i]) {
                 auto result = NextChunk(i, gstate);
-                assert(!result.has_error());
+                if (result.has_error()) {
+                    throw std::runtime_error("Error while getting chunk: " + result.status().message());
+                }
                 gstate.tables[i] = result.value();
                 gstate.sizes[i] = gstate.tables[i]->num_rows();
                 gstate.indices[i] = 0;
