@@ -68,8 +68,8 @@ struct GraphArFunctions {
                                                           const std::string& filter_column);
 
     static graphar::Result<std::pair<graphar::IdType, graphar::IdType>> GetAdjListOffsetOfVertex(
-    const std::shared_ptr<graphar::EdgeInfo>& edge_info, const std::string& prefix,
-    graphar::AdjListType adj_list_type, graphar::IdType vid, Connection& conn, std::string& query_string);
+        const std::shared_ptr<graphar::EdgeInfo>& edge_info, const std::string& prefix,
+        graphar::AdjListType adj_list_type, graphar::IdType vid, Connection& conn, std::string& query_string);
 };
 
 template <>

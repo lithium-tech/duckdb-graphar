@@ -19,213 +19,208 @@
 
 #pragma once
 
+#include "graphar/fwd.h"
+
 #include <memory>
 #include <string>
 #include <vector>
-
-#include "graphar/fwd.h"
 
 namespace graphar {
 
 /** The chunk info reader for adj list topology chunk. */
 class CustomAdjListChunkInfoReader {
- public:
-  ~CustomAdjListChunkInfoReader() {}
+public:
+    ~CustomAdjListChunkInfoReader() {}
 
-  /**
-   * @brief Initialize the AdjListChunkInfoReader.
-   *
-   * @param edge_info The edge info that describes the edge type.
-   * @param adj_list_type The adj list type for the edges.
-   * @param prefix The absolute prefix of the graph.
-   */
-  explicit CustomAdjListChunkInfoReader(const std::shared_ptr<EdgeInfo>& edge_info,
-                                  AdjListType adj_list_type,
-                                  const std::string& prefix);
+    /**
+     * @brief Initialize the AdjListChunkInfoReader.
+     *
+     * @param edge_info The edge info that describes the edge type.
+     * @param adj_list_type The adj list type for the edges.
+     * @param prefix The absolute prefix of the graph.
+     */
+    explicit CustomAdjListChunkInfoReader(const std::shared_ptr<EdgeInfo>& edge_info, AdjListType adj_list_type,
+                                          const std::string& prefix);
 
-  /**
-   * @brief Sets chunk position indicator for reader by source internal vertex
-   * id.
-   *
-   * @param id the source internal vertex id.
-   */
-  Status seek_src(IdType id, std::pair<IdType, IdType> offset_pair = {-1, -1});
+    /**
+     * @brief Sets chunk position indicator for reader by source internal vertex
+     * id.
+     *
+     * @param id the source internal vertex id.
+     */
+    Status seek_src(IdType id, std::pair<IdType, IdType> offset_pair = {-1, -1});
 
-  /**
-   * @brief Sets chunk position indicator for reader by destination internal
-   * vertex id.
-   *
-   * @param id the destination internal vertex id.
-   */
-  Status seek_dst(IdType id, std::pair<IdType, IdType> offset_pair = {-1, -1});
+    /**
+     * @brief Sets chunk position indicator for reader by destination internal
+     * vertex id.
+     *
+     * @param id the destination internal vertex id.
+     */
+    Status seek_dst(IdType id, std::pair<IdType, IdType> offset_pair = {-1, -1});
 
-  /**
-   * @brief Sets chunk position indicator for reader by edge index.
-   *
-   * @param offset edge index of the vertex chunk.
-   *     Note: the offset is the edge index of the vertex chunk, not the edge
-   * index of the whole graph.
-   */
-  Status seek(IdType index);
+    /**
+     * @brief Sets chunk position indicator for reader by edge index.
+     *
+     * @param offset edge index of the vertex chunk.
+     *     Note: the offset is the edge index of the vertex chunk, not the edge
+     * index of the whole graph.
+     */
+    Status seek(IdType index);
 
-  /** Return the current chunk file path of chunk position indicator. */
-  Result<std::string> GetChunk();
+    /** Return the current chunk file path of chunk position indicator. */
+    Result<std::string> GetChunk();
 
-  /**
-   * Sets chunk position indicator to next chunk.
-   *
-   * if current chunk is the last chunk, will return Status::IndexError
-   *     error.
-   */
-  Status next_chunk();
+    /**
+     * Sets chunk position indicator to next chunk.
+     *
+     * if current chunk is the last chunk, will return Status::IndexError
+     *     error.
+     */
+    Status next_chunk();
 
-  /**
-   * @brief Create an AdjListChunkInfoReader instance from edge info.
-   *
-   * @param edge_info The edge info.
-   * @param adj_list_type The adj list type for the edges.
-   * @param prefix The absolute prefix of the graph.
-   */
-  static Result<std::shared_ptr<CustomAdjListChunkInfoReader>> Make(
-      const std::shared_ptr<EdgeInfo>& edge_info, AdjListType adj_list_type,
-      const std::string& prefix);
+    /**
+     * @brief Create an AdjListChunkInfoReader instance from edge info.
+     *
+     * @param edge_info The edge info.
+     * @param adj_list_type The adj list type for the edges.
+     * @param prefix The absolute prefix of the graph.
+     */
+    static Result<std::shared_ptr<CustomAdjListChunkInfoReader>> Make(const std::shared_ptr<EdgeInfo>& edge_info,
+                                                                      AdjListType adj_list_type,
+                                                                      const std::string& prefix);
 
-  /**
-   * @brief Create an AdjListChunkInfoReader instance from graph info.
-   *
-   * @param graph_info The graph info.
-   * @param src_type The source vertex type.
-   * @param edge_type The edge type.
-   * @param dst_type The destination vertex type.
-   * @param adj_list_type The adj list type for the edges.
-   */
-  static Result<std::shared_ptr<CustomAdjListChunkInfoReader>> Make(
-      const std::shared_ptr<GraphInfo>& graph_info, const std::string& src_type,
-      const std::string& edge_type, const std::string& dst_type,
-      AdjListType adj_list_type);
+    /**
+     * @brief Create an AdjListChunkInfoReader instance from graph info.
+     *
+     * @param graph_info The graph info.
+     * @param src_type The source vertex type.
+     * @param edge_type The edge type.
+     * @param dst_type The destination vertex type.
+     * @param adj_list_type The adj list type for the edges.
+     */
+    static Result<std::shared_ptr<CustomAdjListChunkInfoReader>> Make(const std::shared_ptr<GraphInfo>& graph_info,
+                                                                      const std::string& src_type,
+                                                                      const std::string& edge_type,
+                                                                      const std::string& dst_type,
+                                                                      AdjListType adj_list_type);
 
-  IdType GetVertexChunkIndex() const { return vertex_chunk_index_; }
-  IdType GetChunkIndex() const { return chunk_index_; }
+    IdType GetVertexChunkIndex() const { return vertex_chunk_index_; }
+    IdType GetChunkIndex() const { return chunk_index_; }
 
- private:
-  std::shared_ptr<EdgeInfo> edge_info_;
-  AdjListType adj_list_type_;
-  std::string prefix_;
-  IdType vertex_chunk_index_, chunk_index_;
-  IdType vertex_chunk_num_, chunk_num_;
-  std::string base_dir_;  // the chunk files base dir
-  std::shared_ptr<FileSystem> fs_;
+private:
+    std::shared_ptr<EdgeInfo> edge_info_;
+    AdjListType adj_list_type_;
+    std::string prefix_;
+    IdType vertex_chunk_index_, chunk_index_;
+    IdType vertex_chunk_num_, chunk_num_;
+    std::string base_dir_;  // the chunk files base dir
+    std::shared_ptr<FileSystem> fs_;
 };
 /**
  * The chunk info reader for edge property group chunk.
  */
 class CustomAdjListPropertyChunkInfoReader {
- public:
-  /**
-   * @brief Initialize the CustomAdjListPropertyChunkInfoReader.
-   *
-   * @param edge_info The edge info that describes the edge type.
-   * @param property_group The property group of the edge property.
-   * @param adj_list_type The adj list type for the edges.
-   * @param prefix The absolute prefix of the graph.
-   */
-  explicit CustomAdjListPropertyChunkInfoReader(
-      const std::shared_ptr<EdgeInfo>& edge_info,
-      const std::shared_ptr<PropertyGroup>& property_group,
-      AdjListType adj_list_type, const std::string prefix);
+public:
+    /**
+     * @brief Initialize the CustomAdjListPropertyChunkInfoReader.
+     *
+     * @param edge_info The edge info that describes the edge type.
+     * @param property_group The property group of the edge property.
+     * @param adj_list_type The adj list type for the edges.
+     * @param prefix The absolute prefix of the graph.
+     */
+    explicit CustomAdjListPropertyChunkInfoReader(const std::shared_ptr<EdgeInfo>& edge_info,
+                                                  const std::shared_ptr<PropertyGroup>& property_group,
+                                                  AdjListType adj_list_type, const std::string prefix);
 
-  /**
-   * @brief Sets chunk position indicator for reader by source vertex id.
-   *
-   * @param id the source vertex id.
-   */
-  Status seek_src(IdType id, std::pair<IdType, IdType> offset_pair = {-1, -1});
+    /**
+     * @brief Sets chunk position indicator for reader by source vertex id.
+     *
+     * @param id the source vertex id.
+     */
+    Status seek_src(IdType id, std::pair<IdType, IdType> offset_pair = {-1, -1});
 
-  /**
-   * @brief Sets chunk position indicator for reader by destination vertex id.
-   *
-   * @param id the destination vertex id.
-   */
-  Status seek_dst(IdType id, std::pair<IdType, IdType> offset_pair = {-1, -1});
+    /**
+     * @brief Sets chunk position indicator for reader by destination vertex id.
+     *
+     * @param id the destination vertex id.
+     */
+    Status seek_dst(IdType id, std::pair<IdType, IdType> offset_pair = {-1, -1});
 
-  /**
-   * @brief Sets chunk position indicator for reader by edge index.
-   *
-   * @param offset edge index of the vertex chunk.
-   *     Note: the offset is the edge index of the vertex chunk, not the edge
-   * index of the whole graph.
-   */
-  Status seek(IdType offset);
+    /**
+     * @brief Sets chunk position indicator for reader by edge index.
+     *
+     * @param offset edge index of the vertex chunk.
+     *     Note: the offset is the edge index of the vertex chunk, not the edge
+     * index of the whole graph.
+     */
+    Status seek(IdType offset);
 
-  /** Return the current chunk file path of chunk position indicator. */
-  Result<std::string> GetChunk() const;
+    /** Return the current chunk file path of chunk position indicator. */
+    Result<std::string> GetChunk() const;
 
-  /**
-   * Sets chunk position indicator to next chunk.
-   *
-   * if current chunk is the last chunk, will return Status::IndexError
-   *  error.
-   */
-  Status next_chunk();
+    /**
+     * Sets chunk position indicator to next chunk.
+     *
+     * if current chunk is the last chunk, will return Status::IndexError
+     *  error.
+     */
+    Status next_chunk();
 
-  /**
-   * @brief Create an CustomAdjListPropertyChunkInfoReader instance from edge info.
-   *
-   * @param edge_info The edge info.
-   * @param property_group The property group of the edge property.
-   * @param adj_list_type The adj list type for the edge.
-   * @param prefix The absolute prefix of the graph.
-   */
-  static Result<std::shared_ptr<CustomAdjListPropertyChunkInfoReader>> Make(
-      const std::shared_ptr<EdgeInfo>& edge_info,
-      const std::shared_ptr<PropertyGroup>& property_group,
-      AdjListType adj_list_type, const std::string& prefix);
+    /**
+     * @brief Create an CustomAdjListPropertyChunkInfoReader instance from edge info.
+     *
+     * @param edge_info The edge info.
+     * @param property_group The property group of the edge property.
+     * @param adj_list_type The adj list type for the edge.
+     * @param prefix The absolute prefix of the graph.
+     */
+    static Result<std::shared_ptr<CustomAdjListPropertyChunkInfoReader>> Make(
+        const std::shared_ptr<EdgeInfo>& edge_info, const std::shared_ptr<PropertyGroup>& property_group,
+        AdjListType adj_list_type, const std::string& prefix);
 
-  /**
-   * @brief Create an CustomAdjListPropertyChunkInfoReader instance from graph info
-   * and property group.
-   *
-   * @param graph_info The graph info.
-   * @param src_type The source vertex type.
-   * @param edge_type The edge type.
-   * @param dst_type The destination vertex type.
-   * @param property_group The property group of the edge property.
-   * @param adj_list_type The adj list type for the edge.
-   */
-  static Result<std::shared_ptr<CustomAdjListPropertyChunkInfoReader>> Make(
-      const std::shared_ptr<GraphInfo>& graph_info, const std::string& src_type,
-      const std::string& edge_type, const std::string& dst_type,
-      const std::shared_ptr<PropertyGroup>& property_group,
-      AdjListType adj_list_type);
+    /**
+     * @brief Create an CustomAdjListPropertyChunkInfoReader instance from graph info
+     * and property group.
+     *
+     * @param graph_info The graph info.
+     * @param src_type The source vertex type.
+     * @param edge_type The edge type.
+     * @param dst_type The destination vertex type.
+     * @param property_group The property group of the edge property.
+     * @param adj_list_type The adj list type for the edge.
+     */
+    static Result<std::shared_ptr<CustomAdjListPropertyChunkInfoReader>> Make(
+        const std::shared_ptr<GraphInfo>& graph_info, const std::string& src_type, const std::string& edge_type,
+        const std::string& dst_type, const std::shared_ptr<PropertyGroup>& property_group, AdjListType adj_list_type);
 
-  /**
-   * @brief Create an CustomAdjListPropertyChunkInfoReader instance from graph info
-   * and property name.
-   *
-   * @param graph_info The graph info.
-   * @param src_type The source vertex type.
-   * @param edge_type The edge type.
-   * @param dst_type The destination vertex type.
-   * @param property_name The name of one property in the property group you
-   * want to read.
-   * @param adj_list_type The adj list type for the edge.
-   */
-  static Result<std::shared_ptr<CustomAdjListPropertyChunkInfoReader>> Make(
-      const std::shared_ptr<GraphInfo>& graph_info, const std::string& src_type,
-      const std::string& edge_type, const std::string& dst_type,
-      const std::string& property_name, AdjListType adj_list_type);
+    /**
+     * @brief Create an CustomAdjListPropertyChunkInfoReader instance from graph info
+     * and property name.
+     *
+     * @param graph_info The graph info.
+     * @param src_type The source vertex type.
+     * @param edge_type The edge type.
+     * @param dst_type The destination vertex type.
+     * @param property_name The name of one property in the property group you
+     * want to read.
+     * @param adj_list_type The adj list type for the edge.
+     */
+    static Result<std::shared_ptr<CustomAdjListPropertyChunkInfoReader>> Make(
+        const std::shared_ptr<GraphInfo>& graph_info, const std::string& src_type, const std::string& edge_type,
+        const std::string& dst_type, const std::string& property_name, AdjListType adj_list_type);
 
-  IdType GetVertexChunkIndex() const { return vertex_chunk_index_; }
-  IdType GetChunkIndex() const { return chunk_index_; }
+    IdType GetVertexChunkIndex() const { return vertex_chunk_index_; }
+    IdType GetChunkIndex() const { return chunk_index_; }
 
- private:
-  std::shared_ptr<EdgeInfo> edge_info_;
-  std::shared_ptr<PropertyGroup> property_group_;
-  AdjListType adj_list_type_;
-  std::string prefix_;
-  IdType vertex_chunk_index_, chunk_index_;
-  IdType vertex_chunk_num_, chunk_num_;
-  std::string base_dir_;  // the chunk files base dir
-  std::shared_ptr<FileSystem> fs_;
+private:
+    std::shared_ptr<EdgeInfo> edge_info_;
+    std::shared_ptr<PropertyGroup> property_group_;
+    AdjListType adj_list_type_;
+    std::string prefix_;
+    IdType vertex_chunk_index_, chunk_index_;
+    IdType vertex_chunk_num_, chunk_num_;
+    std::string base_dir_;  // the chunk files base dir
+    std::shared_ptr<FileSystem> fs_;
 };
 }  // namespace graphar

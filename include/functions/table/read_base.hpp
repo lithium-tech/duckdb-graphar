@@ -78,7 +78,8 @@ static graphar::IdType GetVertexChunkIndex(Reader& reader) {
         reader);
 }
 
-static graphar::Status seek_src(Reader& reader, graphar::IdType id, std::pair<graphar::IdType, graphar::IdType> offset_pair) {
+static graphar::Status seek_src(Reader& reader, graphar::IdType id,
+                                std::pair<graphar::IdType, graphar::IdType> offset_pair) {
     DUCKDB_GRAPHAR_LOG_TRACE("seek_src");
     return std::visit(
         [&](auto& r) {
@@ -91,7 +92,8 @@ static graphar::Status seek_src(Reader& reader, graphar::IdType id, std::pair<gr
         reader);
 }
 
-static graphar::Status seek_dst(Reader& reader, graphar::IdType id, std::pair<graphar::IdType, graphar::IdType> offset_pair) {
+static graphar::Status seek_dst(Reader& reader, graphar::IdType id,
+                                std::pair<graphar::IdType, graphar::IdType> offset_pair) {
     DUCKDB_GRAPHAR_LOG_TRACE("seek_dst");
     return std::visit(
         [&](auto& r) {
@@ -102,18 +104,6 @@ static graphar::Status seek_dst(Reader& reader, graphar::IdType id, std::pair<gr
             }
         },
         reader);
-}
-
-static void check_ugalov(std::string msg) {
-    std::cout << "ugalov msg: " << msg << std::endl;
-    std::string path = "/Users/m.makhlin/Projects/duckdb-graphar/incubator-graphar-testing/ldbc_sample/csv/ldbc_sample.graph.yml";
-    auto graph_info = graphar::GraphInfo::Load(path).value();
-    auto src = "person", type = "knows", dst = "person";
-    auto edge_info = graph_info->GetEdgeInfo(src, type, dst);
-
-    std::cout << "ugalov prefix: " << graph_info->GetPrefix() << std::endl;
-    auto res = graphar::util::GetAdjListOffsetOfVertex(edge_info, graph_info->GetPrefix(), graphar::AdjListType::ordered_by_source, 1).value();
-    std::cout << res.first << " " << res.second << std::endl;
 }
 
 template <typename ReadFinal>
@@ -288,8 +278,9 @@ public:
                 throw std::runtime_error("Failed to get chunk: " + maybe_next_path.error().message());
             }
             auto next_path = maybe_next_path.value();
-            auto query_string = std::move(
-                gstate.query_string_constructor.GetMainQueryString(gstate.prop_names[i], gstate.prop_types[i], gstate.projected_columns_strings[i], gstate.id_columns, i, gstate.columns_to_remove, query_type));
+            auto query_string = std::move(gstate.query_string_constructor.GetMainQueryString(
+                gstate.prop_names[i], gstate.prop_types[i], gstate.projected_columns_strings[i], gstate.id_columns, i,
+                gstate.columns_to_remove, query_type));
             unique_ptr<QueryResult> query_result = nullptr;
             DUCKDB_GRAPHAR_LOG_DEBUG("Query type: " + std::to_string(static_cast<int>(query_type)));
             switch (query_type) {
@@ -342,8 +333,19 @@ public:
 
         gstate.function_name = bind_data.function_name;
         gstate.column_ids = input.column_ids;
-        gstate.query_string_constructor.SetFileType(
-            bind_data.graph_info->GetVertexInfoByIndex(0)->GetPropertyGroupByIndex(0)->GetFileType());
+        gstate.conn = std::move(make_uniq<Connection>(*context.db));
+        const auto file_type = bind_data.graph_info->GetVertexInfoByIndex(0)->GetPropertyGroupByIndex(0)->GetFileType();
+        gstate.query_string_constructor.SetFileType(file_type);
+        if (file_type == graphar::FileType::JSON) {
+            auto tmp_result = gstate.conn->Query("INSTALL json");
+            if (tmp_result->HasError()) {
+                throw std::runtime_error("Failed to install json extension: " + tmp_result->GetError());
+            }
+            tmp_result = gstate.conn->Query("LOAD json");
+            if (tmp_result->HasError()) {
+                throw std::runtime_error("Failed to load json extension: " + tmp_result->GetError());
+            }
+        }
         gstate.chunk_size = bind_data.chunk_size;
 
         std::string filter_value, filter_column, filter_type;
@@ -426,7 +428,8 @@ public:
                         column_ids_str << ", ";
                     }
                     gstate.prop_names[i].emplace_back(bind_data.prop_names[i][vec[j]]);
-                    gstate.prop_types[i].emplace_back(GraphArFunctions::graphArT2duckT(bind_data.prop_types[i][vec[j]]));
+                    gstate.prop_types[i].emplace_back(
+                        GraphArFunctions::graphArT2duckT(bind_data.prop_types[i][vec[j]]));
                 }
                 gstate.projected_columns_strings.emplace_back(std::move(column_ids_str).str());
                 DUCKDB_GRAPHAR_LOG_DEBUG("projected columns: " + gstate.projected_columns_strings.back());
@@ -440,9 +443,6 @@ public:
         gstate.current_queries_results.resize(prop_types_size);
         gstate.current_results_chunks.resize(prop_types_size);
         gstate.num_read_rows.resize(prop_types_size);
-
-        DatabaseInstance fake_db;
-        gstate.conn = std::move(make_uniq<Connection>(*context.db));
 
         DUCKDB_GRAPHAR_LOG_DEBUG("readers num: " + std::to_string(gstate.readers.size()));
 

@@ -101,9 +101,9 @@ std::shared_ptr<Reader> ReadEdges::GetReader(ReadBaseGlobalTableFunctionState& g
         return std::make_shared<Reader>(std::move(result));
     }
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader: making property reader...");
-    auto maybe_reader =
-        graphar::CustomAdjListPropertyChunkInfoReader::Make(bind_data.graph_info, bind_data.params[0], bind_data.params[1],
-                                                      bind_data.params[2], bind_data.pgs[ind - 1], adj_list_type);
+    auto maybe_reader = graphar::CustomAdjListPropertyChunkInfoReader::Make(bind_data.graph_info, bind_data.params[0],
+                                                                            bind_data.params[1], bind_data.params[2],
+                                                                            bind_data.pgs[ind - 1], adj_list_type);
     assert(maybe_reader.status().ok());
     Reader result = *maybe_reader.value();
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader: returning...");
@@ -136,8 +136,8 @@ void ReadEdges::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData
                                                            : graphar::AdjListType::ordered_by_dest;
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::SetFilter: GetAdjListOffsetOfVertex");
     auto query_string = std::move(gstate.query_string_constructor.GetGrapharOffsetQueryString());
-    auto maybe_offset_pair =
-        GraphArFunctions::GetAdjListOffsetOfVertex(edge_info, bind_data.graph_info->GetPrefix(), adj_list_type, vid, *gstate.conn, query_string);
+    auto maybe_offset_pair = GraphArFunctions::GetAdjListOffsetOfVertex(edge_info, bind_data.graph_info->GetPrefix(),
+                                                                        adj_list_type, vid, *gstate.conn, query_string);
     if (maybe_offset_pair.has_error()) {
         throw InternalException("Failed to get adj list offset of vertex: %s", maybe_offset_pair.status().message());
     }
@@ -151,13 +151,15 @@ void ReadEdges::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData
         } else {
             seek_dst(*gstate.readers[i], vid, offset_pair);
         }
-        DUCKDB_GRAPHAR_LOG_DEBUG("Reader " + std::to_string(i) + ": vertex_chunk_index = " + std::to_string(GetVertexChunkIndex(*gstate.readers[i])) + ", chunk_index = " + std::to_string(GetChunkIndex(*gstate.readers[i])));
+        DUCKDB_GRAPHAR_LOG_DEBUG("Reader " + std::to_string(i) +
+                                 ": vertex_chunk_index = " + std::to_string(GetVertexChunkIndex(*gstate.readers[i])) +
+                                 ", chunk_index = " + std::to_string(GetChunkIndex(*gstate.readers[i])));
     }
     gstate.filter_range = std::move(offset_pair);
     DUCKDB_GRAPHAR_LOG_DEBUG("Filter range: " + std::to_string(gstate.filter_range.first) + " " +
                              std::to_string(gstate.filter_range.second));
-    DUCKDB_GRAPHAR_LOG_DEBUG("Filter range with %: " + std::to_string(gstate.filter_range.first % gstate.chunk_size) + " " +
-                             std::to_string(gstate.filter_range.second % gstate.chunk_size));
+    DUCKDB_GRAPHAR_LOG_DEBUG("Filter range with %: " + std::to_string(gstate.filter_range.first % gstate.chunk_size) +
+                             " " + std::to_string(gstate.filter_range.second % gstate.chunk_size));
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::SetFilter: finished");
 }
 //-------------------------------------------------------------------

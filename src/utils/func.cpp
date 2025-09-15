@@ -109,8 +109,8 @@ std::shared_ptr<graphar::Expression> GraphArFunctions::GetFilter(const std::stri
 }
 
 graphar::Result<std::pair<graphar::IdType, graphar::IdType>> GraphArFunctions::GetAdjListOffsetOfVertex(
-    const std::shared_ptr<graphar::EdgeInfo>& edge_info, const std::string& prefix,
-    graphar::AdjListType adj_list_type, graphar::IdType vid, Connection& conn, std::string& query_string) {
+    const std::shared_ptr<graphar::EdgeInfo>& edge_info, const std::string& prefix, graphar::AdjListType adj_list_type,
+    graphar::IdType vid, Connection& conn, std::string& query_string) {
     graphar::IdType vertex_chunk_size;
     if (adj_list_type == graphar::AdjListType::ordered_by_source) {
         vertex_chunk_size = edge_info->GetSrcChunkSize();
@@ -125,9 +125,7 @@ graphar::Result<std::pair<graphar::IdType, graphar::IdType>> GraphArFunctions::G
 
     graphar::IdType offset_chunk_index = vid / vertex_chunk_size;
     graphar::IdType offset_in_file = vid % vertex_chunk_size;
-    GAR_ASSIGN_OR_RAISE(
-        auto offset_file_path,
-        edge_info->GetAdjListOffsetFilePath(offset_chunk_index, adj_list_type));
+    GAR_ASSIGN_OR_RAISE(auto offset_file_path, edge_info->GetAdjListOffsetFilePath(offset_chunk_index, adj_list_type));
     std::string out_prefix;
     GAR_ASSIGN_OR_RAISE(auto fs, graphar::FileSystemFromUriOrPath(prefix, &out_prefix));
     std::string path = out_prefix + offset_file_path;
@@ -136,7 +134,8 @@ graphar::Result<std::pair<graphar::IdType, graphar::IdType>> GraphArFunctions::G
         return graphar::Status::Invalid("Failed to execute query: " + query_result->GetError());
     }
     auto chunk = query_result->Fetch();
-    return std::make_pair(chunk->GetValue(0, 0).GetValue<graphar::IdType>(), chunk->GetValue(0, 1).GetValue<graphar::IdType>());
+    return std::make_pair(chunk->GetValue(0, 0).GetValue<graphar::IdType>(),
+                          chunk->GetValue(0, 1).GetValue<graphar::IdType>());
 }
 
 std::string GetYamlContent(const std::string& path) {
