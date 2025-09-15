@@ -121,13 +121,11 @@ void ReadEdges::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData
         throw NotImplementedException("Only src and dst filters are supported");
     }
     graphar::IdType vid = std::stoll(filter_value);
-    std::cout << "vid: " << vid << std::endl;
-    int64_t vertex_num = 0;
-    if (filter_column == SRC_GID_COLUMN) {
-        vertex_num = GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[0]);
-    } else {
-        vertex_num = GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[2]);
+    auto maybe_vertex_num = (filter_column == SRC_GID_COLUMN) ? GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[0]) : GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[0]);
+    if (maybe_vertex_num.has_error()) {
+        throw InternalException("Failed to get vertex num: %s", maybe_vertex_num.status().message());
     }
+    auto vertex_num = maybe_vertex_num.value();
     if (vid < 0 || vid >= vertex_num) {
         throw BinderException("Vertex id is out of range");
     }

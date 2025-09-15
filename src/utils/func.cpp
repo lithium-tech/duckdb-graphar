@@ -47,7 +47,7 @@ unique_ptr<ArrowTypeInfo> GraphArFunctions::graphArT2ArrowTypeInfo(const std::st
     }
 }
 
-int64_t GraphArFunctions::GetVertexNum(std::shared_ptr<graphar::GraphInfo> graph_info, std::string& type) {
+graphar::Result<int64_t> GraphArFunctions::GetVertexNum(std::shared_ptr<graphar::GraphInfo> graph_info, std::string& type) {
     DUCKDB_GRAPHAR_LOG_TRACE("GetVertexNum");
     auto vertex_info = graph_info->GetVertexInfo(type);
     GAR_ASSIGN_OR_RAISE_ERROR(auto num_file_path, vertex_info->GetVerticesNumFilePath());

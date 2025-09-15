@@ -35,7 +35,7 @@ struct GraphArFunctions {
         throw InternalException("Unsupported info");
     }
 
-    static int64_t GetVertexNum(std::shared_ptr<graphar::GraphInfo> graph_info, std::string& type);
+    static graphar::Result<int64_t> GetVertexNum(std::shared_ptr<graphar::GraphInfo> graph_info, std::string& type);
 
     template <typename GraphArIter>
     static void setByIter(DataChunk& output, GraphArIter& iter, const int prop_i, const int row_i,
