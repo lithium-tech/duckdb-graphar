@@ -5,6 +5,7 @@ on:
     branches: [ main ]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   pr-title-check:
@@ -54,8 +55,8 @@ jobs:
           - os: macos-14
             ccache_path: /opt/homebrew/opt/ccache/libexec
             deps_command: |
-              brew update
-              brew upgrade
+              brew update -q
+              brew upgrade -q
               brew install curl ccache
 
     steps:
