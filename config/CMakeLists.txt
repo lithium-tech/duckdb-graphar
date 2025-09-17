@@ -59,9 +59,9 @@ install(
   LIBRARY DESTINATION "${INSTALL_LIB_DIR}"
   ARCHIVE DESTINATION "${INSTALL_LIB_DIR}")
 
-# install(TARGETS duckdb_graphar_loadable_extension
-#     LIBRARY DESTINATION ${INSTALL_LIB_DIR}
-# )
+install(TARGETS duckdb_graphar_loadable_extension
+    LIBRARY DESTINATION ${INSTALL_LIB_DIR}
+)
 
 install(DIRECTORY include/ DESTINATION include
     FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
