@@ -14,11 +14,11 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 add_compile_definitions(_GLIBCXX_USE_CXX11_ABI=1)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=1")
 
-#if(UNIX AND NOT APPLE)
-#    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libstdc++ -static-libgcc")
-#    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++ -static-libgcc")
-#    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libstdc++ -static-libgcc")
-#endif()
+if(UNIX AND NOT APPLE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libstdc++ -static-libgcc")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++ -static-libgcc")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libstdc++ -static-libgcc")
+endif()
 
 include(FetchContent)
 include(GNUInstallDirs)
@@ -62,7 +62,7 @@ ExternalProject_Add(
   arrow
   PREFIX ${ARROW_PREFIX_DIR}
   GIT_REPOSITORY https://github.com/apache/arrow.git
-  GIT_TAG apache-arrow-17.0.0
+  GIT_TAG apache-arrow-19.0.1
   SOURCE_SUBDIR cpp
   CMAKE_ARGS
     -DCMAKE_POLICY_VERSION_MINIMUM=3.5
@@ -176,7 +176,7 @@ set(DISABLE_VPTR_SANITIZER ON CACHE BOOL "")
 FetchContent_Declare(
     duckdb
     GIT_REPOSITORY https://github.com/duckdb/duckdb.git
-    GIT_TAG v1.3.2
+    GIT_TAG 0b83e5d2f68bc02dfefde74b846bd039f078affa
     GIT_SHALLOW TRUE
     GIT_PROGRESS TRUE
 )
