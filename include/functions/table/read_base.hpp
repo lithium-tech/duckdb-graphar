@@ -124,7 +124,7 @@ public:
 private:
     vector<vector<std::string>> prop_names;
     vector<std::string> flatten_prop_names;
-    vector<vector<std::string>> prop_types;
+    vector<vector<LogicalType>> prop_types;
     vector<std::string> flatten_prop_types;
     vector<std::string> id_columns;
     std::shared_ptr<graphar::GraphInfo> graph_info;
@@ -151,11 +151,11 @@ class ReadBaseGlobalTableFunctionState : public GlobalTableFunctionState {
 
     vector<vector<std::string>> prop_names;
     vector<vector<LogicalType>> prop_types;
+    vector<vector<column_t>> projected_inds;
 
     idx_t chunk_size = 0;
 
     QueryStringConstructor query_string_constructor;
-    vector<std::string> projected_columns_strings;
     unique_ptr<Connection> conn;
     vector<unique_ptr<QueryResult>> current_queries_results;
     vector<unique_ptr<DataChunk>> current_results_chunks;
@@ -179,12 +179,11 @@ public:
     template <typename TypeInfo>
     requires(std::is_same_v<TypeInfo, graphar::VertexInfo> || std::is_same_v<TypeInfo, graphar::EdgeInfo>)
     static void SetBindData(std::shared_ptr<graphar::GraphInfo> graph_info, const TypeInfo& type_info,
-                            unique_ptr<ReadBindData>& bind_data, string function_name, idx_t columns_to_remove = 0,
-                            idx_t pg_for_id = 0, vector<string> id_columns = {}) {
+                            unique_ptr<ReadBindData>& bind_data, string function_name, int separate_pg_for_id_columns, vector<string> id_columns = {}) {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadBase::SetBindData");
         bind_data->pgs = type_info.GetPropertyGroups();
         DUCKDB_GRAPHAR_LOG_DEBUG("pgs size " + std::to_string(bind_data->pgs.size()));
-        bind_data->prop_types.resize(bind_data->pgs.size() + pg_for_id);
+        bind_data->prop_types.resize(bind_data->pgs.size() + separate_pg_for_id_columns);
         const auto prop_types_size = bind_data->prop_types.size();
         bind_data->prop_names.resize(prop_types_size);
 
@@ -192,8 +191,8 @@ public:
         for (idx_t i = 0; i < bind_data->pgs.size(); ++i) {
             int prop_num = bind_data->pgs[i]->GetProperties().size();
             total_props_num += prop_num;
-            bind_data->prop_names[i + pg_for_id].reserve(prop_num);
-            bind_data->prop_types[i + pg_for_id].reserve(prop_num);
+            bind_data->prop_names[i + separate_pg_for_id_columns].reserve(prop_num);
+            bind_data->prop_types[i + separate_pg_for_id_columns].reserve(prop_num);
         }
         DUCKDB_GRAPHAR_LOG_DEBUG("total_props_num: " + std::to_string(total_props_num));
 
@@ -203,18 +202,25 @@ public:
 
         for (auto& id_column : id_columns) {
             names.push_back(id_column);
-            bind_data->prop_types[0].emplace_back("int64");
             bind_data->flatten_prop_types.emplace_back("int64");
-            bind_data->prop_names[0].emplace_back(id_column);
+            if (separate_pg_for_id_columns) {
+                bind_data->prop_types[0].emplace_back(LogicalTypeId::BIGINT);
+                bind_data->prop_names[0].emplace_back(id_column);
+            } else {
+                for (idx_t i = 0; i < prop_types_size ++i) {
+                    bind_data->prop_types[i].emplace_back(LogicalTypeId::BIGINT);
+                    bind_data->prop_names[i].emplace_back(id_column);
+                }
+            }
         }
 
         for (idx_t i = 0; i < bind_data->pgs.size(); ++i) {
             for (auto p : bind_data->pgs[i]->GetProperties()) {
                 auto type_name = std::move(p.type->ToTypeName());
                 names.emplace_back(p.name);
-                bind_data->prop_types[i + pg_for_id].emplace_back(type_name);
+                bind_data->prop_types[i + separate_pg_for_id_columns].emplace_back(GraphArFunctions::graphArT2duckT(type_name));
                 bind_data->flatten_prop_types.emplace_back(type_name);
-                bind_data->prop_names[i + pg_for_id].emplace_back(p.name);
+                bind_data->prop_names[i + separate_pg_for_id_columns].emplace_back(p.name);
             }
         }
         DUCKDB_GRAPHAR_LOG_DEBUG("Bind data filled");
@@ -390,20 +396,19 @@ public:
             columns_pref_num[i + 1] = columns_pref_num[i] + bind_data.prop_types[i].size();
         }
 
-        gstate.projected_columns_strings.reserve(prop_types_size);
+        gstate.projected_inds.resize(prop_types_size);
         gstate.readers.reserve(prop_types_size);
         if (gstate.column_ids.empty() ||
             gstate.column_ids.size() == 1 && gstate.column_ids[0] == COLUMN_IDENTIFIER_ROW_ID) {
             DUCKDB_GRAPHAR_LOG_DEBUG("Returning any column");
-            gstate.projected_columns_strings.emplace_back("#1");
+            gstate.projected_inds[0].emplace_back(0);
             gstate.readers.emplace_back(GetReader(gstate, bind_data, 0, filter_value, filter_column, filter_type));
         } else {
             DUCKDB_GRAPHAR_LOG_DEBUG("Returning specific columns");
             idx_t it = 0;
-            vector<vector<idx_t>> column_ids_split_by_reader(prop_types_size);
             for (idx_t i = 1; i < columns_pref_num.size(); ++i) {
                 while (it < gstate.column_ids.size() && gstate.column_ids[it] < columns_pref_num[i]) {
-                    column_ids_split_by_reader[i - 1].emplace_back(gstate.column_ids[it] - columns_pref_num[i - 1]);
+                    gstate.projected_inds[i - 1].emplace_back(gstate.column_ids[it] - columns_pref_num[i - 1]);
                     it++;
                 }
             }
