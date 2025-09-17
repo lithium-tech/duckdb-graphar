@@ -1,10 +1,11 @@
 #pragma once
 
 #include <duckdb/function/scalar_function.hpp>
+#include <duckdb/main/extension/extension_loader.hpp>
 
 namespace duckdb {
 struct Bfs {
-    static void Register(DatabaseInstance& db);
+    static void Register(ExtensionLoader& loader);
     static ScalarFunction GetFunctionExists();
     static ScalarFunction GetFunctionLength();
 

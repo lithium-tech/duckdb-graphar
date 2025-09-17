@@ -7,7 +7,6 @@
 #include <duckdb/common/named_parameter_map.hpp>
 #include <duckdb/common/vector_size.hpp>
 #include <duckdb/function/table_function.hpp>
-#include <duckdb/main/extension_util.hpp>
 
 #include <graphar/api/high_level_reader.h>
 
@@ -236,7 +235,7 @@ TableFunction TwoHop::GetFunction() {
     return read_edges;
 }
 
-void TwoHop::Register(DatabaseInstance& db) { ExtensionUtil::RegisterFunction(db, GetFunction()); }
+void TwoHop::Register(ExtensionLoader& loader) { loader.RegisterFunction(GetFunction()); }
 
 TableFunction OneMoreHop::GetFunction() {
     TableFunction read_edges("one_more_hop", {LogicalType::VARCHAR}, Execute, TwoHop::Bind);
@@ -248,5 +247,5 @@ TableFunction OneMoreHop::GetFunction() {
     return read_edges;
 }
 
-void OneMoreHop::Register(DatabaseInstance& db) { ExtensionUtil::RegisterFunction(db, GetFunction()); }
+void OneMoreHop::Register(ExtensionLoader& loader) { loader.RegisterFunction(GetFunction()); }
 }  // namespace duckdb

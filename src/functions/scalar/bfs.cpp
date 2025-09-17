@@ -6,7 +6,6 @@
 #include <duckdb/common/exception.hpp>
 #include <duckdb/common/string_util.hpp>
 #include <duckdb/function/scalar_function.hpp>
-#include <duckdb/main/extension_util.hpp>
 
 #include <graphar/graph_info.h>
 #include <graphar/high-level/graph_reader.h>
@@ -176,8 +175,8 @@ ScalarFunction Bfs::GetFunctionLength() {
     return bfs_length;
 }
 
-void Bfs::Register(DatabaseInstance& db) {
-    ExtensionUtil::RegisterFunction(db, GetFunctionExists());
-    ExtensionUtil::RegisterFunction(db, GetFunctionLength());
+void Bfs::Register(ExtensionLoader& loader) {
+    loader.RegisterFunction(GetFunctionExists());
+    loader.RegisterFunction(GetFunctionLength());
 }
 }  // namespace duckdb

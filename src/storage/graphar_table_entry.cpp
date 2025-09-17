@@ -8,7 +8,6 @@
 #include <duckdb/catalog/catalog_entry/table_function_catalog_entry.hpp>
 #include <duckdb/common/multi_file/multi_file_reader.hpp>
 #include <duckdb/main/database.hpp>
-#include <duckdb/main/extension_util.hpp>
 #include <duckdb/main/secret/secret_manager.hpp>
 #include <duckdb/parser/tableref/table_function_ref.hpp>
 #include <duckdb/planner/binder.hpp>

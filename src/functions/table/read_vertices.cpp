@@ -8,7 +8,6 @@
 #include <duckdb/common/named_parameter_map.hpp>
 #include <duckdb/function/table/arrow.hpp>
 #include <duckdb/function/table_function.hpp>
-#include <duckdb/main/extension_util.hpp>
 
 #include <graphar/api/arrow_reader.h>
 #include <graphar/api/high_level_reader.h>

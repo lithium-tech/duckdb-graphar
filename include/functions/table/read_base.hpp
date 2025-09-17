@@ -11,7 +11,7 @@
 #include <duckdb/common/named_parameter_map.hpp>
 #include <duckdb/function/table/arrow.hpp>
 #include <duckdb/function/table_function.hpp>
-#include <duckdb/main/extension_util.hpp>
+#include <duckdb/main/extension/extension_loader.hpp>
 
 #include <graphar/api/arrow_reader.h>
 #include <graphar/api/high_level_reader.h>
@@ -533,7 +533,7 @@ public:
         }
     }
 
-    static void Register(DatabaseInstance& db) { ExtensionUtil::RegisterFunction(db, ReadFinal::GetFunction()); }
+    static void Register(ExtensionLoader& loader) { loader.RegisterFunction(ReadFinal::GetFunction()); }
     static TableFunction GetFunction() { return ReadFinal::GetFunction(); }
     static TableFunction GetScanFunction() { return ReadFinal::GetScanFunction(); }
 };
