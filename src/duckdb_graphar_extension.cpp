@@ -26,7 +26,7 @@ inline void QuackScalarFun(DataChunk &args, ExpressionState &state, Vector &resu
 	});
 }
 
-void DuckdbGrapharExtension::Load(ExtensionLoader& loader) {
+static void LoadInternal(ExtensionLoader& loader) {
     auto duckdb_graphar_scalar_function =
         ScalarFunction("duckdb_graphar", {LogicalType::VARCHAR}, LogicalType::VARCHAR, QuackScalarFun);
     loader.RegisterFunction(duckdb_graphar_scalar_function);
@@ -48,6 +48,10 @@ void DuckdbGrapharExtension::Load(ExtensionLoader& loader) {
     config.storage_extensions["duckdb_graphar"] = make_uniq<GraphArStorageExtension>();
 }
 
+void DuckdbGrapharExtension::Load(ExtensionLoader& loader) {
+    LoadInternal(loader);
+}
+
 std::string DuckdbGrapharExtension::Name() { return "duckdb_graphar"; }
 
 std::string DuckdbGrapharExtension::Version() const {
@@ -58,9 +62,10 @@ std::string DuckdbGrapharExtension::Version() const {
 #endif
 }
 
-DUCKDB_CPP_EXTENSION_ENTRY(duckdb_graphar, loader) {
-    DuckdbGrapharExtension extension;
-    extension.Load(loader);
-}
-
 }  // namespace duckdb
+
+extern "C" {
+DUCKDB_CPP_EXTENSION_ENTRY(duckdb_graphar, loader) {
+    duckdb::LoadInternal(loader);
+}
+}
