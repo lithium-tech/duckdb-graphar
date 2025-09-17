@@ -7,7 +7,6 @@
 #include <duckdb/common/named_parameter_map.hpp>
 #include <duckdb/common/vector_size.hpp>
 #include <duckdb/function/table_function.hpp>
-#include <duckdb/main/extension_util.hpp>
 
 #include <graphar/api/high_level_reader.h>
 #include <graphar/status.h>
@@ -251,5 +250,5 @@ TableFunction EdgesVertex::GetFunction() {
     return edges_vertex;
 }
 
-void EdgesVertex::Register(DatabaseInstance& db) { ExtensionUtil::RegisterFunction(db, GetFunction()); }
+void EdgesVertex::Register(ExtensionLoader& loader) { loader.RegisterFunction(GetFunction()); }
 }  // namespace duckdb

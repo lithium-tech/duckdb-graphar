@@ -2,6 +2,7 @@
 
 #include <duckdb/common/named_parameter_map.hpp>
 #include <duckdb/function/table_function.hpp>
+#include <duckdb/main/extension/extension_loader.hpp>
 
 #include <graphar/api/high_level_reader.h>
 #include <graphar/graph_info.h>
@@ -83,7 +84,7 @@ struct EdgesVertex {
         ClientContext& context, const std::shared_ptr<graphar::EdgeInfo>& edge_info, const std::string& prefix,
         graphar::AdjListType adj_list_type, idx_t start, idx_t end);
     static void Execute(ClientContext& context, TableFunctionInput& data, DataChunk& output);
-    static void Register(DatabaseInstance& db);
+    static void Register(ExtensionLoader& loader);
     static TableFunction GetFunction();
 };
 }  // namespace duckdb

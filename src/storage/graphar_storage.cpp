@@ -16,9 +16,9 @@
 
 namespace duckdb {
 
-static unique_ptr<Catalog> GraphArAttach(StorageExtensionInfo* storage_info, ClientContext& context,
+static unique_ptr<Catalog> GraphArAttach(optional_ptr<StorageExtensionInfo> storage_info, ClientContext& context,
                                          AttachedDatabase& db, const string& name, AttachInfo& info,
-                                         AccessMode access_mode) {
+                                         AttachOptions& attach_options) {
     DUCKDB_GRAPHAR_LOG_TRACE("GraphArAttach");
     auto maybe_graph_info = graphar::GraphInfo::Load(info.path);
     if (maybe_graph_info.has_error()) {
@@ -28,7 +28,7 @@ static unique_ptr<Catalog> GraphArAttach(StorageExtensionInfo* storage_info, Cli
     return make_uniq<GraphArCatalog>(db, info.path, graph_info, context, db.name);
 }
 
-static unique_ptr<TransactionManager> GraphArCreateTransactionManager(StorageExtensionInfo* storage_info,
+static unique_ptr<TransactionManager> GraphArCreateTransactionManager(optional_ptr<StorageExtensionInfo> storage_info,
                                                                       AttachedDatabase& db, Catalog& catalog) {
     DUCKDB_GRAPHAR_LOG_TRACE("GraphArCreateTransactionManager");
     auto& graphar_catalog = catalog.Cast<GraphArCatalog>();

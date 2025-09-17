@@ -5,6 +5,7 @@
 #include <duckdb/common/named_parameter_map.hpp>
 #include <duckdb/function/table/arrow/arrow_duck_schema.hpp>
 #include <duckdb/function/table_function.hpp>
+#include <duckdb/main/extension/extension_loader.hpp>
 
 #include <graphar/api/high_level_reader.h>
 #include <graphar/arrow/chunk_reader.h>
