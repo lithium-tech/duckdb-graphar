@@ -388,9 +388,9 @@ public:
         auto schema = table.schema();
 
         ArrowSchema c_schema;
-        auto status = arrow::ExportSchema(*schema, &c_schema);
-        if (!status.ok()) {
-            throw std::runtime_error("Failed to export Arrow schema");
+        auto export_schema_status = arrow::ExportSchema(*schema, &c_schema);
+        if (!export_schema_status.ok()) {
+            throw std::runtime_error("Failed to export schema: " + export_schema_status.message());
         }
 
         ArrowTableSchema arrow_table_schema;
@@ -407,7 +407,7 @@ public:
                     if (!maybe_value.ok()) {
                         throw std::runtime_error("Failed to get value from table: " + maybe_value.status().ToString());
                     }
-                    auto value = maybe_value.ValueOrDie();
+                    auto value = maybe_value.ValueUnsafe();
                     auto duckdb_value = GraphArFunctions::ArrowScalar2DuckValue(value);
                     output.SetValue(col_idx, row_i, duckdb_value);
                 }
@@ -423,14 +423,14 @@ public:
             auto arrow_array = flatten_result.ValueOrDie();
 
             ArrowArray c_array;
-            auto export_status = arrow::ExportArray(*arrow_array, &c_array);
-            if (!export_status.ok()) {
-                throw std::runtime_error("Failed to export Arrow array");
+            auto export_array_status = arrow::ExportArray(*arrow_array, &c_array);
+            if (!export_array_status.ok()) {
+                throw std::runtime_error("Failed to export Arrow array: " + export_array_status.message());
             }
 
             ArrowArrayScanState array_state(context);
             array_state.owned_data = make_shared_ptr<ArrowArrayWrapper>();
-            array_state.owned_data->arrow_array = c_array;
+            array_state.owned_data->arrow_array = std::move(c_array);
 
             ArrowToDuckDBConversion::SetValidityMask(output.data[col_idx], array_state.owned_data->arrow_array, 0,
                                                      output.size(), 0, -1);
