@@ -66,7 +66,7 @@ struct TwoHop {
     static unique_ptr<FunctionData> Bind(ClientContext& context, TableFunctionBindInput& input,
                                          vector<LogicalType>& return_types, vector<string>& names);
     static void Execute(ClientContext& context, TableFunctionInput& data, DataChunk& output);
-    static void Register(ExtensionLoader &loader);
+    static void Register(ExtensionLoader& loader);
     static TableFunction GetFunction();
 };
 

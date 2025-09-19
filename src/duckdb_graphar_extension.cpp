@@ -19,11 +19,11 @@
 
 namespace duckdb {
 
-inline void QuackScalarFun(DataChunk &args, ExpressionState &state, Vector &result) {
-	auto &name_vector = args.data[0];
-	UnaryExecutor::Execute<string_t, string_t>(name_vector, result, args.size(), [&](string_t name) {
-		return StringVector::AddString(result, "DuckDB_Graphar " + name.GetString() + " 🐥");
-	});
+inline void QuackScalarFun(DataChunk& args, ExpressionState& state, Vector& result) {
+    auto& name_vector = args.data[0];
+    UnaryExecutor::Execute<string_t, string_t>(name_vector, result, args.size(), [&](string_t name) {
+        return StringVector::AddString(result, "DuckDB_Graphar " + name.GetString() + " 🐥");
+    });
 }
 
 static void LoadInternal(ExtensionLoader& loader) {
@@ -48,9 +48,7 @@ static void LoadInternal(ExtensionLoader& loader) {
     config.storage_extensions["duckdb_graphar"] = make_uniq<GraphArStorageExtension>();
 }
 
-void DuckdbGrapharExtension::Load(ExtensionLoader& loader) {
-    LoadInternal(loader);
-}
+void DuckdbGrapharExtension::Load(ExtensionLoader& loader) { LoadInternal(loader); }
 
 std::string DuckdbGrapharExtension::Name() { return "duckdb_graphar"; }
 
@@ -65,7 +63,5 @@ std::string DuckdbGrapharExtension::Version() const {
 }  // namespace duckdb
 
 extern "C" {
-DUCKDB_CPP_EXTENSION_ENTRY(duckdb_graphar, loader) {
-    duckdb::LoadInternal(loader);
-}
+DUCKDB_CPP_EXTENSION_ENTRY(duckdb_graphar, loader) { duckdb::LoadInternal(loader); }
 }

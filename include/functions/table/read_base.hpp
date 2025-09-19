@@ -383,7 +383,8 @@ public:
         return arrow::Table::Make(std::move(combined_schema), std::move(all_columns), num_rows);
     }
 
-    static void ConvertArrowTableToDataChunk(const arrow::Table& table, DataChunk& output, const vector<column_t>& column_ids, ClientContext& context) {
+    static void ConvertArrowTableToDataChunk(const arrow::Table& table, DataChunk& output,
+                                             const vector<column_t>& column_ids, ClientContext& context) {
         auto schema = table.schema();
 
         ArrowSchema c_schema;
@@ -431,14 +432,11 @@ public:
             array_state.owned_data = make_shared_ptr<ArrowArrayWrapper>();
             array_state.owned_data->arrow_array = c_array;
 
-            ArrowToDuckDBConversion::SetValidityMask(output.data[col_idx],
-                                                array_state.owned_data->arrow_array,
-                                                0, output.size(), 0, -1);
+            ArrowToDuckDBConversion::SetValidityMask(output.data[col_idx], array_state.owned_data->arrow_array, 0,
+                                                     output.size(), 0, -1);
 
-            ArrowToDuckDBConversion::ColumnArrowToDuckDB(output.data[col_idx],
-                                                        array_state.owned_data->arrow_array,
-                                                        0, array_state, output.size(),
-                                                        arrow_type);
+            ArrowToDuckDBConversion::ColumnArrowToDuckDB(output.data[col_idx], array_state.owned_data->arrow_array, 0,
+                                                         array_state, output.size(), arrow_type);
         }
     }
 
