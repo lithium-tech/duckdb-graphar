@@ -58,6 +58,9 @@ jobs:
               TAP_NAME="local/pinned" && \
               CMAKE_COMMIT="b4e46db74e74a8c1650b38b1da222284ce1ec5ce" && \
 
+              echo "==> Uninstalling existing cmake (if any)..." && \
+              brew uninstall --ignore-dependencies cmake || true && \
+
               echo "==> Creating local tap (no git)..." && \
               brew tap-new --no-git "$TAP_NAME" >/dev/null && \
 
@@ -67,8 +70,8 @@ jobs:
               CMAKE_RB_LINK="https://raw.githubusercontent.com/Homebrew/homebrew-core/$CMAKE_COMMIT/Formula/c/cmake.rb" && \
               CMAKE_RB_PATH="${CMAKE_FORMULA_DIR}/cmake.rb" && \
 
-              echo "==> Downloading cmake.rb from \$CMAKE_RB_LINK" && \
-              curl -fsSL "${CMAKE_RB_LINK}" -o "${CMAKE_RB_PATH}" && \
+              echo "==> Downloading cmake.rb from $CMAKE_RB_LINK" && \
+              curl -fsSL "$CMAKE_RB_LINK" -o "$CMAKE_RB_PATH" && \
 
               echo "==> Installing CMake 3.31.6 from custom tap..." && \
               brew install "$TAP_NAME/cmake" && \
