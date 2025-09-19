@@ -56,7 +56,7 @@ jobs:
             ccache_path: /opt/homebrew/opt/ccache/libexec
             deps_command: |
               brew search cmake@ \
-              brew install ccachebrew install cmake@3.16 \
+              brew install cmake@3.16 \
               echo "/usr/local/opt/cmake@3.16/bin" >> $GITHUB_PATH \
               brew install curl ccache
 
