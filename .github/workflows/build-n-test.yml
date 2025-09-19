@@ -64,14 +64,14 @@ jobs:
               CMAKE_FORMULA_DIR="$(brew --repo "$TAP_NAME")/Formula" && \
               mkdir -p "$CMAKE_FORMULA_DIR" && \
 
-              CMAKE_RB_LINK="https://raw.githubusercontent.com/Homebrew/homebrew-core/b4e46db74e74a8c1650b38b1da222284ce1ec5ce/Formula/c/cmake.rb" && \
-              CMAKE_RB_PATH="\${CMAKE_FORMULA_DIR}/cmake.rb" && \
+              CMAKE_RB_LINK="https://raw.githubusercontent.com/Homebrew/homebrew-core/$CMAKE_COMMIT/Formula/c/cmake.rb" && \
+              CMAKE_RB_PATH="${CMAKE_FORMULA_DIR}/cmake.rb" && \
 
-              echo "==> Downloading cmake.rb from \${CMAKE_RB_LINK}" && \
-              curl -fsSL "\${CMAKE_RB_LINK}" -o "\${CMAKE_RB_PATH}" && \
+              echo "==> Downloading cmake.rb from \$CMAKE_RB_LINK" && \
+              curl -fsSL "${CMAKE_RB_LINK}" -o "${CMAKE_RB_PATH}" && \
 
               echo "==> Installing CMake 3.31.6 from custom tap..." && \
-              brew install "\$TAP_NAME/cmake" && \
+              brew install "$TAP_NAME/cmake" && \
 
               echo "==> Adding CMake to PATH" && \
               echo "/opt/homebrew/opt/cmake/bin" >> \$GITHUB_PATH && \
