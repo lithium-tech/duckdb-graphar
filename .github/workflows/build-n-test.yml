@@ -196,7 +196,7 @@ jobs:
           mkdir -p upload-artifacts/arrow
           mkdir -p upload-artifacts/graphar
 
-          cp build/_deps/duckdb-build/duckdb upload-artifacts/
+          cp build/_deps/duckdb-build/duckdb upload-artifacts/duckdb_with_extension
           cp build/_deps/duckdb-build/extension/duckdb_graphar/duckdb_graphar.duckdb_extension upload-artifacts/
           if [ "${{ matrix.os }}" == "macos-14" ]; then
             cp ./build/_deps/arrow-install/lib/libarrow.1900.dylib upload-artifacts/arrow/

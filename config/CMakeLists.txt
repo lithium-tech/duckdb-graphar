@@ -9,7 +9,7 @@ build_static_extension(duckdb_graphar ${EXTENSION_SOURCES})
 log_done()
 
 log_stage("Building loadable extension")
-build_loadable_extension(duckdb_graphar " " ${EXTENSION_SOURCES})
+build_loadable_extension(duckdb_graphar ${EXTENSION_SOURCES})
 log_done()
 
 set(DEPS_INSTALL_DIR ${CMAKE_BINARY_DIR}/_deps)
@@ -44,7 +44,6 @@ target_link_libraries(duckdb_graphar_extension
 )
 
 target_link_libraries(duckdb_graphar_loadable_extension
-    duckdb_static
     ${EXT_LIBS}
 )
 
@@ -60,11 +59,9 @@ install(
   LIBRARY DESTINATION "${INSTALL_LIB_DIR}"
   ARCHIVE DESTINATION "${INSTALL_LIB_DIR}")
 
-install(
-  TARGETS duckdb_graphar_loadable_extension
-  EXPORT "${DUCKDB_EXPORT_SET}"
-  LIBRARY DESTINATION "${INSTALL_LIB_DIR}"
-  ARCHIVE DESTINATION "${INSTALL_LIB_DIR}")
+install(TARGETS duckdb_graphar_loadable_extension
+    LIBRARY DESTINATION ${INSTALL_LIB_DIR}
+)
 
 install(DIRECTORY include/ DESTINATION include
     FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
