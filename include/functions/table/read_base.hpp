@@ -131,7 +131,6 @@ private:
     std::string function_name;
     vector<std::string> params;
     graphar::PropertyGroupVector pgs;
-    idx_t columns_to_remove = 0;
     idx_t chunk_size = 0;
 
     template <typename ReadFinal>
@@ -147,7 +146,6 @@ class ReadBaseGlobalTableFunctionState : public GlobalTableFunctionState {
     vector<column_t> column_ids;
     std::pair<row_t, row_t> filter_range = {-1, -1};
     vector<std::string> id_columns;
-    idx_t columns_to_remove = 0;
 
     vector<vector<std::string>> prop_names;
     vector<vector<LogicalType>> prop_types;
@@ -207,7 +205,7 @@ public:
                 bind_data->prop_types[0].emplace_back(LogicalTypeId::BIGINT);
                 bind_data->prop_names[0].emplace_back(id_column);
             } else {
-                for (idx_t i = 0; i < prop_types_size ++i) {
+                for (idx_t i = 0; i < prop_types_size; ++i) {
                     bind_data->prop_types[i].emplace_back(LogicalTypeId::BIGINT);
                     bind_data->prop_names[i].emplace_back(id_column);
                 }
@@ -227,7 +225,6 @@ public:
 
         bind_data->function_name = function_name;
         bind_data->flatten_prop_names = std::move(names);
-        bind_data->columns_to_remove = columns_to_remove;
         bind_data->chunk_size = type_info.GetChunkSize();
         if (bind_data->chunk_size == 0) {
             throw IOException("Chunk size can not be 0");
@@ -285,8 +282,7 @@ public:
             }
             auto next_path = maybe_next_path.value();
             auto query_string = std::move(gstate.query_string_constructor.GetMainQueryString(
-                gstate.prop_names[i], gstate.prop_types[i], gstate.projected_columns_strings[i], gstate.id_columns, i,
-                gstate.columns_to_remove, query_type));
+                gstate.prop_names[i], gstate.prop_types[i], gstate.projected_inds[i], query_type));
             unique_ptr<QueryResult> query_result = nullptr;
             DUCKDB_GRAPHAR_LOG_DEBUG("Query type: " + std::to_string(static_cast<int>(query_type)));
             switch (query_type) {
@@ -396,6 +392,9 @@ public:
             columns_pref_num[i + 1] = columns_pref_num[i] + bind_data.prop_types[i].size();
         }
 
+
+        gstate.prop_names = std::move(bind_data.prop_names);
+        gstate.prop_types = std::move(bind_data.prop_types);
         gstate.projected_inds.resize(prop_types_size);
         gstate.readers.reserve(prop_types_size);
         if (gstate.column_ids.empty() ||
@@ -413,31 +412,6 @@ public:
                 }
             }
             for (idx_t i = 0; i < prop_types_size; ++i) {
-                gstate.prop_names.emplace_back();
-                gstate.prop_types.emplace_back();
-                auto& vec = column_ids_split_by_reader[i];
-                if (vec.empty()) {
-                    continue;
-                }
-                std::ostringstream column_ids_str;
-                for (idx_t j = 0; j < vec.size(); ++j) {
-                    column_ids_str << "#";
-                    idx_t column_id = 0;
-                    if (i != 0) {
-                        column_id = vec[j] + bind_data.columns_to_remove;
-                    } else {
-                        column_id = vec[j];
-                    }
-                    column_ids_str << std::to_string(column_id + 1);
-                    if (j != vec.size() - 1) {
-                        column_ids_str << ", ";
-                    }
-                    gstate.prop_names[i].emplace_back(bind_data.prop_names[i][vec[j]]);
-                    gstate.prop_types[i].emplace_back(
-                        GraphArFunctions::graphArT2duckT(bind_data.prop_types[i][vec[j]]));
-                }
-                gstate.projected_columns_strings.emplace_back(std::move(column_ids_str).str());
-                DUCKDB_GRAPHAR_LOG_DEBUG("projected columns: " + gstate.projected_columns_strings.back());
                 gstate.readers.emplace_back(GetReader(gstate, bind_data, i, filter_value, filter_column, filter_type));
             }
         }
@@ -459,7 +433,6 @@ public:
             t.print("filter setting");
         }
 
-        gstate.columns_to_remove = bind_data.columns_to_remove;
         gstate.id_columns = std::move(bind_data.id_columns);
 
         NextResult(gstate, true);

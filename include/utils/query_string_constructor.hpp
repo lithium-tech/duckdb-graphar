@@ -8,8 +8,7 @@ class QueryStringConstructor {
 public:
     enum class QueryType { FIRST, MIDDLE, LAST, SINGLE };
     std::string GetMainQueryString(const vector<std::string>& column_names, const vector<LogicalType>& column_types,
-                                   const std::string& projected_columns_string, const vector<std::string>& id_columns,
-                                   idx_t reader_i, idx_t columns_to_remove, QueryType query_type);
+                                   const vector<column_t>& projected_inds, QueryType query_type);
 
     std::string GetGrapharOffsetQueryString();
 

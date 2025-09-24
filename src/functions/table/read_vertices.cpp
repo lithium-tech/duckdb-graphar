@@ -26,7 +26,7 @@ namespace duckdb {
 void ReadVertices::SetBindData(std::shared_ptr<graphar::GraphInfo> graph_info, const graphar::VertexInfo& vertex_info,
                                unique_ptr<ReadBindData>& bind_data) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadVertices::SetBindData");
-    ReadBase::SetBindData(graph_info, vertex_info, bind_data, "read_vertices", 1, 0, {GID_COLUMN_INTERNAL});
+    ReadBase::SetBindData(graph_info, vertex_info, bind_data, "read_vertices", 0, {GID_COLUMN_INTERNAL});
 }
 //-------------------------------------------------------------------
 // Bind

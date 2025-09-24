@@ -4,14 +4,17 @@ namespace duckdb {
 
 std::string QueryStringConstructor::GetMainQueryString(const vector<std::string>& column_names,
                                                        const vector<LogicalType>& column_types,
-                                                       const std::string& projected_columns_string,
-                                                       const vector<std::string>& id_columns, idx_t reader_i,
-                                                       idx_t columns_to_remove, QueryType query_type) {
+                                                       const vector<column_t>& projected_inds,
+                                                       QueryType query_type) {
     std::ostringstream ss;
-    ss << SQL_SELECT_CLAUSE;
+    ss << SQL_SELECT_CLAUSE << " ";
     switch (file_type) {
         case graphar::FileType::PARQUET:
-            ss << " " << projected_columns_string << " " << SQL_FROM_CLAUSE << " ";
+            for (idx_t i = 0; i + 1 < projected_inds.size(); ++i) {
+                ss << "#" << to_string(projected_inds[i] + 1) << ", ";
+            }
+            ss << "#" << to_string(projected_inds.back() + 1);
+            ss << SQL_FROM_CLAUSE << " ";
             ss << READ_PARQUET_FUNCTION;
             ss << "($1, " << FILE_ROW_NUMBER_CLAUSE << "=true)";
             if (query_type == QueryType::FIRST) {
@@ -24,14 +27,13 @@ std::string QueryStringConstructor::GetMainQueryString(const vector<std::string>
             }
             break;
         case graphar::FileType::CSV:
-            ss << " " << projected_columns_string << " " << SQL_FROM_CLAUSE << " ";
+            for (idx_t i = 0; i + 1 < projected_inds.size(); ++i) {
+                ss << "#" << to_string(projected_inds[i] + 1) << ", ";
+            }
+            ss << "#" << to_string(projected_inds.back() + 1);
+            ss << " " << SQL_FROM_CLAUSE << " ";
             ss << READ_CSV_FUNCTION;
             ss << "($1, columns={";
-            if (reader_i != 0) {
-                for (idx_t i = 0; i < columns_to_remove; i++) {
-                    ss << "'" << id_columns[i] << "': 'BIGINT', ";
-                }
-            }
             for (idx_t i = 0; i < column_names.size(); i++) {
                 ss << "'" << column_names[i] << "': '" << column_types[i].ToString() << "'";
                 if (i != column_names.size() - 1) {
@@ -48,17 +50,12 @@ std::string QueryStringConstructor::GetMainQueryString(const vector<std::string>
             }
             break;
         case graphar::FileType::JSON:
-            ss << " " << "*" << " " << SQL_FROM_CLAUSE << " ";
+            ss << "*" << " " << SQL_FROM_CLAUSE << " ";
             ss << READ_JSON_FUNCTION;
             ss << "($1, columns={";
-            if (reader_i != 0) {
-                for (idx_t i = 0; i < columns_to_remove; i++) {
-                    ss << "'" << id_columns[i] << "': 'BIGINT', ";
-                }
-            }
-            for (idx_t i = 0; i < column_names.size(); i++) {
-                ss << "'" << column_names[i] << "': '" << column_types[i].ToString() << "'";
-                if (i != column_names.size() - 1) {
+            for (idx_t i = 0; i < projected_inds.size(); i++) {
+                ss << "'" << column_names[projected_inds[i]] << "': '" << column_types[projected_inds[i]].ToString() << "'";
+                if (i != projected_inds.size() - 1) {
                     ss << ", ";
                 }
             }

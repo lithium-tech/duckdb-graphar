@@ -25,7 +25,7 @@ namespace duckdb {
 void ReadEdges::SetBindData(std::shared_ptr<graphar::GraphInfo> graph_info, const graphar::EdgeInfo& edge_info,
                             unique_ptr<ReadBindData>& bind_data) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::SetBindData");
-    ReadBase::SetBindData(graph_info, edge_info, bind_data, "read_edges", 0, 1, {SRC_GID_COLUMN, DST_GID_COLUMN});
+    ReadBase::SetBindData(graph_info, edge_info, bind_data, "read_edges", 1, {SRC_GID_COLUMN, DST_GID_COLUMN});
 }
 //-------------------------------------------------------------------
 // Bind
