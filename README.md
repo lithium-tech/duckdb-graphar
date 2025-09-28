@@ -20,6 +20,11 @@ This extension requires the following dependencies:
 - [Apache GraphAr](https://graphar.apache.org/) - An open source, standard data file format for graph data storage and retrieval.
 - [Apache Arrow](https://arrow.apache.org) - A cross-language development platform for in-memory data.
 
+## SAST Tools
+
+[Cppcheck](https://cppcheck.sourceforge.io/) - static analysis tool for C/C++ code
+[PVS-Studio](https://pvs-studio.com/pvs-studio/?utm_source=website&utm_medium=github&utm_campaign=open_source) - static analyzer for C, C++, C#, and Java code.
+
 ### Build extension:
 
 Development Build:
