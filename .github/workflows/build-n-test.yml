@@ -106,7 +106,7 @@ jobs:
       - name: Build
         run: |
           cd build
-          make -j$(getconf _NPROCESSORS_ONLN)
+          make -j$(nproc)
 
       - name: Install GraphAr CLI and Generate Data
         if: matrix.os == 'ubuntu-22.04'

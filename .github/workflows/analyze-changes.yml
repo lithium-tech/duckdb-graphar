@@ -11,7 +11,9 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Get list of changed source files
         run: |
@@ -19,7 +21,7 @@ jobs:
             ${{ github.event.before }}..${{ github.event.after }})" > source-files.txt
           cat source-files.txt
 
-      - name: name: Install tools
+      - name: Install tools
         run: |
           wget -q -O - https://files.pvs-studio.com/etc/pubkey.txt \
             | sudo apt-key add -
@@ -32,12 +34,17 @@ jobs:
       - name: Build
         run: |
           cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=On -B build .
-          cmake --build build -j$(getconf _NPROCESSORS_ONLN)
+          cmake --build build -j$(nproc)
 
       - name: Analyze and generate report
         run: |
+          if [ ! -s source-files.txt ]; then
+            echo "No source files changed, skipping analysis"
+            exit 0
+          fi
+
           pvs-studio-analyzer analyze -f build/compile_commands.json --exclude-path 'build/_deps/' \
-           --disableLicenseExpirationCheck -S source-files.txt -j $(getconf _NPROCESSORS_ONLN)
+            --disableLicenseExpirationCheck -S source-files.txt -j $(nproc)
           plog-converter -t sarif -o pvs-report.sarif PVS-Studio.log
 
       - name: Publish report
