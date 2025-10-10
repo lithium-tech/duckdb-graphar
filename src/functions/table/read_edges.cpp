@@ -145,7 +145,8 @@ void ReadEdges::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData
     const int64_t vertex_num = (filter_column == SRC_GID_COLUMN)
                                    ? GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[0])
                                    : GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[2]);
-    vid_from = std::max(0ll, vid_from);
+    graphar::IdType zero = 0;
+    vid_from = std::max(zero, vid_from);
     vid_to = std::min(vertex_num - 1, vid_to);
     if (vid_from > vid_to) {
         throw IOException("Invalid filter range");
