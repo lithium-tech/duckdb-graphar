@@ -97,7 +97,7 @@ unique_ptr<GlobalTableFunctionState> EdgesVertexGlobalTableFunctionState::Init(C
         auto filter_index = input.column_ids[filter_id];
         auto& filter = input.filters->filters.begin()->second;
         if (filter->filter_type != TableFilterType::CONSTANT_COMPARISON) {
-            throw NotImplementedException("Only constant filters are supported");
+            throw NotImplementedException("Only constant filters are supported, but got " + filter->ToString(" "));
         }
         auto filter_expr = filter->ToString(" ");
         if (filter_expr[1] != '=') {

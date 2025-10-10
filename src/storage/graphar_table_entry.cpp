@@ -4,6 +4,7 @@
 #include "functions/table/read_vertices.hpp"
 #include "storage/graphar_table_information.hpp"
 #include "utils/global_log_manager.hpp"
+#include "utils/func.hpp"
 
 #include <duckdb/catalog/catalog_entry/table_function_catalog_entry.hpp>
 #include <duckdb/common/multi_file/multi_file_reader.hpp>
@@ -23,7 +24,30 @@ GraphArTableEntry::GraphArTableEntry(Catalog& catalog, unique_ptr<SchemaCatalogE
     : TableCatalogEntry(catalog, *schema, info), schema(std::move(schema)) {}
 
 unique_ptr<BaseStatistics> GraphArTableEntry::GetStatistics(ClientContext& context, column_t column_id) {
-    return nullptr;
+    // DUCKDB_GRAPHAR_LOG_TRACE("GraphArTableEntry::GetStatistics");
+    // if (table_info.expired()) {
+    //     throw InvalidInputException("GraphArTableEntry::GetStatistics: table_info is expired");
+    // }
+    // auto tmp_table_info = table_info.lock();
+    // if (tmp_table_info->GetType() == GraphArTableType::Vertex) {
+    //     if (column_id > 0) {
+    //         return nullptr;
+    //     }
+    //     auto result = NumericStats::CreateEmpty(duckdb::LogicalType::BIGINT);
+    //     NumericStats::SetMin(result, 0);
+    //     NumericStats::SetMax(result, GraphArFunctions::GetVertexNum(tmp_table_info->GetCatalog().GetGraphInfo(), tmp_table_info->GetParams()[0]) - 1);
+    //     return result.ToUnique();
+    // } else {
+    //     if (column_id > 1) {
+    //         return nullptr;
+    //     }
+    //     auto result = NumericStats::CreateEmpty(duckdb::LogicalType::BIGINT);
+    //     NumericStats::SetMin(result, 0);
+    //     NumericStats::SetMax(result, GraphArFunctions::GetVertexNum(tmp_table_info->GetCatalog().GetGraphInfo(), tmp_table_info->GetParams()[column_id == 0 ? 0 : 2]) - 1);
+    //     return result.ToUnique();
+    // }
+    // return nullptr;
+    throw NotImplementedException("GraphArTableEntry::GetStatistics");
 }
 
 TableFunction GraphArTableEntry::GetScanFunction(ClientContext& context, unique_ptr<FunctionData>& bind_data) {

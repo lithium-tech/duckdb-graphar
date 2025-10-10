@@ -32,6 +32,7 @@ static graphar::Status next_chunk(Reader& reader) {
 }
 
 static graphar::Result<std::shared_ptr<arrow::Table>> GetChunk(Reader& reader) {
+    DUCKDB_GRAPHAR_LOG_TRACE("GetChunk");
     return std::visit([](auto& r) { return r.GetChunk(); }, reader);
 }
 
@@ -91,6 +92,7 @@ public:
     vector<std::string> GetParams() { return params; }
     vector<std::string>& GetFlattenPropNames() { return flatten_prop_names; }
     vector<std::string>& GetFlattenPropTypes() { return flatten_prop_types; }
+    const std::shared_ptr<graphar::GraphInfo>& GetGraphInfo() const { return graph_info; }
 
 private:
     vector<vector<std::string>> prop_names;
@@ -102,6 +104,9 @@ private:
     vector<std::string> params;
     graphar::PropertyGroupVector pgs;
     idx_t columns_to_remove = 0;
+
+    std::pair<graphar::IdType, graphar::IdType> filter_range_vid = {-1, -1};
+    std::string filter_column = "";
 
     template <typename ReadFinal>
     friend class ReadBase;
@@ -197,6 +202,7 @@ public:
 
     static graphar::Result<std::shared_ptr<arrow::Table>> NextChunk(idx_t reader_i,
                                                                     ReadBaseGlobalTableFunctionState& gstate) {
+        DUCKDB_GRAPHAR_LOG_TRACE("ReadBase::NextChunk");
         auto& reader = gstate.readers[reader_i];
         int& first_chunk_flag = gstate.first_chunk_flags[reader_i];
         if (first_chunk_flag) {
@@ -232,14 +238,14 @@ public:
     }
 
     static std::shared_ptr<Reader> GetReader(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
-                                             idx_t ind, const std::string& filter_value,
-                                             const std::string& filter_column, const std::string& filter_type) {
-        return ReadFinal::GetReader(gstate, bind_data, ind, filter_value, filter_column, filter_type);
+                                             idx_t ind,
+                                             const std::string& filter_column) {
+        return ReadFinal::GetReader(gstate, bind_data, ind, filter_column);
     }
 
-    static void SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data, std::string& filter_value,
-                          std::string& filter_column, std::string& filter_type) {
-        ReadFinal::SetFilter(gstate, bind_data, filter_value, filter_column, filter_type);
+    static void SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data, graphar::IdType vid_from, graphar::IdType vid_to,
+                          std::string& filter_column) {
+        ReadFinal::SetFilter(gstate, bind_data, vid_from, vid_to, filter_column);
     }
 
     static unique_ptr<GlobalTableFunctionState> Init(ClientContext& context, TableFunctionInitInput& input) {
@@ -275,42 +281,16 @@ public:
 
         DUCKDB_GRAPHAR_LOG_DEBUG("readers num: " + std::to_string(gstate.readers.size()));
 
-        std::string filter_value, filter_column, filter_type;
-        if (input.filters) {
-            DUCKDB_GRAPHAR_LOG_DEBUG("Found filters");
-
-            if (input.filters->filters.size() > 1) {
-                throw NotImplementedException("Multiple filters are not supported");
-            }
-            auto filter_id = input.filters->filters.begin()->first;
-            auto filter_index = input.column_ids[filter_id];
-            auto& filter = input.filters->filters.begin()->second;
-            if (filter->filter_type != TableFilterType::CONSTANT_COMPARISON) {
-                throw NotImplementedException("Only constant filters are supported");
-            }
-            auto filter_expr = filter->ToString(" ");
-            if (filter_expr[1] != '=') {
-                throw NotImplementedException("Only equality filters are supported");
-            }
-
-            filter_value = filter_expr.substr(2);
-
-            filter_column = bind_data.flatten_prop_names[filter_index];
-            filter_type = bind_data.flatten_prop_types[filter_index];
-            DUCKDB_GRAPHAR_LOG_DEBUG("filter column: " + filter_column + " filter type: " + filter_type +
-                                     " filter value: " + filter_value);
-        }
-        if (time_logging) {
-            t.print("filter parsing");
-        }
+        std::string filter_column = bind_data.filter_column;
+        graphar::IdType vid_from = bind_data.filter_range_vid.first, vid_to = bind_data.filter_range_vid.second;
 
         for (idx_t i = 0; i < gstate.readers.size(); i++) {
-            gstate.readers[i] = GetReader(gstate, bind_data, i, filter_value, filter_column, filter_type);
+            gstate.readers[i] = GetReader(gstate, bind_data, i, filter_column);
         }
         if (time_logging) {
             t.print("readers creation");
         }
-        SetFilter(gstate, bind_data, filter_value, filter_column, filter_type);
+        SetFilter(gstate, bind_data, vid_from, vid_to, filter_column);
         if (time_logging) {
             t.print("filter setting");
         }
@@ -319,6 +299,7 @@ public:
         gstate.prop_types = bind_data.prop_types;
 
         for (idx_t i = 0; i < gstate.readers.size(); i++) {
+            DUCKDB_GRAPHAR_LOG_TRACE("Get chunk for reader " + std::to_string(i));
             auto result = NextChunk(i, gstate);
             if (time_logging) {
                 t.print("get_chunk");

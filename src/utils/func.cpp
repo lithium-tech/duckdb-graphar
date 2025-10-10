@@ -78,15 +78,15 @@ std::string GraphArFunctions::GetNameFromInfo(const std::shared_ptr<Info>& info)
 
 template <>
 std::string GraphArFunctions::GetNameFromInfo(const std::shared_ptr<graphar::VertexInfo>& info) {
-    return info->GetType() + "_vertex";
+    return info->GetType();
 }
 
 template <>
 std::string GraphArFunctions::GetNameFromInfo(const std::shared_ptr<graphar::EdgeInfo>& info) {
-    return info->GetSrcType() + "_" + info->GetEdgeType() + "_" + info->GetDstType() + "_edge";
+    return info->GetSrcType() + "_" + info->GetEdgeType() + "_" + info->GetDstType();
 }
 
-int64_t GraphArFunctions::GetVertexNum(std::shared_ptr<graphar::GraphInfo> graph_info, std::string& type) {
+int64_t GraphArFunctions::GetVertexNum(std::shared_ptr<graphar::GraphInfo> graph_info, const std::string& type) {
     auto vertex_info = graph_info->GetVertexInfo(type);
     GAR_ASSIGN_OR_RAISE_ERROR(auto num_file_path, vertex_info->GetVerticesNumFilePath());
     num_file_path = graph_info->GetPrefix() + num_file_path;
