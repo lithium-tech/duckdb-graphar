@@ -246,8 +246,11 @@ TableFunction ReadEdges::GetFunction() {
     read_edges.named_parameters["src"] = LogicalType::VARCHAR;
     read_edges.named_parameters["dst"] = LogicalType::VARCHAR;
     read_edges.named_parameters["type"] = LogicalType::VARCHAR;
-    read_edges.filter_pushdown = true;
+
+    read_edges.filter_pushdown = false;
     read_edges.projection_pushdown = true;
+    read_edges.statistics = ReadEdges::GetStatistics;
+    read_edges.pushdown_complex_filter = ReadEdges::PushdownComplexFilter;
 
     return read_edges;
 }
