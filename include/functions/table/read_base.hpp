@@ -146,6 +146,9 @@ public:
                             unique_ptr<ReadBindData>& bind_data, string function_name, idx_t columns_to_remove = 0,
                             idx_t pg_for_id = 0, vector<string> id_columns = {}) {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadBase::SetBindData");
+        if (graph_info->GetPrefix().size() > 0 && graph_info->GetPrefix()[0] != '/') {
+            throw IOException("Using relative path as prefix is not supported. Please use absolute path or just remove this field.");
+        }
         bind_data->pgs = type_info.GetPropertyGroups();
         DUCKDB_GRAPHAR_LOG_DEBUG("pgs size " + std::to_string(bind_data->pgs.size()));
         bind_data->prop_types.resize(bind_data->pgs.size() + pg_for_id);

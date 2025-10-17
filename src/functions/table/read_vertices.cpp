@@ -141,7 +141,7 @@ unique_ptr<BaseStatistics> ReadVertices::GetStatistics(ClientContext &context, c
 void ReadVertices::PushdownComplexFilter(ClientContext &context, LogicalGet &get,
                                                          FunctionData *bind_data,
                                                          vector<unique_ptr<Expression>> &filters) {
-    std::cout << "ReadVertices::PushdownComplexFilter" << std::endl;
+    DUCKDB_GRAPHAR_LOG_TRACE("ReadVertices::PushdownComplexFilter");
     vector<unique_ptr<Expression>> filters_new;
     bool already_pushed = false;
     for (auto &filter : filters) {
