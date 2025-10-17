@@ -22,20 +22,18 @@ public:
                                          vector<LogicalType>& return_types, vector<string>& names);
 
     static std::shared_ptr<Reader> GetReader(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
-                                             idx_t ind,
-                                             const std::string& filter_column);
+                                             idx_t ind, const std::string& filter_column);
 
-    static unique_ptr<BaseStatistics> GetStatistics(ClientContext &context, const FunctionData *bind_data,
-                column_t column_index);
+    static unique_ptr<BaseStatistics> GetStatistics(ClientContext& context, const FunctionData* bind_data,
+                                                    column_t column_index);
 
-    static void PushdownComplexFilter(ClientContext &context, LogicalGet &get,
-                                                         FunctionData *bind_data,
-                                                         vector<unique_ptr<Expression>> &filters);
+    static void PushdownComplexFilter(ClientContext& context, LogicalGet& get, FunctionData* bind_data,
+                                      vector<unique_ptr<Expression>>& filters);
 
     static TableFunction GetFunction();
     static TableFunction GetScanFunction();
 
-    static void SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data, graphar::IdType vid_from, graphar::IdType vid_to,
-                          std::string& filter_column);
+    static void SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data, graphar::IdType vid_from,
+                          graphar::IdType vid_to, std::string& filter_column);
 };
 }  // namespace duckdb

@@ -26,7 +26,8 @@ static unique_ptr<Catalog> GraphArAttach(optional_ptr<StorageExtensionInfo> stor
     }
     auto graph_info = maybe_graph_info.value();
     if (graph_info->GetPrefix().size() > 0 && graph_info->GetPrefix()[0] != '/') {
-        throw IOException("Using relative path as prefix is not supported. Please use absolute path or just remove this field.");
+        throw IOException(
+            "Using relative path as prefix is not supported. Please use absolute path or just remove this field.");
     }
     return make_uniq<GraphArCatalog>(db, info.path, graph_info, context, db.name);
 }

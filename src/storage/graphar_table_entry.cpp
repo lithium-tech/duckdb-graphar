@@ -3,8 +3,8 @@
 #include "functions/table/read_edges.hpp"
 #include "functions/table/read_vertices.hpp"
 #include "storage/graphar_table_information.hpp"
-#include "utils/global_log_manager.hpp"
 #include "utils/func.hpp"
+#include "utils/global_log_manager.hpp"
 
 #include <duckdb/catalog/catalog_entry/table_function_catalog_entry.hpp>
 #include <duckdb/common/multi_file/multi_file_reader.hpp>
@@ -35,16 +35,16 @@ unique_ptr<BaseStatistics> GraphArTableEntry::GetStatistics(ClientContext& conte
     //     }
     //     auto result = NumericStats::CreateEmpty(duckdb::LogicalType::BIGINT);
     //     NumericStats::SetMin(result, 0);
-    //     NumericStats::SetMax(result, GraphArFunctions::GetVertexNum(tmp_table_info->GetCatalog().GetGraphInfo(), tmp_table_info->GetParams()[0]) - 1);
-    //     return result.ToUnique();
+    //     NumericStats::SetMax(result, GraphArFunctions::GetVertexNum(tmp_table_info->GetCatalog().GetGraphInfo(),
+    //     tmp_table_info->GetParams()[0]) - 1); return result.ToUnique();
     // } else {
     //     if (column_id > 1) {
     //         return nullptr;
     //     }
     //     auto result = NumericStats::CreateEmpty(duckdb::LogicalType::BIGINT);
     //     NumericStats::SetMin(result, 0);
-    //     NumericStats::SetMax(result, GraphArFunctions::GetVertexNum(tmp_table_info->GetCatalog().GetGraphInfo(), tmp_table_info->GetParams()[column_id == 0 ? 0 : 2]) - 1);
-    //     return result.ToUnique();
+    //     NumericStats::SetMax(result, GraphArFunctions::GetVertexNum(tmp_table_info->GetCatalog().GetGraphInfo(),
+    //     tmp_table_info->GetParams()[column_id == 0 ? 0 : 2]) - 1); return result.ToUnique();
     // }
     // return nullptr;
     throw NotImplementedException("GraphArTableEntry::GetStatistics");

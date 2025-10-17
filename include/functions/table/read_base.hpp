@@ -147,7 +147,8 @@ public:
                             idx_t pg_for_id = 0, vector<string> id_columns = {}) {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadBase::SetBindData");
         if (graph_info->GetPrefix().size() > 0 && graph_info->GetPrefix()[0] != '/') {
-            throw IOException("Using relative path as prefix is not supported. Please use absolute path or just remove this field.");
+            throw IOException(
+                "Using relative path as prefix is not supported. Please use absolute path or just remove this field.");
         }
         bind_data->pgs = type_info.GetPropertyGroups();
         DUCKDB_GRAPHAR_LOG_DEBUG("pgs size " + std::to_string(bind_data->pgs.size()));
@@ -241,13 +242,12 @@ public:
     }
 
     static std::shared_ptr<Reader> GetReader(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
-                                             idx_t ind,
-                                             const std::string& filter_column) {
+                                             idx_t ind, const std::string& filter_column) {
         return ReadFinal::GetReader(gstate, bind_data, ind, filter_column);
     }
 
-    static void SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data, graphar::IdType vid_from, graphar::IdType vid_to,
-                          std::string& filter_column) {
+    static void SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data, graphar::IdType vid_from,
+                          graphar::IdType vid_to, std::string& filter_column) {
         ReadFinal::SetFilter(gstate, bind_data, vid_from, vid_to, filter_column);
     }
 

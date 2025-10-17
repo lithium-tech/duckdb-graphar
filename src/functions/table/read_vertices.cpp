@@ -77,8 +77,7 @@ unique_ptr<FunctionData> ReadVertices::Bind(ClientContext& context, TableFunctio
 // GetReader
 //-------------------------------------------------------------------
 std::shared_ptr<Reader> ReadVertices::GetReader(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
-                                                idx_t ind,
-                                                const std::string& filter_column) {
+                                                idx_t ind, const std::string& filter_column) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadVertices::GetReader");
     auto maybe_reader =
         graphar::VertexPropertyArrowChunkReader::Make(bind_data.graph_info, bind_data.params[0], bind_data.pgs[ind]);
@@ -116,8 +115,8 @@ void ReadVertices::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindD
 //-------------------------------------------------------------------
 // GetStatistics
 //-------------------------------------------------------------------
-unique_ptr<BaseStatistics> ReadVertices::GetStatistics(ClientContext &context, const FunctionData *bind_data,
-                column_t column_index) {
+unique_ptr<BaseStatistics> ReadVertices::GetStatistics(ClientContext& context, const FunctionData* bind_data,
+                                                       column_t column_index) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadVertices::GetStatistics");
     auto read_bind_data = bind_data->Cast<ReadBindData>();
     if (column_index < 0 || column_index >= read_bind_data.GetFlattenPropTypes().size()) {
@@ -132,26 +131,26 @@ unique_ptr<BaseStatistics> ReadVertices::GetStatistics(ClientContext &context, c
     auto v_type = (column_name == SRC_GID_COLUMN) ? read_bind_data.GetParams()[0] : read_bind_data.GetParams()[2];
     auto stats = NumericStats::CreateEmpty(LogicalType::BIGINT);
     NumericStats::SetMin(stats, Value::BIGINT(0));
-    NumericStats::SetMax(stats, Value::BIGINT(GraphArFunctions::GetVertexNum(read_bind_data.GetGraphInfo(), v_type) - 1));
+    NumericStats::SetMax(stats,
+                         Value::BIGINT(GraphArFunctions::GetVertexNum(read_bind_data.GetGraphInfo(), v_type) - 1));
     return stats.ToUnique();
 }
 //-------------------------------------------------------------------
 // PushdownComplexFilter
 //-------------------------------------------------------------------
-void ReadVertices::PushdownComplexFilter(ClientContext &context, LogicalGet &get,
-                                                         FunctionData *bind_data,
-                                                         vector<unique_ptr<Expression>> &filters) {
+void ReadVertices::PushdownComplexFilter(ClientContext& context, LogicalGet& get, FunctionData* bind_data,
+                                         vector<unique_ptr<Expression>>& filters) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadVertices::PushdownComplexFilter");
     vector<unique_ptr<Expression>> filters_new;
     bool already_pushed = false;
-    for (auto &filter : filters) {
+    for (auto& filter : filters) {
         if (already_pushed) {
             filters_new.push_back(std::move(filter));
             continue;
         }
         bool can_pushdown = false;
         if (filter->GetExpressionClass() == ExpressionClass::BOUND_COMPARISON) {
-            auto &comparison = filter->Cast<BoundComparisonExpression>();
+            auto& comparison = filter->Cast<BoundComparisonExpression>();
             if (comparison.GetExpressionType() == ExpressionType::COMPARE_EQUAL) {
                 bool left_is_scalar = comparison.left->IsFoldable();
                 bool right_is_scalar = comparison.right->IsFoldable();
@@ -160,7 +159,8 @@ void ReadVertices::PushdownComplexFilter(ClientContext &context, LogicalGet &get
                     if (column_name == GID_COLUMN_INTERNAL) {
                         can_pushdown = true;
                         auto read_bind_data = dynamic_cast<ReadBindData*>(bind_data);
-                        read_bind_data->filter_range_vid = std::make_pair(std::stoll(comparison.right->ToString()), std::stoll(comparison.right->ToString()));
+                        read_bind_data->filter_range_vid = std::make_pair(std::stoll(comparison.right->ToString()),
+                                                                          std::stoll(comparison.right->ToString()));
                         read_bind_data->filter_column = column_name;
                     }
                 }
