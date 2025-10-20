@@ -273,7 +273,7 @@ public:
         gstate.pgs = bind_data.pgs;
         gstate.column_ids = input.column_ids;
         if (gstate.column_ids.empty() ||
-            gstate.column_ids.size() == 1 && gstate.column_ids[0] == COLUMN_IDENTIFIER_ROW_ID) {
+            (gstate.column_ids.size() == 1 && gstate.column_ids[0] == COLUMN_IDENTIFIER_ROW_ID)) {
             gstate.column_ids = {0};
         }
         gstate.readers.resize(bind_data.prop_types.size());

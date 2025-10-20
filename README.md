@@ -22,8 +22,8 @@ This extension requires the following dependencies:
 
 ## SAST Tools
 
-[Cppcheck](https://cppcheck.sourceforge.io/) - static analysis tool for C/C++ code
-[PVS-Studio](https://pvs-studio.com/pvs-studio/?utm_source=website&utm_medium=github&utm_campaign=open_source) - static analyzer for C, C++, C#, and Java code.
+- [Cppcheck](https://cppcheck.sourceforge.io/) - static analysis tool for C/C++ code
+- [PVS-Studio](https://pvs-studio.com/pvs-studio/?utm_source=website&utm_medium=github&utm_campaign=open_source) - static analyzer for C, C++, C#, and Java code.
 
 ### Build extension:
 
