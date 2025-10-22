@@ -28,7 +28,7 @@ jobs:
           sudo wget -O /etc/apt/sources.list.d/viva64.list \
             https://files.pvs-studio.com/etc/viva64.list
           sudo apt update
-          sudo apt install pvs-studio
+          sudo apt install -y pvs-studio libcurl4-openssl-dev libssl-dev
           pvs-studio-analyzer credentials ${{ secrets.PVS_STUDIO_CREDENTIALS }}
 
       - name: Build
