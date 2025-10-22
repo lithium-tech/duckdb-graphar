@@ -91,7 +91,8 @@ std::shared_ptr<Reader> ReadVertices::GetReader(ReadBaseGlobalTableFunctionState
 // SetFilter
 //-------------------------------------------------------------------
 void ReadVertices::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
-                             const std::pair<graphar::IdType, graphar::IdType> vid_range, const std::string& filter_column) {
+                             const std::pair<graphar::IdType, graphar::IdType> vid_range,
+                             const std::string& filter_column) {
     if (filter_column == "") {
         return;
     }
@@ -153,7 +154,7 @@ void ReadVertices::PushdownComplexFilter(ClientContext& context, LogicalGet& get
                         can_pushdown = true;
                         auto read_bind_data = dynamic_cast<ReadBindData*>(bind_data);
                         read_bind_data->vid_range = std::make_pair(std::stoll(comparison.right->ToString()),
-                                                                          std::stoll(comparison.right->ToString()));
+                                                                   std::stoll(comparison.right->ToString()));
                         read_bind_data->filter_column = column_name;
                     }
                 }

@@ -248,7 +248,8 @@ public:
     }
 
     static void SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
-                          const std::pair<graphar::IdType, graphar::IdType> vid_range, const std::string& filter_column) {
+                          const std::pair<graphar::IdType, graphar::IdType> vid_range,
+                          const std::string& filter_column) {
         ReadFinal::SetFilter(gstate, bind_data, vid_range, filter_column);
     }
 
@@ -288,17 +289,17 @@ public:
 
         const auto& filter_column = bind_data.filter_column;
 
-        idx_t i = 0;
+        idx_t reader_i = 0;
         std::generate(gstate.readers.begin(), gstate.readers.end(),
-            [&]() { return GetReader(gstate, bind_data, i++, filter_column); });
+                      [&]() { return GetReader(gstate, bind_data, reader_i++, filter_column); });
         if (time_logging) {
             t.print("readers creation");
         }
         if (filter_column != "") {
             auto vid_range = bind_data.vid_range;
             const auto vertex_num = (filter_column == DST_GID_COLUMN)
-                                   ? GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[2])
-                                   : GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[0]);
+                                        ? GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[2])
+                                        : GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[0]);
             graphar::IdType zero = 0;
             vid_range.first = std::max(zero, vid_range.first);
             vid_range.second = std::min(vertex_num - 1, vid_range.second);

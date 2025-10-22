@@ -122,7 +122,8 @@ int64_t get_distance(int64_t vid_from_offset, int64_t vid_to_offset, int64_t vid
 }
 
 void ReadEdges::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
-                          const std::pair<graphar::IdType, graphar::IdType> vid_range, const std::string& filter_column) {
+                          const std::pair<graphar::IdType, graphar::IdType> vid_range,
+                          const std::string& filter_column) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::SetFilter");
     if (filter_column == "") {
         return;
@@ -215,7 +216,7 @@ void ReadEdges::PushdownComplexFilter(ClientContext& context, LogicalGet& get, F
                         can_pushdown = true;
                         auto read_bind_data = dynamic_cast<ReadBindData*>(bind_data);
                         read_bind_data->vid_range = std::make_pair(std::stoll(comparison.right->ToString()),
-                                                                          std::stoll(comparison.right->ToString()));
+                                                                   std::stoll(comparison.right->ToString()));
                         read_bind_data->filter_column = column_name;
                     }
                 }
