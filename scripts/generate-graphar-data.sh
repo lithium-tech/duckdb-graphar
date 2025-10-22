@@ -18,7 +18,7 @@ process_graph() {
     # === Prepare files and directories to import ===
     mkdir -p "$GRAPH_RESULT_DIR"
     cp "$GRAPH_IMPORT_TEMPLATE" "$GRAPH_IMPORT"
-    sed -i '' "s|\$DIR_PATH|$GRAPH_DIR|g" "$GRAPH_IMPORT"
+    perl -i -pe "s|\\\$DIR_PATH|$GRAPH_DIR|g" "$GRAPH_IMPORT"
 
     # === Import data ===
     graphar import -c "$GRAPH_IMPORT"
