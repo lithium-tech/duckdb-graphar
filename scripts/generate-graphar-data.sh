@@ -9,41 +9,46 @@ fi
 # === Get Directory Paths ===
 ROOTDIR=$(dirname "$(dirname "$(readlink -f "$0")")")
 
-GRAPH_DIR=$ROOTDIR/data/snap-musae-github
-GRAPH_IMPORT_TEMPLATE=$GRAPH_DIR/import.script.git.yaml
-GRAPH_IMPORT=$GRAPH_DIR/import.git.yaml
-GRAPH_RESULT_DIR=$GRAPH_DIR/graphar
+process_graph() {
+    local GRAPH_DIR=$1
+    local GRAPH_IMPORT_TEMPLATE=$GRAPH_DIR/import.script.git.yaml
+    local GRAPH_IMPORT=$GRAPH_DIR/import.git.yaml
+    local GRAPH_RESULT_DIR=$GRAPH_DIR/graphar
 
-# === Prepare files and directories to import ===
-mkdir -p "$GRAPH_RESULT_DIR"
-cp "$GRAPH_IMPORT_TEMPLATE" "$GRAPH_IMPORT"
-sed -i "s|\$DIR_PATH|$GRAPH_DIR|g" "$GRAPH_IMPORT"
+    # === Prepare files and directories to import ===
+    mkdir -p "$GRAPH_RESULT_DIR"
+    cp "$GRAPH_IMPORT_TEMPLATE" "$GRAPH_IMPORT"
+    sed -i '' "s|\$DIR_PATH|$GRAPH_DIR|g" "$GRAPH_IMPORT"
 
-# === Import data ===
-graphar import -c "$GRAPH_IMPORT"
-rm "$GRAPH_IMPORT"
+    # === Import data ===
+    graphar import -c "$GRAPH_IMPORT"
+    rm "$GRAPH_IMPORT"
 
-# === Create GraphInfo file ===
-GRAPH_NAME=$(grep "name:" "$GRAPH_IMPORT_TEMPLATE" | head -n1 | sed 's/^[^:]*:[[:space:]]*//')
-GRAPH_INFO_FILE=$GRAPH_RESULT_DIR/$GRAPH_NAME.graph.yaml
+    # === Create GraphInfo file ===
+    local GRAPH_NAME=$(grep "name:" "$GRAPH_IMPORT_TEMPLATE" | head -n1 | sed 's/^[^:]*:[[:space:]]*//')
+    local GRAPH_INFO_FILE=$GRAPH_RESULT_DIR/$GRAPH_NAME.graph.yaml
 
-edges=$(find "$GRAPH_RESULT_DIR" -maxdepth 1 -type f -name "*edge*" -exec basename {} \;)
-vertices=$(find "$GRAPH_RESULT_DIR" -maxdepth 1 -type f -name "*vertex*" -exec basename {} \;)
+    local edges=($(find "$GRAPH_RESULT_DIR" -maxdepth 1 -type f -name "*edge*" -exec basename {} \;))
+    local vertices=($(find "$GRAPH_RESULT_DIR" -maxdepth 1 -type f -name "*vertex*" -exec basename {} \;))
 
-{
-    echo "edges:"
-    for edge in "${edges[@]}"; do
-        echo "  - $edge"
-    done
+    {
+        echo "edges:"
+        for edge in "${edges[@]}"; do
+            echo "  - $edge"
+        done
 
-    echo "name: $GRAPH_NAME"
+        echo "name: $GRAPH_NAME"
 
-    echo "vertices:"
-    for vertex in "${vertices[@]}"; do
-        echo "  - $vertex"
-    done
+        echo "vertices:"
+        for vertex in "${vertices[@]}"; do
+            echo "  - $vertex"
+        done
 
-    echo "version: gar/v1"
-} > "$GRAPH_INFO_FILE"
+        echo "version: gar/v1"
+    } > "$GRAPH_INFO_FILE"
+}
+
+process_graph "$ROOTDIR/data/snap-musae-github"
+process_graph "$ROOTDIR/data/snap-musae-github-few-pg"
 
 echo "Successfully prepared test data."

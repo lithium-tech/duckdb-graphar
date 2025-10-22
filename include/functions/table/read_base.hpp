@@ -130,6 +130,7 @@ private:
     std::string function_name;
     int64_t total_rows = 0;
     vector<column_t> column_ids;
+    idx_t columns_to_remove = 0;
 
     template <typename ReadFinal>
     friend class ReadBase;
@@ -270,6 +271,7 @@ public:
         DUCKDB_GRAPHAR_LOG_DEBUG("Init global state");
 
         gstate.function_name = bind_data.function_name;
+        gstate.columns_to_remove = bind_data.columns_to_remove;
         gstate.pgs = bind_data.pgs;
         gstate.column_ids = input.column_ids;
         if (gstate.column_ids.empty() ||
@@ -396,7 +398,6 @@ public:
         output.SetCardinality(num_rows);
         for (idx_t col_idx = 0; col_idx < column_ids.size(); col_idx++) {
             auto& arrow_type = *arrow_table_schema.GetColumns().at(column_ids[col_idx]);
-            std::cout << "col id " << column_ids[col_idx] << " name " << schema->field(column_ids[col_idx])->name() << " type " << static_cast<int>(arrow_type.GetDuckType().id()) << std::endl;
             if (arrow_type.GetDuckType().id() == LogicalTypeId::VARCHAR) {
                 for (idx_t row_i = 0; row_i < num_rows; row_i++) {
                     auto maybe_value = table.column(column_ids[col_idx])->GetScalar(row_i);
@@ -431,10 +432,8 @@ public:
             ArrowToDuckDBConversion::SetValidityMask(output.data[col_idx], array_state.owned_data->arrow_array, 0,
                                                      output.size(), 0, -1);
 
-            std::cout << "starting columnarrowtoduckdb" << std::endl;
             ArrowToDuckDBConversion::ColumnArrowToDuckDB(output.data[col_idx], array_state.owned_data->arrow_array, 0,
                                                          array_state, output.size(), arrow_type);
-            std::cout << "finished columnarrowtoduckdb" << std::endl;
         }
     }
 
@@ -460,6 +459,11 @@ public:
                     throw std::runtime_error("Error while getting chunk: " + result.status().message());
                 }
                 gstate.tables[i] = result.value();
+                if (i) {
+                    for (idx_t j = 0; j < gstate.columns_to_remove; j++) {
+                        gstate.tables[i] = gstate.tables[i]->RemoveColumn(0).ValueOrDie();
+                    }
+                }
                 gstate.sizes[i] = gstate.tables[i]->num_rows();
                 gstate.indices[i] = 0;
             }
