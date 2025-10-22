@@ -111,6 +111,7 @@ jobs:
       - name: Install GraphAr CLI and Generate Data
         if: matrix.os == 'ubuntu-22.04'
         run: |
+          pip3 install --upgrade pip
           ./scripts/install-cli.sh
           ./scripts/generate-graphar-data.sh
 
