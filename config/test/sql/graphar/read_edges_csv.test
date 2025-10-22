@@ -1,0 +1,45 @@
+require duckdb_graphar
+
+statement ok
+SET autoinstall_known_extensions=1;
+
+statement ok
+SET autoload_known_extensions=1;
+
+query I
+SELECT COUNT(*) FROM read_edges('__WORKING_DIRECTORY__/../data/snap-musae-github-csv/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person');
+----
+289003
+
+query I
+SELECT COUNT(*) FROM read_edges('__WORKING_DIRECTORY__/../data/snap-musae-github-csv/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArSrcIndex=1;
+----
+8
+
+query II
+SELECT * FROM read_edges('__WORKING_DIRECTORY__/../data/snap-musae-github-csv/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArSrcIndex=0;
+----
+0
+23977
+
+statement ok
+ATTACH '__WORKING_DIRECTORY__/../data/snap-musae-github-csv/graphar/Git.graph.yaml' as test_db (type duckdb_graphar);
+
+query I
+SELECT _graphArDstIndex FROM 'Person_knows_Person' LIMIT 1;
+----
+23977
+
+query I
+SELECT _graphArDstIndex FROM 'Person_knows_Person' WHERE _graphArSrcIndex=3 ORDER BY _graphArDstIndex;
+----
+3358
+4950
+5916
+18029
+34935
+
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person';
+----
+289003

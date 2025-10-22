@@ -49,6 +49,6 @@ process_graph() {
 }
 
 process_graph "$ROOTDIR/data/snap-musae-github"
-process_graph "$ROOTDIR/data/snap-musae-github-few-pg"
+process_graph "$ROOTDIR/data/snap-musae-github-csv"
 
 echo "Successfully prepared test data."
