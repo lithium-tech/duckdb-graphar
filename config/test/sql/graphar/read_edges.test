@@ -31,12 +31,12 @@ SELECT _graphArDstIndex FROM 'Person_knows_Person' LIMIT 1;
 23977
 
 query I
-SELECT _graphArDstIndex FROM 'Person_knows_Person' WHERE _graphArSrcIndex=3;
+SELECT _graphArDstIndex FROM 'Person_knows_Person' WHERE _graphArSrcIndex=3 ORDER BY _graphArDstIndex;
 ----
-5916
-4950
-18029
 3358
+4950
+5916
+18029
 34935
 
 query I
