@@ -249,7 +249,7 @@ public:
     }
 
     static void SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
-                          const std::pair<graphar::IdType, graphar::IdType> vid_range,
+                          const std::pair<graphar::IdType, graphar::IdType>& vid_range,
                           const std::string& filter_column) {
         ReadFinal::SetFilter(gstate, bind_data, vid_range, filter_column);
     }

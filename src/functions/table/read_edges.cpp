@@ -122,7 +122,7 @@ int64_t get_distance(int64_t vid_from_offset, int64_t vid_to_offset, int64_t vid
 }
 
 void ReadEdges::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
-                          const std::pair<graphar::IdType, graphar::IdType> vid_range,
+                          const std::pair<graphar::IdType, graphar::IdType>& vid_range,
                           const std::string& filter_column) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::SetFilter");
     if (filter_column == "") {

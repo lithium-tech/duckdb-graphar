@@ -112,8 +112,8 @@ jobs:
         if: matrix.os == 'ubuntu-22.04'
         run: |
           pip3 install --upgrade pip
-          ./scripts/install-cli.sh
-          ./scripts/generate-graphar-data.sh
+          ./scripts/install-cli.sh || exit 1
+          ./scripts/generate-graphar-data.sh || exit 1
 
       - name: Run Tests
         if: matrix.os == 'ubuntu-22.04'

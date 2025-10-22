@@ -91,7 +91,7 @@ std::shared_ptr<Reader> ReadVertices::GetReader(ReadBaseGlobalTableFunctionState
 // SetFilter
 //-------------------------------------------------------------------
 void ReadVertices::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
-                             const std::pair<graphar::IdType, graphar::IdType> vid_range,
+                             const std::pair<graphar::IdType, graphar::IdType>& vid_range,
                              const std::string& filter_column) {
     if (filter_column == "") {
         return;
