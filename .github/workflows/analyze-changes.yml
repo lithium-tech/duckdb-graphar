@@ -5,6 +5,12 @@ on:
       - '**.h'
       - '**.c'
       - '**.cpp'
+  pull_request:
+    paths:
+      - '**.h'
+      - '**.c'
+      - '**.cpp'
+  workflow_dispatch:
 
 jobs:
   analyze-changes:
