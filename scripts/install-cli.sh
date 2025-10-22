@@ -1,5 +1,7 @@
 set -euxo pipefail
 
+pip3 install --upgrade pip
+
 # === Get Directory Paths ===
 ROOT_DIR=$(dirname "$(dirname "$(readlink -f "$0")")")
 
