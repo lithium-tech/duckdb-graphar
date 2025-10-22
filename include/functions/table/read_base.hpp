@@ -18,6 +18,7 @@
 #include <graphar/fwd.h>
 #include <graphar/reader_util.h>
 
+#include <filesystem>
 #include <iostream>
 #include <sstream>
 #include <variant>
@@ -147,7 +148,7 @@ public:
                             unique_ptr<ReadBindData>& bind_data, string function_name, idx_t columns_to_remove = 0,
                             idx_t pg_for_id = 0, vector<string> id_columns = {}) {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadBase::SetBindData");
-        if (const auto& prefix = graph_info->GetPrefix(); !prefix.empty() && prefix.front() != '/') {
+        if (std::filesystem::path(graph_info->GetPrefix()).is_relative()) {
             throw IOException(
                 "Using relative path as prefix is not supported. Please use absolute path or just remove this field.");
         }
