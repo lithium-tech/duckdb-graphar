@@ -91,23 +91,16 @@ std::shared_ptr<Reader> ReadVertices::GetReader(ReadBaseGlobalTableFunctionState
 // SetFilter
 //-------------------------------------------------------------------
 void ReadVertices::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
-                             graphar::IdType vid_from, graphar::IdType vid_to, std::string& filter_column) {
+                             const std::pair<graphar::IdType, graphar::IdType> vid_range, const std::string& filter_column) {
     if (filter_column == "") {
         return;
     }
     if (filter_column == GID_COLUMN_INTERNAL) {
-        int64_t vertex_num = GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[0]);
-        graphar::IdType zero = 0;
-        vid_from = std::max(zero, vid_from);
-        vid_to = std::min(vertex_num - 1, vid_to);
-        if (vid_from > vid_to) {
-            throw IOException("Vertex id is out of range");
-        }
         for (idx_t i = 0; i < gstate.readers.size(); ++i) {
-            seek_vid(*gstate.readers[i], vid_from, filter_column);
+            seek_vid(*gstate.readers[i], vid_range.first, filter_column);
         }
         gstate.filter_range.first = 0;
-        gstate.filter_range.second = vid_to - vid_from + 1;
+        gstate.filter_range.second = vid_range.second - vid_range.second + 1;
     } else {
         throw BinderException("Filter on vertex property is not supported by this method");
     }
@@ -159,7 +152,7 @@ void ReadVertices::PushdownComplexFilter(ClientContext& context, LogicalGet& get
                     if (column_name == GID_COLUMN_INTERNAL) {
                         can_pushdown = true;
                         auto read_bind_data = dynamic_cast<ReadBindData*>(bind_data);
-                        read_bind_data->filter_range_vid = std::make_pair(std::stoll(comparison.right->ToString()),
+                        read_bind_data->vid_range = std::make_pair(std::stoll(comparison.right->ToString()),
                                                                           std::stoll(comparison.right->ToString()));
                         read_bind_data->filter_column = column_name;
                     }

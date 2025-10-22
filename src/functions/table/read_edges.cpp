@@ -121,8 +121,8 @@ int64_t get_distance(int64_t vid_from_offset, int64_t vid_to_offset, int64_t vid
     return chunk_size - vid_from_offset + vid_to_offset + (vid_to_chunk_index - vid_from_chunk_index - 1) * chunk_size;
 }
 
-void ReadEdges::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data, int64_t vid_from,
-                          graphar::IdType vid_to, std::string& filter_column) {
+void ReadEdges::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
+                          const std::pair<graphar::IdType, graphar::IdType> vid_range, const std::string& filter_column) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::SetFilter");
     if (filter_column == "") {
         return;
@@ -142,24 +142,15 @@ void ReadEdges::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData
     } else {
         throw NotImplementedException("Only src and dst filters are supported");
     }
-    const int64_t vertex_num = (filter_column == SRC_GID_COLUMN)
-                                   ? GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[0])
-                                   : GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[2]);
-    graphar::IdType zero = 0;
-    vid_from = std::max(zero, vid_from);
-    vid_to = std::min(vertex_num - 1, vid_to);
-    if (vid_from > vid_to) {
-        throw IOException("Invalid filter range");
-    }
     for (idx_t i = 0; i < gstate.readers.size(); ++i) {
-        seek_vid(*gstate.readers[i], vid_from, filter_column);
+        seek_vid(*gstate.readers[i], vid_range.first, filter_column);
     }
-    offset_reader->seek(vid_to);
+    offset_reader->seek(vid_range.second);
     auto offset_arr = offset_reader->GetChunk().value();
     auto vid_to_offset = GetInt64Value(offset_arr, 1);
     auto vid_to_chunk_index = offset_reader->GetChunkIndex();
-    if (vid_from != vid_to) {
-        offset_reader->seek(vid_from);
+    if (vid_range.first != vid_range.second) {
+        offset_reader->seek(vid_range.first);
         offset_arr = offset_reader->GetChunk().value();
     }
     auto vid_from_offset = GetInt64Value(offset_arr, 0);
@@ -223,7 +214,7 @@ void ReadEdges::PushdownComplexFilter(ClientContext& context, LogicalGet& get, F
                     if (column_name == SRC_GID_COLUMN || column_name == DST_GID_COLUMN) {
                         can_pushdown = true;
                         auto read_bind_data = dynamic_cast<ReadBindData*>(bind_data);
-                        read_bind_data->filter_range_vid = std::make_pair(std::stoll(comparison.right->ToString()),
+                        read_bind_data->vid_range = std::make_pair(std::stoll(comparison.right->ToString()),
                                                                           std::stoll(comparison.right->ToString()));
                         read_bind_data->filter_column = column_name;
                     }

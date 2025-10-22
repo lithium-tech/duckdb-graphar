@@ -48,7 +48,7 @@ static graphar::Status seek_chunk_index(Reader& reader, graphar::IdType vertex_c
         reader);
 }
 
-static graphar::Status seek_vid(Reader& reader, graphar::IdType vid, std::string& filter_column) {
+static graphar::Status seek_vid(Reader& reader, graphar::IdType vid, const std::string& filter_column) {
     return std::visit(
         [&](auto& r) {
             if (filter_column == GID_COLUMN_INTERNAL) {
@@ -105,8 +105,8 @@ private:
     graphar::PropertyGroupVector pgs;
     idx_t columns_to_remove = 0;
 
-    std::pair<graphar::IdType, graphar::IdType> filter_range_vid = {-1, -1};
-    std::string filter_column = "";
+    std::pair<graphar::IdType, graphar::IdType> vid_range = {-1, -1};
+    std::string filter_column;
 
     template <typename ReadFinal>
     friend class ReadBase;
@@ -146,7 +146,7 @@ public:
                             unique_ptr<ReadBindData>& bind_data, string function_name, idx_t columns_to_remove = 0,
                             idx_t pg_for_id = 0, vector<string> id_columns = {}) {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadBase::SetBindData");
-        if (graph_info->GetPrefix().size() > 0 && graph_info->GetPrefix()[0] != '/') {
+        if (const auto& prefix = graph_info->GetPrefix(); !prefix.empty() && prefix.front() != '/') {
             throw IOException(
                 "Using relative path as prefix is not supported. Please use absolute path or just remove this field.");
         }
@@ -246,9 +246,9 @@ public:
         return ReadFinal::GetReader(gstate, bind_data, ind, filter_column);
     }
 
-    static void SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data, graphar::IdType vid_from,
-                          graphar::IdType vid_to, std::string& filter_column) {
-        ReadFinal::SetFilter(gstate, bind_data, vid_from, vid_to, filter_column);
+    static void SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
+                          const std::pair<graphar::IdType, graphar::IdType> vid_range, const std::string& filter_column) {
+        ReadFinal::SetFilter(gstate, bind_data, vid_range, filter_column);
     }
 
     static unique_ptr<GlobalTableFunctionState> Init(ClientContext& context, TableFunctionInitInput& input) {
@@ -284,16 +284,27 @@ public:
 
         DUCKDB_GRAPHAR_LOG_DEBUG("readers num: " + std::to_string(gstate.readers.size()));
 
-        std::string filter_column = bind_data.filter_column;
-        graphar::IdType vid_from = bind_data.filter_range_vid.first, vid_to = bind_data.filter_range_vid.second;
+        const auto& filter_column = bind_data.filter_column;
 
-        for (idx_t i = 0; i < gstate.readers.size(); i++) {
-            gstate.readers[i] = GetReader(gstate, bind_data, i, filter_column);
-        }
+        idx_t i = 0;
+        std::generate(gstate.readers.begin(), gstate.readers.end(),
+            [&]() { return GetReader(gstate, bind_data, i++, filter_column); });
         if (time_logging) {
             t.print("readers creation");
         }
-        SetFilter(gstate, bind_data, vid_from, vid_to, filter_column);
+        if (filter_column != "") {
+            auto vid_range = bind_data.vid_range;
+            const auto vertex_num = (filter_column == DST_GID_COLUMN)
+                                   ? GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[2])
+                                   : GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[0]);
+            graphar::IdType zero = 0;
+            vid_range.first = std::max(zero, vid_range.first);
+            vid_range.second = std::min(vertex_num - 1, vid_range.second);
+            if (vid_range.first > vid_range.second) {
+                throw IOException("Invalid filter range");
+            }
+            SetFilter(gstate, bind_data, vid_range, filter_column);
+        }
         if (time_logging) {
             t.print("filter setting");
         }
@@ -385,6 +396,7 @@ public:
         output.SetCardinality(num_rows);
         for (idx_t col_idx = 0; col_idx < column_ids.size(); col_idx++) {
             auto& arrow_type = *arrow_table_schema.GetColumns().at(column_ids[col_idx]);
+            std::cout << "col id " << column_ids[col_idx] << " name " << schema->field(column_ids[col_idx])->name() << " type " << static_cast<int>(arrow_type.GetDuckType().id()) << std::endl;
             if (arrow_type.GetDuckType().id() == LogicalTypeId::VARCHAR) {
                 for (idx_t row_i = 0; row_i < num_rows; row_i++) {
                     auto maybe_value = table.column(column_ids[col_idx])->GetScalar(row_i);
@@ -419,8 +431,10 @@ public:
             ArrowToDuckDBConversion::SetValidityMask(output.data[col_idx], array_state.owned_data->arrow_array, 0,
                                                      output.size(), 0, -1);
 
+            std::cout << "starting columnarrowtoduckdb" << std::endl;
             ArrowToDuckDBConversion::ColumnArrowToDuckDB(output.data[col_idx], array_state.owned_data->arrow_array, 0,
                                                          array_state, output.size(), arrow_type);
+            std::cout << "finished columnarrowtoduckdb" << std::endl;
         }
     }
 
