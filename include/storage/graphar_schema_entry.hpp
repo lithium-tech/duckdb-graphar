@@ -42,7 +42,7 @@ private:
     void TryDropEntry(ClientContext& context, CatalogType catalog_type, const string& name);
 
 private:
-    GraphArTableSet& GetCatalogSet(CatalogType type);
+    GraphArCatalogSet& GetCatalogSet(CatalogType type);
     GraphArTableSet tables;
 };
 

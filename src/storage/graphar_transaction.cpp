@@ -28,7 +28,8 @@ void GraphArTransaction::Start() { DUCKDB_GRAPHAR_LOG_TRACE("GraphArTransaction:
 void GraphArTransaction::Commit() {
     DUCKDB_GRAPHAR_LOG_TRACE("GraphArTransaction::Commit");
     if (!IsReadOnly()) {
-        throw NotImplementedException("GraphArTransaction::Commit not implemented for write transactions");
+        DUCKDB_GRAPHAR_LOG_WARN("GraphArTransaction::Commit not implemented for write transactions, be careful");
+        // throw NotImplementedException("GraphArTransaction::Commit not implemented for write transactions");
     }
 }
 void GraphArTransaction::Rollback() { throw NotImplementedException("GraphArTransaction::Rollback"); }
