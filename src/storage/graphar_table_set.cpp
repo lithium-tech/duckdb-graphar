@@ -46,13 +46,13 @@ void GraphArTableSet::Scan(ClientContext& context, const std::function<void(Cata
     }
 }
 
-optional_ptr<CatalogEntry> GraphArTableSet::CreateNewEntry(ClientContext& context, Catalog& catalog, GraphArSchemaEntry& schema,
-                        CreateTableInfo& info) {
+optional_ptr<CatalogEntry> GraphArTableSet::CreateNewEntry(ClientContext& context, Catalog& catalog,
+                                                           GraphArSchemaEntry& schema, CreateTableInfo& info) {
     throw NotImplementedException("GraphArTableSet::CreateNewEntry");
 }
 
-optional_ptr<CatalogEntry> GraphArTableSet::CreateNewEntry(ClientContext& context, Catalog& catalog, GraphArSchemaEntry& schema,
-                        CreateViewInfo& info) {
+optional_ptr<CatalogEntry> GraphArTableSet::CreateNewEntry(ClientContext& context, Catalog& catalog,
+                                                           GraphArSchemaEntry& schema, CreateViewInfo& info) {
     auto view = make_shared_ptr<ViewCatalogEntry>(catalog, schema, info);
     view_entries[info.view_name] = view;
     DUCKDB_GRAPHAR_LOG_INFO("View was created with name " + info.view_name)
