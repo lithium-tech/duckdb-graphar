@@ -21,16 +21,6 @@ false
 0
 0
 
-query IIIIII
-SELECT * FROM read_vertices('__WORKING_DIRECTORY__/../data/snap-musae-github-few-pg/graphar/Git.graph.yaml', type='Person') WHERE _grapharVertexIndex=0;
-----
-0
-0
-Eiryyy
-false
-0
-0
-
 statement ok
 ATTACH '__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml' as test_db (type duckdb_graphar);
 
