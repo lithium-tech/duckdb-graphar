@@ -5,15 +5,26 @@ on:
       - '**.h'
       - '**.c'
       - '**.cpp'
+  workflow_dispatch:
 
 jobs:
   analyze-changes:
     runs-on: ubuntu-22.04
     steps:
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake curl libcurl4-openssl-dev
+          wget -q -O - https://files.pvs-studio.com/etc/pubkey.txt \
+            | sudo apt-key add -
+          sudo wget -O /etc/apt/sources.list.d/viva64.list \
+            https://files.pvs-studio.com/etc/viva64.list
+          sudo apt-get install pvs-studio
+          pvs-studio-analyzer credentials ${{ secrets.PVS_STUDIO_CREDENTIALS }}
+
       - name: Check out repository code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
 
       - name: Get list of changed source files
         run: |
@@ -21,34 +32,26 @@ jobs:
             ${{ github.event.before }}..${{ github.event.after }})" > source-files.txt
           cat source-files.txt
 
-      - name: Install tools
-        run: |
-          wget -q -O - https://files.pvs-studio.com/etc/pubkey.txt \
-            | sudo apt-key add -
-          sudo wget -O /etc/apt/sources.list.d/viva64.list \
-            https://files.pvs-studio.com/etc/viva64.list
-          sudo apt update
-          sudo apt install pvs-studio
-          pvs-studio-analyzer credentials ${{ secrets.PVS_STUDIO_CREDENTIALS }}
-
       - name: Build
         run: |
           cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=On -B build .
-          cmake --build build -j$(getconf _NPROCESSORS_ONLN)
+          cmake --build build -j
 
       - name: Analyze and generate report
         run: |
-          if [ ! -s source-files.txt ]; then
+          if [ -s source-files.txt ]; then
+            pvs-studio-analyzer analyze -f build/compile_commands.json --exclude-path 'build/_deps/' \
+              --disableLicenseExpirationCheck -S source-files.txt -j
+
+            plog-converter PVS-Studio.log -t json -n relative -R toRelative -r $PWD
+            plog-converter relative.json -t sarif -n pvs-report -r file://
+          else
             echo "No source files changed, skipping analysis"
             exit 0
           fi
 
-          pvs-studio-analyzer analyze -f build/compile_commands.json --exclude-path 'build/_deps/' \
-            --disableLicenseExpirationCheck -S source-files.txt -j$(getconf _NPROCESSORS_ONLN)
-          plog-converter -t sarif -o pvs-report.sarif PVS-Studio.log
-
       - name: Publish report
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: pvs-report.sarif
           category: PVS-Studio
