@@ -48,7 +48,7 @@ void GraphArTableSet::Scan(ClientContext& context, const std::function<void(Cata
 
 optional_ptr<CatalogEntry> GraphArTableSet::CreateNewEntry(ClientContext& context, Catalog& catalog,
                                                            GraphArSchemaEntry& schema, CreateTableInfo& info) {
-    throw NotImplementedException("GraphArTableSet::CreateNewEntry");
+    throw NotImplementedException("GraphArTableSet::CreateNewEntry not implemented for tables");
 }
 
 optional_ptr<CatalogEntry> GraphArTableSet::CreateNewEntry(ClientContext& context, Catalog& catalog,
@@ -116,18 +116,19 @@ unique_ptr<GraphArTableInformation> GraphArTableSet::GetTableInfo(ClientContext&
 }
 
 optional_ptr<CatalogEntry> GraphArTableSet::GetEntry(ClientContext& context, const EntryLookupInfo& lookup) {
-    DUCKDB_GRAPHAR_LOG_TRACE("GraphArTableSet::GetEntry " + lookup.GetEntryName());
+    const auto& entry_name = lookup.GetEntryName();
+    DUCKDB_GRAPHAR_LOG_TRACE("GraphArTableSet::GetEntry " + entry_name);
     LoadEntries(context);
     lock_guard<mutex> l(entry_lock);
     {
-        auto entry = table_entries.find(lookup.GetEntryName());
+        auto entry = table_entries.find(entry_name);
         if (entry != table_entries.end()) {
             FillEntry(context, *entry->second);
             return entry->second->GetEntry();
         }
     }
     {
-        auto entry = view_entries.find(lookup.GetEntryName());
+        auto entry = view_entries.find(entry_name);
         if (entry != view_entries.end()) {
             return entry->second.get();
         }
