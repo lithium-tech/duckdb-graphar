@@ -48,7 +48,7 @@ void GraphArTableSet::Scan(ClientContext& context, const std::function<void(Cata
 
 optional_ptr<CatalogEntry> GraphArTableSet::CreateNewEntry(ClientContext& context, Catalog& catalog,
                                                            GraphArSchemaEntry& schema, CreateTableInfo& info) {
-    throw NotImplementedException("GraphArTableSet::CreateNewEntry not implemented for tables");
+    throw NotImplementedException("GraphArTableSet::CreateNewEntry not implemented for tables; use views if suitable");
 }
 
 optional_ptr<CatalogEntry> GraphArTableSet::CreateNewEntry(ClientContext& context, Catalog& catalog,
