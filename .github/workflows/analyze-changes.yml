@@ -13,14 +13,12 @@ jobs:
     steps:
       - name: Install tools
         run: |
+          wget -qO- https://wcdn.pvs-studio.com/etc/pubkey.txt | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/viva64.gpg
+          sudo wget -O /etc/apt/sources.list.d/viva64.list https://wcdn.pvs-studio.com/etc/viva64.list
+
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            build-essential cmake curl libcurl4-openssl-dev
-          wget -q -O - https://files.pvs-studio.com/etc/pubkey.txt \
-            | sudo apt-key add -
-          sudo wget -O /etc/apt/sources.list.d/viva64.list \
-            https://files.pvs-studio.com/etc/viva64.list
-          sudo apt-get install pvs-studio
+          sudo apt-get install -y --no-install-recommends build-essential cmake curl libcurl4-openssl-dev pvs-studio
+
           pvs-studio-analyzer credentials ${{ secrets.PVS_STUDIO_CREDENTIALS }}
 
       - name: Check out repository code

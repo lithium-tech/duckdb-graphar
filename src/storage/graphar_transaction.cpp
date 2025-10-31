@@ -25,12 +25,7 @@ GraphArTransaction::GraphArTransaction(GraphArCatalog& graphar_catalog, Transact
 GraphArTransaction::~GraphArTransaction() = default;
 
 void GraphArTransaction::Start() { DUCKDB_GRAPHAR_LOG_TRACE("GraphArTransaction::Start"); }
-void GraphArTransaction::Commit() {
-    DUCKDB_GRAPHAR_LOG_TRACE("GraphArTransaction::Commit");
-    if (!IsReadOnly()) {
-        throw NotImplementedException("GraphArTransaction::Commit not implemented for write transactions");
-    }
-}
+void GraphArTransaction::Commit() { DUCKDB_GRAPHAR_LOG_TRACE("GraphArTransaction::Commit"); }
 void GraphArTransaction::Rollback() { throw NotImplementedException("GraphArTransaction::Rollback"); }
 
 GraphArTransaction& GraphArTransaction::Get(ClientContext& context, Catalog& catalog) {

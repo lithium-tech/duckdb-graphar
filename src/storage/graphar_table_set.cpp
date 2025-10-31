@@ -24,8 +24,6 @@
 
 namespace duckdb {
 
-GraphArTableSet::GraphArTableSet(GraphArSchemaEntry& schema) : schema(schema), catalog(schema.ParentCatalog()) {}
-
 void GraphArTableSet::FillEntry(ClientContext& context, GraphArTableInformation& table) {
     DUCKDB_GRAPHAR_LOG_TRACE("GraphArTableSet::FillEntry");
     if (table.IsFilled()) {
@@ -38,11 +36,27 @@ void GraphArTableSet::Scan(ClientContext& context, const std::function<void(Cata
     DUCKDB_GRAPHAR_LOG_TRACE("GraphArTableSet::Scan");
     lock_guard<mutex> l(entry_lock);
     LoadEntries(context);
-    for (auto& entry : entries) {
+    for (auto& entry : table_entries) {
         auto& table_info = entry.second;
         FillEntry(context, *table_info);
         callback(table_info->GetEntry());
     }
+    for (auto& entry : view_entries) {
+        callback(static_cast<CatalogEntry&>(*entry.second));
+    }
+}
+
+optional_ptr<CatalogEntry> GraphArTableSet::CreateNewEntry(ClientContext& context, Catalog& catalog,
+                                                           GraphArSchemaEntry& schema, CreateTableInfo& info) {
+    throw NotImplementedException("GraphArTableSet::CreateNewEntry not implemented for tables; use views if suitable");
+}
+
+optional_ptr<CatalogEntry> GraphArTableSet::CreateNewEntry(ClientContext& context, Catalog& catalog,
+                                                           GraphArSchemaEntry& schema, CreateViewInfo& info) {
+    auto view = make_shared_ptr<ViewCatalogEntry>(catalog, schema, info);
+    view_entries[info.view_name] = view;
+    DUCKDB_GRAPHAR_LOG_INFO("View was created with name " + info.view_name)
+    return view.get();
 }
 
 template <typename InfoVector>
@@ -77,14 +91,14 @@ GraphArTableSet::CreateTables(GraphArCatalog& graphar_catalog, const InfoVector&
         auto table_info = make_shared_ptr<GraphArTableInformation>(graphar_catalog, std::move(table_entry), file_name,
                                                                    type, bind_data->GetParams());
         table_info->GetEntry().SetTableInfo(table_info);
-        entries[file_name] = std::move(table_info);
+        table_entries[file_name] = std::move(table_info);
         DUCKDB_GRAPHAR_LOG_INFO("Table was created with name " + file_name);
     }
 }
 
 void GraphArTableSet::LoadEntries(ClientContext& context) {
     DUCKDB_GRAPHAR_LOG_TRACE("GraphArTableSet::LoadEntries");
-    if (!entries.empty()) {
+    if (!table_entries.empty()) {
         return;
     }
 
@@ -98,19 +112,28 @@ void GraphArTableSet::LoadEntries(ClientContext& context) {
 
 unique_ptr<GraphArTableInformation> GraphArTableSet::GetTableInfo(ClientContext& context, GraphArSchemaEntry& schema,
                                                                   const string& table_name) {
-    throw NotImplementedException("GraphArTableSet::GetTableInformation");
+    throw NotImplementedException("GraphArTableSet::GetTableInfo");
 }
 
 optional_ptr<CatalogEntry> GraphArTableSet::GetEntry(ClientContext& context, const EntryLookupInfo& lookup) {
-    DUCKDB_GRAPHAR_LOG_TRACE("GraphArTableSet::GetEntry");
+    const auto& entry_name = lookup.GetEntryName();
+    DUCKDB_GRAPHAR_LOG_TRACE("GraphArTableSet::GetEntry " + entry_name);
     LoadEntries(context);
     lock_guard<mutex> l(entry_lock);
-    auto entry = entries.find(lookup.GetEntryName());
-    if (entry == entries.end()) {
-        return nullptr;
+    {
+        auto entry = table_entries.find(entry_name);
+        if (entry != table_entries.end()) {
+            FillEntry(context, *entry->second);
+            return entry->second->GetEntry();
+        }
     }
-    FillEntry(context, *entry->second);
-    return entry->second->GetEntry();
+    {
+        auto entry = view_entries.find(entry_name);
+        if (entry != view_entries.end()) {
+            return entry->second.get();
+        }
+    }
+    return nullptr;
 }
 
 }  // namespace duckdb

@@ -10,19 +10,19 @@ import_schema:
   vertices:
     - type: Person
       property_groups:
-        - file_type: parquet
+        - file_type: csv
           properties:
             - name: id
               data_type: int32
               is_primary: true
               nullable: false
-        - file_type: parquet
+        - file_type: csv
           properties:
             - name: name
               data_type: string
             - name: ml_target
               data_type: bool
-        - file_type: parquet
+        - file_type: csv
           properties:
             - name: id_1
               data_type: int32
@@ -45,10 +45,10 @@ import_schema:
       adj_lists:
         - ordered: true
           aligned_by: src
-          file_type: parquet
+          file_type: csv
         - ordered: true
           aligned_by: dst
-          file_type: parquet
+          file_type: csv
       sources:
         - path: $DIR_PATH/../snap-musae-github/edges.csv
           columns:

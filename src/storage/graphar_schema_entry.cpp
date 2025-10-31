@@ -60,7 +60,8 @@ optional_ptr<CatalogEntry> GraphArSchemaEntry::CreateIndex(CatalogTransaction tr
 string GetUCCreateView(CreateViewInfo& info) { throw NotImplementedException("Get Create View"); }
 
 optional_ptr<CatalogEntry> GraphArSchemaEntry::CreateView(CatalogTransaction transaction, CreateViewInfo& info) {
-    throw NotImplementedException("GraphArSchemaEntry::CreateView");
+    DUCKDB_GRAPHAR_LOG_TRACE("GraphArSchemaEntry::CreateView");
+    return tables.CreateNewEntry(transaction.GetContext(), catalog, *this, info);
 }
 
 optional_ptr<CatalogEntry> GraphArSchemaEntry::CreateType(CatalogTransaction transaction, CreateTypeInfo& info) {
@@ -130,7 +131,7 @@ optional_ptr<CatalogEntry> GraphArSchemaEntry::LookupEntry(CatalogTransaction tr
     return GetCatalogSet(type).GetEntry(context, lookup_info);
 }
 
-GraphArTableSet& GraphArSchemaEntry::GetCatalogSet(CatalogType type) {
+GraphArCatalogSet& GraphArSchemaEntry::GetCatalogSet(CatalogType type) {
     switch (type) {
         case CatalogType::TABLE_ENTRY:
         case CatalogType::VIEW_ENTRY:
