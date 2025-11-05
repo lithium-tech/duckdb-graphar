@@ -128,21 +128,20 @@ jobs:
           cp build/_deps/duckdb-build/extension/duckdb_graphar/duckdb_graphar.duckdb_extension upload-artifacts/
 
           if [ "${{ matrix.os }}" == "macos-14" ]; then
-            SHARED_EXT="dylib"
-            ARROW_SHARED_EXT="1900.1.0.dylib"
-            ARROW_SYM_EXT="1900.dylib"
+            cp ./build/_deps/arrow-install/lib/libarrow.1900.dylib upload-artifacts/
+            cp ./build/_deps/arrow-install/lib/libarrow_dataset.1900.dylib upload-artifacts/
+            cp ./build/_deps/arrow-install/lib/libarrow_acero.1900.dylib upload-artifacts/
+            cp ./build/_deps/arrow-install/lib/libparquet.1900.dylib upload-artifacts/
+
+            cp ./build/_deps/graphar-install/lib/libgraphar.dylib upload-artifacts/
           else
-            SHARED_EXT="so"
-            ARROW_SHARED_EXT="so.1900.1.0"
-            ARROW_SYM_EXT="so.1900"
+            cp ./build/_deps/arrow-install/lib/libarrow.so.1900 upload-artifacts/
+            cp ./build/_deps/arrow-install/lib/libarrow_dataset.so.1900 upload-artifacts/
+            cp ./build/_deps/arrow-install/lib/libarrow_acero.so.1900 upload-artifacts/
+            cp ./build/_deps/arrow-install/lib/libparquet.so.1900 upload-artifacts/
+
+            cp ./build/_deps/graphar-install/lib/libgraphar.so upload-artifacts/
           fi
-
-          for lib in "libarrow" "libarrow_dataset" "libarrow_acero" "libparquet"; do
-            cp ./build/_deps/arrow-install/lib/${lib}.${ARROW_SHARED_EXT} upload-artifacts/
-            ln -sf "${lib}.${ARROW_SHARED_EXT}" "upload-artifacts/${lib}.${ARROW_SYM_EXT}"
-          done
-
-          cp ./build/_deps/graphar-install/lib/libgraphar.${SHARED_EXT} upload-artifacts/
 
           cat <<'EOF' > upload-artifacts/run_duckdb.sh
           #!/bin/bash
@@ -155,13 +154,11 @@ jobs:
           "$SCRIPT_DIR/duckdb" "$@"
           EOF
           chmod +x upload-artifacts/run_duckdb.sh
-          zip -ry upload-artifacts/duckdb-graphar-${{ matrix.os }}.zip upload-artifacts/*
-
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: duckdb-graphar-${{ matrix.os }}
-          path: upload-artifacts/duckdb-graphar-${{ matrix.os }}.zip
+          path: upload-artifacts
           if-no-files-found: error
 
