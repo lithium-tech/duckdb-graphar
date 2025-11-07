@@ -77,10 +77,10 @@ unique_ptr<FunctionData> ReadVertices::Bind(ClientContext& context, TableFunctio
 // GetReader
 //-------------------------------------------------------------------
 std::shared_ptr<Reader> ReadVertices::GetReader(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
-                                                idx_t ind, const std::string& filter_column) {
+                                                idx_t ind, const std::string& filter_column, ClientContext& context) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadVertices::GetReader");
     auto maybe_reader =
-        graphar::DuckVertexPropertyArrowChunkReader::Make(bind_data.graph_info, bind_data.params[0], bind_data.pgs[ind]);
+        graphar::DuckVertexPropertyArrowChunkReader::Make(context, bind_data.graph_info, bind_data.params[0], bind_data.pgs[ind]);
     if (maybe_reader.has_error()) {
         throw std::runtime_error("Failed to create vertex property reader: " + maybe_reader.status().message());
     }
@@ -97,9 +97,9 @@ void ReadVertices::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindD
         return;
     }
     if (filter_column == GID_COLUMN_INTERNAL) {
-        for (idx_t i = 0; i < gstate.readers.size(); ++i) {
-            seek_vid(*gstate.readers[i], vid_range.first, filter_column);
-        }
+        // for (idx_t i = 0; i < gstate.readers.size(); ++i) {
+        //     seek_vid(*gstate.readers[i], vid_range.first, filter_column);
+        // }
         gstate.filter_range.first = 0;
         gstate.filter_range.second = vid_range.second - vid_range.second + 1;
     } else {

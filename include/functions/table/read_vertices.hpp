@@ -22,7 +22,7 @@ public:
                                          vector<LogicalType>& return_types, vector<string>& names);
 
     static std::shared_ptr<Reader> GetReader(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
-                                             idx_t ind, const std::string& filter_column);
+                                             idx_t ind, const std::string& filter_column, ClientContext& context);
     static unique_ptr<BaseStatistics> GetStatistics(ClientContext& context, const FunctionData* bind_data,
                                                     column_t column_index);
 

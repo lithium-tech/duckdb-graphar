@@ -30,16 +30,12 @@ namespace duckdb {
 using Reader = std::variant<graphar::DuckVertexPropertyArrowChunkReader, graphar::DuckAdjListArrowChunkReader,
                             graphar::DuckAdjListPropertyArrowChunkReader>;
 
-static graphar::Status next_chunk(Reader& reader) {
-    return std::visit([](auto& r) { return r.next_chunk(); }, reader);
-}
-
 static unique_ptr<DataChunk> GetChunk(Reader& reader) {
     DUCKDB_GRAPHAR_LOG_TRACE("GetChunk");
     return std::visit([](auto& r) {
         using T = std::decay_t<decltype(r)>;
 
-        auto maybe_chunk = r.GetChunkDuck();
+        auto maybe_chunk = r.GetChunk();
         if (maybe_chunk.has_error()) {
             throw InternalException("Error getting chunk: " + maybe_chunk.status().message());
         }
@@ -59,27 +55,7 @@ static graphar::Status seek_chunk_index(Reader& reader, graphar::IdType vertex_c
         reader);
 }
 
-static graphar::Status seek_vid(Reader& reader, graphar::IdType vid, const std::string& filter_column) {
-    return std::visit(
-        [&](auto& r) {
-            if (filter_column == GID_COLUMN_INTERNAL) {
-                return r.seek(vid);
-            } else if constexpr (requires { r.seek_src(vid); }) {
-                if (filter_column == SRC_GID_COLUMN) {
-                    return r.seek_src(vid);
-                } else if (filter_column == DST_GID_COLUMN) {
-                    return r.seek_dst(vid);
-                } else {
-                    return graphar::Status::TypeError("unknown filter_column value");
-                }
-            } else {
-                return graphar::Status::TypeError("seek_vid is not implemented for this type of reader");
-            }
-        },
-        reader);
-}
-
-static void Filter(Reader& reader, graphar::util::Filter filter) {
+static void Filter(Reader& reader, duckdb::DuckFilterOptions filter) {
     return std::visit(
         [&](auto& r) {
             if constexpr (requires { r.Filter(filter); }) {
@@ -254,8 +230,8 @@ public:
     }
 
     static std::shared_ptr<Reader> GetReader(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
-                                             idx_t ind, const std::string& filter_column) {
-        return ReadFinal::GetReader(gstate, bind_data, ind, filter_column);
+                                             idx_t ind, const std::string& filter_column, ClientContext& context) {
+        return ReadFinal::GetReader(gstate, bind_data, ind, filter_column, context);
     }
 
     static void SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
@@ -302,7 +278,7 @@ public:
 
         idx_t reader_i = 0;
         std::generate(gstate.readers.begin(), gstate.readers.end(),
-                      [&]() { return GetReader(gstate, bind_data, reader_i++, filter_column); });
+                      [&]() { return GetReader(gstate, bind_data, reader_i++, filter_column, context); });
         if (time_logging) {
             t.print("readers creation");
         }
