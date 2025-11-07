@@ -90,7 +90,7 @@ std::shared_ptr<Reader> ReadEdges::GetReader(ReadBaseGlobalTableFunctionState& g
     }
     if (ind == 0) {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader: making src and dst reader...");
-        auto maybe_reader = graphar::AdjListArrowChunkReader::Make(
+        auto maybe_reader = graphar::DuckAdjListArrowChunkReader::Make(
             bind_data.graph_info, bind_data.params[0], bind_data.params[1], bind_data.params[2], adj_list_type);
         if (maybe_reader.has_error()) {
             throw std::runtime_error("Failed to make adj list reader: " + maybe_reader.error().message());
@@ -101,7 +101,7 @@ std::shared_ptr<Reader> ReadEdges::GetReader(ReadBaseGlobalTableFunctionState& g
     }
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader: making property reader...");
     auto maybe_reader =
-        graphar::AdjListPropertyArrowChunkReader::Make(bind_data.graph_info, bind_data.params[0], bind_data.params[1],
+        graphar::DuckAdjListPropertyArrowChunkReader::Make(bind_data.graph_info, bind_data.params[0], bind_data.params[1],
                                                        bind_data.params[2], bind_data.pgs[ind - 1], adj_list_type);
     if (maybe_reader.has_error()) {
         throw std::runtime_error("Failed to make adj list property reader: " + maybe_reader.error().message());
@@ -197,6 +197,13 @@ unique_ptr<BaseStatistics> ReadEdges::GetStatistics(ClientContext& context, cons
 void ReadEdges::PushdownComplexFilter(ClientContext& context, LogicalGet& get, FunctionData* bind_data,
                                       vector<unique_ptr<Expression>>& filters) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::PushdownComplexFilter");
+    auto read_bind_data = dynamic_cast<ReadBindData*>(bind_data);
+    for (auto &pg: read_bind_data->pgs) {
+        if (pg->GetFileType() != graphar::FileType::PARQUET) {
+            // our pushdown works greatly only for parquet files
+            return;
+        }
+    }
     vector<unique_ptr<Expression>> filters_new;
     bool already_pushed = false;
     for (auto& filter : filters) {
@@ -214,7 +221,6 @@ void ReadEdges::PushdownComplexFilter(ClientContext& context, LogicalGet& get, F
                     auto column_name = comparison.left->ToString();
                     if (column_name == SRC_GID_COLUMN || column_name == DST_GID_COLUMN) {
                         can_pushdown = true;
-                        auto read_bind_data = dynamic_cast<ReadBindData*>(bind_data);
                         read_bind_data->vid_range = std::make_pair(std::stoll(comparison.right->ToString()),
                                                                    std::stoll(comparison.right->ToString()));
                         read_bind_data->filter_column = column_name;

@@ -80,7 +80,7 @@ std::shared_ptr<Reader> ReadVertices::GetReader(ReadBaseGlobalTableFunctionState
                                                 idx_t ind, const std::string& filter_column) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadVertices::GetReader");
     auto maybe_reader =
-        graphar::VertexPropertyArrowChunkReader::Make(bind_data.graph_info, bind_data.params[0], bind_data.pgs[ind]);
+        graphar::DuckVertexPropertyArrowChunkReader::Make(bind_data.graph_info, bind_data.params[0], bind_data.pgs[ind]);
     if (maybe_reader.has_error()) {
         throw std::runtime_error("Failed to create vertex property reader: " + maybe_reader.status().message());
     }
@@ -135,6 +135,13 @@ unique_ptr<BaseStatistics> ReadVertices::GetStatistics(ClientContext& context, c
 void ReadVertices::PushdownComplexFilter(ClientContext& context, LogicalGet& get, FunctionData* bind_data,
                                          vector<unique_ptr<Expression>>& filters) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadVertices::PushdownComplexFilter");
+    auto read_bind_data = dynamic_cast<ReadBindData*>(bind_data);
+    for (auto &pg: read_bind_data->pgs) {
+        if (pg->GetFileType() != graphar::FileType::PARQUET) {
+            // our pushdown works greatly only for parquet files
+            return;
+        }
+    }
     vector<unique_ptr<Expression>> filters_new;
     bool already_pushed = false;
     for (auto& filter : filters) {
@@ -152,7 +159,6 @@ void ReadVertices::PushdownComplexFilter(ClientContext& context, LogicalGet& get
                     auto column_name = comparison.left->ToString();
                     if (column_name == GID_COLUMN_INTERNAL) {
                         can_pushdown = true;
-                        auto read_bind_data = dynamic_cast<ReadBindData*>(bind_data);
                         read_bind_data->vid_range = std::make_pair(std::stoll(comparison.right->ToString()),
                                                                    std::stoll(comparison.right->ToString()));
                         read_bind_data->filter_column = column_name;
