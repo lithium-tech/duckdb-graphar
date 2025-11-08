@@ -78,7 +78,7 @@ unique_ptr<FunctionData> ReadEdges::Bind(ClientContext& context, TableFunctionBi
 // GetReader
 //-------------------------------------------------------------------
 std::shared_ptr<Reader> ReadEdges::GetReader(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
-                                             idx_t ind, const std::string& filter_column) {
+                                             idx_t ind, const std::string& filter_column, ClientContext& context) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader");
     graphar::AdjListType adj_list_type;
     if (filter_column == "" or filter_column == SRC_GID_COLUMN) {
@@ -91,22 +91,22 @@ std::shared_ptr<Reader> ReadEdges::GetReader(ReadBaseGlobalTableFunctionState& g
     if (ind == 0) {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader: making src and dst reader...");
         auto maybe_reader = graphar::DuckAdjListArrowChunkReader::Make(
-            bind_data.graph_info, bind_data.params[0], bind_data.params[1], bind_data.params[2], adj_list_type);
+            context, bind_data.graph_info, bind_data.params[0], bind_data.params[1], bind_data.params[2], adj_list_type);
         if (maybe_reader.has_error()) {
             throw std::runtime_error("Failed to make adj list reader: " + maybe_reader.error().message());
         }
-        Reader result = *maybe_reader.value();
+        Reader result = graphar::DuckAdjListArrowChunkReader(std::move(*maybe_reader.value()));
         DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader: returning...");
         return std::make_shared<Reader>(std::move(result));
     }
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader: making property reader...");
     auto maybe_reader =
-        graphar::DuckAdjListPropertyArrowChunkReader::Make(bind_data.graph_info, bind_data.params[0], bind_data.params[1],
+        graphar::DuckAdjListPropertyArrowChunkReader::Make(context, bind_data.graph_info, bind_data.params[0], bind_data.params[1],
                                                        bind_data.params[2], bind_data.pgs[ind - 1], adj_list_type);
     if (maybe_reader.has_error()) {
         throw std::runtime_error("Failed to make adj list property reader: " + maybe_reader.error().message());
     }
-    Reader result = *maybe_reader.value();
+    Reader result = graphar::DuckAdjListPropertyArrowChunkReader(std::move(*maybe_reader.value()));
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader: returning...");
     return std::make_shared<Reader>(std::move(result));
 }
@@ -144,7 +144,7 @@ void ReadEdges::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData
         throw NotImplementedException("Only src and dst filters are supported");
     }
     for (idx_t i = 0; i < gstate.readers.size(); ++i) {
-        seek_vid(*gstate.readers[i], vid_range.first, filter_column);
+        // seek_vid(*gstate.readers[i], vid_range.first, filter_column);
     }
     offset_reader->seek(vid_range.second);
     auto offset_arr = offset_reader->GetChunk().value();
@@ -197,6 +197,7 @@ unique_ptr<BaseStatistics> ReadEdges::GetStatistics(ClientContext& context, cons
 void ReadEdges::PushdownComplexFilter(ClientContext& context, LogicalGet& get, FunctionData* bind_data,
                                       vector<unique_ptr<Expression>>& filters) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::PushdownComplexFilter");
+    return;
     auto read_bind_data = dynamic_cast<ReadBindData*>(bind_data);
     for (auto &pg: read_bind_data->pgs) {
         if (pg->GetFileType() != graphar::FileType::PARQUET) {

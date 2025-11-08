@@ -200,6 +200,15 @@ void ConvertArrowTableToDataChunk(const arrow::Table& table, DataChunk& output,
     ArrowTableSchema arrow_table_schema;
     ArrowTableFunction::PopulateArrowTableSchema(context.db->config, arrow_table_schema, c_schema);
 
+    if (output.ColumnCount() == 0) {
+        vector<LogicalType> types;
+        for (idx_t col_idx = 0; col_idx < column_ids.size(); col_idx++) {
+            auto& arrow_type = *arrow_table_schema.GetColumns().at(column_ids[col_idx]);
+            types.push_back(arrow_type.GetDuckType());
+        }
+        output.Initialize(context, types, table.num_rows());
+    }
+
     const auto num_rows = table.num_rows();
     output.SetCapacity(num_rows);
     output.SetCardinality(num_rows);

@@ -30,29 +30,15 @@ namespace duckdb {
 using Reader = std::variant<graphar::DuckVertexPropertyArrowChunkReader, graphar::DuckAdjListArrowChunkReader,
                             graphar::DuckAdjListPropertyArrowChunkReader>;
 
-static unique_ptr<DataChunk> GetChunk(Reader& reader) {
+static unique_ptr<DataChunk> GetChunk(Reader& reader, int64_t num_rows) {
     DUCKDB_GRAPHAR_LOG_TRACE("GetChunk");
-    return std::visit([](auto& r) {
-        using T = std::decay_t<decltype(r)>;
-
-        auto maybe_chunk = r.GetChunk();
+    return std::visit([&num_rows](auto& r) {
+        auto maybe_chunk = r.GetChunk(num_rows);
         if (maybe_chunk.has_error()) {
             throw InternalException("Error getting chunk: " + maybe_chunk.status().message());
         }
         return std::move(maybe_chunk.value());
     }, reader);
-}
-
-static graphar::Status seek_chunk_index(Reader& reader, graphar::IdType vertex_chunk_index) {
-    return std::visit(
-        [&](auto& r) {
-            if constexpr (requires { r.seek_chunk_index(vertex_chunk_index); }) {
-                return r.seek_chunk_index(vertex_chunk_index);
-            } else {
-                return graphar::Status::TypeError("seek_chunk_index is not implemented for this type of reader");
-            }
-        },
-        reader);
 }
 
 static void Filter(Reader& reader, duckdb::DuckFilterOptions filter) {
@@ -63,6 +49,22 @@ static void Filter(Reader& reader, duckdb::DuckFilterOptions filter) {
             } else {
                 return;
             }
+        },
+        reader);
+}
+
+static idx_t EnsureNotRead(Reader& reader) {
+    return std::visit(
+        [&](auto& r) {
+            return r.EnsureNotRead();
+        },
+        reader);
+}
+
+static void SelectColumns(Reader& reader, std::vector<column_t> proj_cols) {
+    return std::visit(
+        [&](auto& r) {
+            r.SelectColumns(proj_cols);
         },
         reader);
 }
@@ -90,7 +92,8 @@ private:
     std::string function_name;
     vector<std::string> params;
     graphar::PropertyGroupVector pgs;
-    idx_t columns_to_remove = 0;
+    idx_t id_columns_num = 0;
+    idx_t pg_for_id = 0;
 
     std::pair<graphar::IdType, graphar::IdType> vid_range = {-1, -1};
     std::string filter_column;
@@ -109,15 +112,12 @@ private:
     idx_t chunk_count = 0;
     idx_t total_props_num = 0;
     vector<std::shared_ptr<Reader>> readers;
-    vector<int> first_chunk_flags;
-    vector<unique_ptr<DataChunk>> chunks;
-    vector<idx_t> indices;
-    vector<idx_t> sizes;
+    vector<unique_ptr<DataChunk>> cur_chunks;
     std::pair<int64_t, int64_t> filter_range = {-1, -1};
     std::string function_name;
     int64_t total_rows = 0;
     vector<column_t> column_ids;
-    idx_t columns_to_remove = 0;
+    idx_t id_columns_num = 0;
 
     template <typename ReadFinal>
     friend class ReadBase;
@@ -131,12 +131,12 @@ public:
     template <typename TypeInfo>
     requires(std::is_same_v<TypeInfo, graphar::VertexInfo> || std::is_same_v<TypeInfo, graphar::EdgeInfo>)
     static void SetBindData(std::shared_ptr<graphar::GraphInfo> graph_info, const TypeInfo& type_info,
-                            unique_ptr<ReadBindData>& bind_data, string function_name, idx_t columns_to_remove = 0,
+                            unique_ptr<ReadBindData>& bind_data, string function_name, idx_t id_columns_num = 0,
                             idx_t pg_for_id = 0, vector<string> id_columns = {}) {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadBase::SetBindData");
         if (std::filesystem::path(graph_info->GetPrefix()).is_relative()) {
             throw IOException(
-                "Using relative path as prefix is not supported. Please use absolute path or just remove this field.");
+                "Using relative path as prefix is not supported. Please use an absolute path or just remove this field.");
         }
         bind_data->pgs = type_info.GetPropertyGroups();
         DUCKDB_GRAPHAR_LOG_DEBUG("pgs size " + std::to_string(bind_data->pgs.size()));
@@ -176,7 +176,8 @@ public:
 
         bind_data->function_name = function_name;
         bind_data->flatten_prop_names = std::move(names);
-        bind_data->columns_to_remove = columns_to_remove;
+        bind_data->id_columns_num = id_columns_num;
+        bind_data->pg_for_id = pg_for_id;
         if constexpr (std::is_same_v<TypeInfo, graphar::VertexInfo>) {
             bind_data->params = {type_info.GetType()};
         } else {
@@ -190,43 +191,6 @@ public:
     static unique_ptr<FunctionData> Bind(ClientContext& context, TableFunctionBindInput& input,
                                          vector<LogicalType>& return_types, vector<string>& names) {
         return ReadFinal::Bind(context, input, return_types, names);
-    }
-
-    static graphar::Result<std::shared_ptr<arrow::Table>> NextChunk(idx_t reader_i,
-                                                                    ReadBaseGlobalTableFunctionState& gstate) {
-        DUCKDB_GRAPHAR_LOG_TRACE("ReadBase::NextChunk");
-        auto& reader = gstate.readers[reader_i];
-        int& first_chunk_flag = gstate.first_chunk_flags[reader_i];
-        if (first_chunk_flag) {
-            first_chunk_flag = false;
-        } else {
-            auto is_next = next_chunk(*reader);
-            if (not is_next.ok()) {
-                DUCKDB_GRAPHAR_LOG_DEBUG("No next chunk");
-                return GraphArFunctions::EmptyTableFromNamesAndTypes(gstate.prop_names[reader_i],
-                                                                     gstate.prop_types[reader_i]);
-            }
-        }
-        auto result = GetChunk(*reader);
-        if (result.has_error()) {
-            throw std::runtime_error("Failed to get chunk" + result.status().message());
-        }
-        auto table = result.value();
-        if (gstate.filter_range.first != -1) {
-            if (gstate.total_rows >= gstate.filter_range.second) {
-                DUCKDB_GRAPHAR_LOG_DEBUG("All rows read");
-                return GraphArFunctions::EmptyTableFromNamesAndTypes(gstate.prop_names[reader_i],
-                                                                     gstate.prop_types[reader_i]);
-            } else if (gstate.total_rows + table->num_rows() < gstate.filter_range.first) {
-                return NextChunk(reader_i, gstate);
-            } else {
-                auto start = std::max(static_cast<int64_t>(0), gstate.filter_range.first - gstate.total_rows);
-                auto end =
-                    std::min(table->num_rows(), static_cast<int64_t>(gstate.filter_range.second - gstate.total_rows));
-                table = table->Slice(start, end - start);
-            }
-        }
-        return table;
     }
 
     static std::shared_ptr<Reader> GetReader(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
@@ -259,29 +223,56 @@ public:
         DUCKDB_GRAPHAR_LOG_DEBUG("Init global state");
 
         gstate.function_name = bind_data.function_name;
-        gstate.columns_to_remove = bind_data.columns_to_remove;
+        gstate.id_columns_num = bind_data.id_columns_num;
         gstate.pgs = bind_data.pgs;
         gstate.column_ids = input.column_ids;
-        if (gstate.column_ids.empty() ||
-            (gstate.column_ids.size() == 1 && gstate.column_ids[0] == COLUMN_IDENTIFIER_ROW_ID)) {
-            gstate.column_ids = {0};
-        }
-        gstate.readers.resize(bind_data.prop_types.size());
-        gstate.first_chunk_flags.resize(gstate.readers.size(), true);
-        gstate.tables.resize(gstate.readers.size());
-        gstate.sizes.resize(gstate.readers.size());
-        gstate.indices.resize(gstate.readers.size(), 0);
 
-        DUCKDB_GRAPHAR_LOG_DEBUG("readers num: " + std::to_string(gstate.readers.size()));
+        const auto prop_types_size = bind_data.prop_types.size();
+        vector<idx_t> columns_pref_num(prop_types_size + 1);
+        columns_pref_num[0] = 0;
+        for (idx_t i = 0; i < prop_types_size; i++) {
+            columns_pref_num[i + 1] = columns_pref_num[i] + bind_data.prop_types[i].size();
+            if (!bind_data.pg_for_id && i > 1) {
+                columns_pref_num[i + 1] -= bind_data.id_columns_num;
+            }
+        }
+
 
         const auto& filter_column = bind_data.filter_column;
 
-        idx_t reader_i = 0;
-        std::generate(gstate.readers.begin(), gstate.readers.end(),
-                      [&]() { return GetReader(gstate, bind_data, reader_i++, filter_column, context); });
-        if (time_logging) {
-            t.print("readers creation");
+        gstate.prop_names = std::move(bind_data.prop_names);
+        gstate.prop_types = std::move(bind_data.prop_types);
+        vector<vector<column_t>> projected_inds(prop_types_size);
+        gstate.readers.reserve(prop_types_size);
+        if (gstate.column_ids.empty() ||
+            gstate.column_ids.size() == 1 && gstate.column_ids[0] == COLUMN_IDENTIFIER_ROW_ID) {
+            DUCKDB_GRAPHAR_LOG_DEBUG("Returning any column");
+            projected_inds[0].emplace_back(0);
+            gstate.readers.emplace_back(GetReader(gstate, bind_data, 0, filter_column, context));
+        } else {
+            DUCKDB_GRAPHAR_LOG_DEBUG("Returning specific columns");
+            idx_t it = 0;
+            for (idx_t i = 1; i < columns_pref_num.size(); ++i) {
+                while (it < gstate.column_ids.size() && gstate.column_ids[it] < columns_pref_num[i]) {
+                    auto projected_ind = gstate.column_ids[it] - columns_pref_num[i - 1];
+                    if (!bind_data.pg_for_id && i > 1) {
+                        projected_ind += bind_data.id_columns_num;
+                    }
+                    projected_inds[i - 1].emplace_back(projected_ind);
+                    it++;
+                }
+            }
+            for (idx_t i = 0; i < prop_types_size; ++i) {
+                if (projected_inds[i].empty()) {
+                    continue;
+                }
+                gstate.readers.emplace_back(GetReader(gstate, bind_data, i, filter_column, context));
+                SelectColumns(*gstate.readers.back(), projected_inds[i]);
+            }
         }
+
+        DUCKDB_GRAPHAR_LOG_DEBUG("readers num: " + std::to_string(gstate.readers.size()));
+
         if (filter_column != "") {
             auto vid_range = bind_data.vid_range;
             const auto vertex_num = (filter_column == DST_GID_COLUMN)
@@ -299,30 +290,9 @@ public:
             t.print("filter setting");
         }
 
-        gstate.prop_names = bind_data.prop_names;
-        gstate.prop_types = bind_data.prop_types;
-
-        for (idx_t i = 0; i < gstate.readers.size(); i++) {
-            DUCKDB_GRAPHAR_LOG_TRACE("Get chunk for reader " + std::to_string(i));
-            auto result = NextChunk(i, gstate);
-            if (time_logging) {
-                t.print("get_chunk");
-            }
-            if (result.has_error()) {
-                throw std::runtime_error("Error while getting chunk: " + result.status().message());
-            }
-            gstate.tables[i] = result.value();
-            if (i) {
-                for (idx_t j = 0; j < bind_data.columns_to_remove; j++) {
-                    gstate.tables[i] = gstate.tables[i]->RemoveColumn(0).ValueOrDie();
-                }
-            }
-            DUCKDB_GRAPHAR_LOG_DEBUG("Table Schema: " + gstate.tables[i]->schema()->ToString());
-
-            gstate.sizes[i] = gstate.tables[i]->num_rows();
-            gstate.total_props_num += gstate.tables[i]->num_columns();
-        }
-        DUCKDB_GRAPHAR_LOG_DEBUG("total props num: " + std::to_string(gstate.total_props_num));
+        gstate.prop_names = std::move(bind_data.prop_names);
+        gstate.prop_types = std::move(bind_data.prop_types);
+        gstate.cur_chunks.resize(prop_types_size);
 
         if (time_logging) {
             t.print("additional info");
@@ -336,38 +306,6 @@ public:
         return make_uniq<ReadBaseGlobalTableFunctionState>(std::move(gstate));
     }
 
-    static arrow::Result<std::shared_ptr<arrow::Table>> ConcatenateTables(
-        const vector<std::shared_ptr<arrow::Table>>& tables) {
-        DUCKDB_GRAPHAR_LOG_TRACE("ConcatenateTables started");
-        if (tables.empty()) {
-            return arrow::Status::Invalid("Cannot concatenate empty vector of tables");
-        }
-
-        const idx_t num_rows = tables[0]->num_rows();
-        idx_t total_columns = 0;
-        for (idx_t i = 1; i < tables.size(); ++i) {
-            if (tables[i]->num_rows() != num_rows) {
-                return arrow::Status::Invalid("All tables must have the same number of rows");
-            }
-            total_columns += tables[i]->num_columns();
-        }
-
-        vector<std::shared_ptr<arrow::Field>> all_fields;
-        all_fields.reserve(total_columns);
-        vector<std::shared_ptr<arrow::ChunkedArray>> all_columns;
-        all_columns.reserve(total_columns);
-
-        for (const auto& table : tables) {
-            for (idx_t i = 0; i < table->num_columns(); ++i) {
-                all_fields.emplace_back(table->field(i));
-                all_columns.emplace_back(table->column(i));
-            }
-        }
-
-        const auto combined_schema = std::make_shared<arrow::Schema>(std::move(all_fields));
-        return arrow::Table::Make(std::move(combined_schema), std::move(all_columns), num_rows);
-    }
-
     static void Execute(ClientContext& context, TableFunctionInput& input, DataChunk& output) {
         bool time_logging = GraphArSettings::is_time_logging(context);
 
@@ -379,42 +317,19 @@ public:
 
         DUCKDB_GRAPHAR_LOG_DEBUG("Chunk " + std::to_string(gstate.chunk_count) + ": Begin iteration");
 
-        idx_t num_rows = (gstate.filter_range.first != -1 &&
-                          gstate.total_rows == (gstate.filter_range.second - gstate.filter_range.first))
-                             ? static_cast<idx_t>(0)
-                             : STANDARD_VECTOR_SIZE;
+        idx_t num_rows = STANDARD_VECTOR_SIZE;
         for (idx_t i = 0; i < gstate.readers.size() && num_rows; i++) {
-            if (gstate.indices[i] == gstate.sizes[i]) {
-                auto result = NextChunk(i, gstate);
-                if (result.has_error()) {
-                    throw std::runtime_error("Error while getting chunk: " + result.status().message());
-                }
-                gstate.tables[i] = result.value();
-                if (i) {
-                    for (idx_t j = 0; j < gstate.columns_to_remove; j++) {
-                        gstate.tables[i] = gstate.tables[i]->RemoveColumn(0).ValueOrDie();
-                    }
-                }
-                gstate.sizes[i] = gstate.tables[i]->num_rows();
-                gstate.indices[i] = 0;
-            }
-            num_rows = std::min(num_rows, gstate.sizes[i] - gstate.indices[i]);
+            num_rows = std::min(num_rows, EnsureNotRead(*gstate.readers[i]));
         }
         DUCKDB_GRAPHAR_LOG_DEBUG("num rows final: " + std::to_string(num_rows));
 
         if (num_rows > 0) {
-            vector<std::shared_ptr<arrow::Table>> tables_to_convert(gstate.tables.size());
-            for (idx_t i = 0; i < gstate.tables.size(); i++) {
-                tables_to_convert[i] = gstate.tables[i]->Slice(gstate.indices[i], num_rows);
-            }
-            auto maybe_table = ConcatenateTables(tables_to_convert);
-            if (!maybe_table.ok()) {
-                throw std::runtime_error("Failed to concatenate tables: " + maybe_table.status().ToString());
-            }
-            auto table = maybe_table.ValueOrDie();
-            ConvertArrowTableToDataChunk(*table, output, gstate.column_ids, context);
-            for (idx_t i = 0; i < gstate.tables.size(); i++) {
-                gstate.indices[i] += num_rows;
+            idx_t it = 0;
+            for (idx_t i = 0; i < gstate.readers.size(); i++) {
+                gstate.cur_chunks[i] = std::move(GetChunk(*gstate.readers[i], num_rows));
+                for (idx_t j = 0; j < gstate.cur_chunks[i]->ColumnCount(); j++) {
+                    output.data[it++].Reference(gstate.cur_chunks[i]->data[j]);
+                }
             }
         }
 

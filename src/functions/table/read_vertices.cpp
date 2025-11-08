@@ -84,7 +84,7 @@ std::shared_ptr<Reader> ReadVertices::GetReader(ReadBaseGlobalTableFunctionState
     if (maybe_reader.has_error()) {
         throw std::runtime_error("Failed to create vertex property reader: " + maybe_reader.status().message());
     }
-    Reader result = *maybe_reader.value();
+    Reader result = graphar::DuckVertexPropertyArrowChunkReader(std::move(*maybe_reader.value()));
     return std::make_shared<Reader>(std::move(result));
 }
 //-------------------------------------------------------------------
@@ -135,6 +135,7 @@ unique_ptr<BaseStatistics> ReadVertices::GetStatistics(ClientContext& context, c
 void ReadVertices::PushdownComplexFilter(ClientContext& context, LogicalGet& get, FunctionData* bind_data,
                                          vector<unique_ptr<Expression>>& filters) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadVertices::PushdownComplexFilter");
+    return;
     auto read_bind_data = dynamic_cast<ReadBindData*>(bind_data);
     for (auto &pg: read_bind_data->pgs) {
         if (pg->GetFileType() != graphar::FileType::PARQUET) {
