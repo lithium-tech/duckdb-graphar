@@ -181,7 +181,7 @@ TableFunction ReadVertices::GetScanFunction() {
     TableFunction read_vertices({}, Execute, Bind);
     read_vertices.init_global = ReadVertices::Init;
 
-    read_vertices.filter_pushdown = true;
+    read_vertices.filter_pushdown = false;
     read_vertices.projection_pushdown = true;
     read_vertices.statistics = ReadVertices::GetStatistics;
     read_vertices.pushdown_complex_filter = ReadVertices::PushdownComplexFilter;

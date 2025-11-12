@@ -275,7 +275,7 @@ TableFunction ReadEdges::GetScanFunction() {
     TableFunction read_edges({}, Execute, Bind);
     read_edges.init_global = ReadEdges::Init;
 
-    read_edges.filter_pushdown = true;
+    read_edges.filter_pushdown = false;
     read_edges.projection_pushdown = true;
     read_edges.statistics = ReadEdges::GetStatistics;
     read_edges.pushdown_complex_filter = ReadEdges::PushdownComplexFilter;
