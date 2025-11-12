@@ -14,10 +14,6 @@
 #include <vector>
 
 namespace duckdb {
-// struct DuckFilterOptions {
-//     std::pair<int64_t, int64_t> filter_range;
-//     std::vector<duckdb::column_t> proj_columns;
-// };
 
 class QueryStringConstructor {
 public:
