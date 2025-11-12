@@ -1,8 +1,8 @@
 #pragma once
 
 #include "utils/benchmark.hpp"
-#include "utils/duck_chunk_reader.hpp"
-#include "utils/duck_arrow_chunk_reader.hpp"
+#include "readers/duck_chunk_reader.hpp"
+#include "readers/duck_arrow_chunk_reader.hpp"
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
 
@@ -18,6 +18,7 @@
 #include <graphar/arrow/chunk_reader.h>
 #include <graphar/expression.h>
 #include <graphar/fwd.h>
+#include <graphar/graph_info.h>
 #include <graphar/reader_util.h>
 
 #include <filesystem>
@@ -28,7 +29,17 @@
 namespace duckdb {
 
 using Reader = std::variant<graphar::DuckVertexPropertyArrowChunkReader, graphar::DuckAdjListArrowChunkReader,
-                            graphar::DuckAdjListPropertyArrowChunkReader>;
+                            graphar::DuckAdjListPropertyArrowChunkReader, graphar::DuckVertexPropertyChunkReader,
+                            graphar::DuckAdjListChunkReader, graphar::DuckAdjListPropertyChunkReader>;
+
+template<typename SomeReader>
+std::shared_ptr<Reader> ConvertReader(graphar::Result<std::shared_ptr<SomeReader>> maybe_reader) {
+    if (maybe_reader.has_error()) {
+        throw InternalException("Error converting reader: " + maybe_reader.error().message());
+    }
+    Reader result = SomeReader(std::move(*maybe_reader.value()));
+    return std::make_shared<Reader>(std::move(result));
+}
 
 static unique_ptr<DataChunk> GetChunk(Reader& reader, int64_t num_rows) {
     DUCKDB_GRAPHAR_LOG_TRACE("GetChunk");
@@ -41,22 +52,18 @@ static unique_ptr<DataChunk> GetChunk(Reader& reader, int64_t num_rows) {
     }, reader);
 }
 
-static void Filter(Reader& reader, duckdb::DuckFilterOptions filter) {
-    return std::visit(
-        [&](auto& r) {
-            if constexpr (requires { r.Filter(filter); }) {
-                r.Filter(filter);
-            } else {
-                return;
-            }
-        },
-        reader);
-}
-
 static idx_t EnsureNotRead(Reader& reader) {
     return std::visit(
         [&](auto& r) {
             return r.EnsureNotRead();
+        },
+        reader);
+}
+
+static void FilterByRange(Reader& reader, std::pair<int64_t, int64_t> vid_range, const std::string& filter_column) {
+    return std::visit(
+        [&](auto& r) {
+            r.FilterByRange(vid_range, filter_column);
         },
         reader);
 }
@@ -67,6 +74,40 @@ static void SelectColumns(Reader& reader, std::vector<column_t> proj_cols) {
             r.SelectColumns(proj_cols);
         },
         reader);
+}
+
+using TypeInfoPtr = std::variant<std::shared_ptr<graphar::VertexInfo>, std::shared_ptr<graphar::EdgeInfo>>;
+
+static const graphar::PropertyGroupVector& GetPropertyGroups(TypeInfoPtr& type_info) {
+    return std::visit(
+        [&](auto& t) -> const graphar::PropertyGroupVector& {
+            return t->GetPropertyGroups();
+        },
+        type_info);
+}
+
+static int64_t GetChunkSize(TypeInfoPtr& type_info) {
+    return std::visit(
+        [&](auto& t) {
+            return t->GetChunkSize();
+        },
+        type_info);
+}
+
+static std::string GetVertexTypeName(TypeInfoPtr& type_info, const std::string& column_name) {
+    return std::visit(
+        [&](auto& t) {
+            if constexpr (requires { t->GetType() ;}) {
+                return t->GetType();
+            } else if constexpr (requires { t->GetSrcType() ;}) {
+                if (column_name == SRC_GID_COLUMN) {
+                    return t->GetSrcType();
+                } else {
+                    return t->GetDstType();
+                }
+            }
+        },
+        type_info);
 }
 
 template <typename ReadFinal>
@@ -94,9 +135,12 @@ private:
     graphar::PropertyGroupVector pgs;
     idx_t id_columns_num = 0;
     idx_t pg_for_id = 0;
+    idx_t chunk_size = -1;
 
     std::pair<graphar::IdType, graphar::IdType> vid_range = {-1, -1};
     std::string filter_column;
+
+    TypeInfoPtr type_info;
 
     template <typename ReadFinal>
     friend class ReadBase;
@@ -119,6 +163,8 @@ private:
     vector<column_t> column_ids;
     idx_t id_columns_num = 0;
 
+    std::shared_ptr<DuckParquetFileReader> file_reader;
+
     template <typename ReadFinal>
     friend class ReadBase;
     friend class ReadVertices;
@@ -128,9 +174,7 @@ private:
 template <typename ReadFinal>
 class ReadBase {
 public:
-    template <typename TypeInfo>
-    requires(std::is_same_v<TypeInfo, graphar::VertexInfo> || std::is_same_v<TypeInfo, graphar::EdgeInfo>)
-    static void SetBindData(std::shared_ptr<graphar::GraphInfo> graph_info, const TypeInfo& type_info,
+    static void SetBindData(std::shared_ptr<graphar::GraphInfo> graph_info, TypeInfoPtr type_info,
                             unique_ptr<ReadBindData>& bind_data, string function_name, idx_t id_columns_num = 0,
                             idx_t pg_for_id = 0, vector<string> id_columns = {}) {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadBase::SetBindData");
@@ -138,7 +182,7 @@ public:
             throw IOException(
                 "Using relative path as prefix is not supported. Please use an absolute path or just remove this field.");
         }
-        bind_data->pgs = type_info.GetPropertyGroups();
+        bind_data->pgs = GetPropertyGroups(type_info);
         DUCKDB_GRAPHAR_LOG_DEBUG("pgs size " + std::to_string(bind_data->pgs.size()));
         bind_data->prop_types.resize(bind_data->pgs.size() + pg_for_id);
         bind_data->prop_names.resize(bind_data->prop_types.size());
@@ -178,10 +222,17 @@ public:
         bind_data->flatten_prop_names = std::move(names);
         bind_data->id_columns_num = id_columns_num;
         bind_data->pg_for_id = pg_for_id;
-        if constexpr (std::is_same_v<TypeInfo, graphar::VertexInfo>) {
-            bind_data->params = {type_info.GetType()};
+        bind_data->type_info = type_info;
+        bind_data->chunk_size = GetChunkSize(type_info);
+        if (bind_data->chunk_size == 0) {
+            throw IOException("Chunk size can not be 0");
+        }
+        if (std::holds_alternative<std::shared_ptr<graphar::VertexInfo>>(type_info)) {
+            auto vertex_info = *std::get_if<std::shared_ptr<graphar::VertexInfo>>(&type_info);
+            bind_data->params = {vertex_info->GetType()};
         } else {
-            bind_data->params = {type_info.GetSrcType(), type_info.GetEdgeType(), type_info.GetDstType()};
+            auto edge_info = *std::get_if<std::shared_ptr<graphar::EdgeInfo>>(&type_info);
+            bind_data->params = {edge_info->GetSrcType(), edge_info->GetEdgeType(), edge_info->GetDstType()};
         }
 
         bind_data->graph_info = graph_info;
@@ -196,12 +247,6 @@ public:
     static std::shared_ptr<Reader> GetReader(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
                                              idx_t ind, const std::string& filter_column, ClientContext& context) {
         return ReadFinal::GetReader(gstate, bind_data, ind, filter_column, context);
-    }
-
-    static void SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
-                          const std::pair<graphar::IdType, graphar::IdType>& vid_range,
-                          const std::string& filter_column) {
-        ReadFinal::SetFilter(gstate, bind_data, vid_range, filter_column);
     }
 
     static unique_ptr<GlobalTableFunctionState> Init(ClientContext& context, TableFunctionInitInput& input) {
@@ -237,6 +282,7 @@ public:
             }
         }
 
+        gstate.file_reader = std::make_shared<DuckParquetFileReader>(std::make_shared<Connection>(*context.db));
 
         const auto& filter_column = bind_data.filter_column;
 
@@ -249,6 +295,7 @@ public:
             DUCKDB_GRAPHAR_LOG_DEBUG("Returning any column");
             projected_inds[0].emplace_back(0);
             gstate.readers.emplace_back(GetReader(gstate, bind_data, 0, filter_column, context));
+            SelectColumns(*gstate.readers.back(), projected_inds[0]);
         } else {
             DUCKDB_GRAPHAR_LOG_DEBUG("Returning specific columns");
             idx_t it = 0;
@@ -274,17 +321,18 @@ public:
         DUCKDB_GRAPHAR_LOG_DEBUG("readers num: " + std::to_string(gstate.readers.size()));
 
         if (filter_column != "") {
+            DUCKDB_GRAPHAR_LOG_TRACE("Filters found");
             auto vid_range = bind_data.vid_range;
-            const auto vertex_num = (filter_column == DST_GID_COLUMN)
-                                        ? GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[2])
-                                        : GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[0]);
+            const auto vertex_num = GraphArFunctions::GetVertexNum(bind_data.graph_info, GetVertexTypeName(bind_data.type_info, filter_column));
             graphar::IdType zero = 0;
             vid_range.first = std::max(zero, vid_range.first);
             vid_range.second = std::min(vertex_num - 1, vid_range.second);
             if (vid_range.first > vid_range.second) {
                 throw IOException("Invalid filter range");
             }
-            SetFilter(gstate, bind_data, vid_range, filter_column);
+            for (auto& reader : gstate.readers) {
+                FilterByRange(*reader, vid_range, filter_column);
+            }
         }
         if (time_logging) {
             t.print("filter setting");
@@ -298,7 +346,7 @@ public:
             t.print("additional info");
         }
 
-        DUCKDB_GRAPHAR_LOG_DEBUG("::Init\n Done");
+        DUCKDB_GRAPHAR_LOG_DEBUG("::Init Done");
         if (time_logging) {
             t.print();
         }

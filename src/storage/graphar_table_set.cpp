@@ -73,9 +73,9 @@ GraphArTableSet::CreateTables(GraphArCatalog& graphar_catalog, const InfoVector&
         auto bind_data = make_uniq<ReadBindData>();
         auto& graphar_catalog = catalog.Cast<GraphArCatalog>();
         if constexpr (std::is_same_v<InfoVector, graphar::VertexInfoVector>) {
-            ReadVertices::SetBindData(graphar_catalog.GetGraphInfo(), *info, bind_data);
+            ReadVertices::SetBindData(graphar_catalog.GetGraphInfo(), info, bind_data);
         } else {
-            ReadEdges::SetBindData(graphar_catalog.GetGraphInfo(), *info, bind_data);
+            ReadEdges::SetBindData(graphar_catalog.GetGraphInfo(), info, bind_data);
         }
 
         vector<ColumnDefinition> columns;

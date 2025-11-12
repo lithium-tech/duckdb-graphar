@@ -16,7 +16,7 @@
 namespace duckdb {
 class ReadEdges : public ReadBase<ReadEdges> {
 public:
-    static void SetBindData(std::shared_ptr<graphar::GraphInfo> graph_info, const graphar::EdgeInfo& edge_info,
+    static void SetBindData(std::shared_ptr<graphar::GraphInfo> graph_info, std::shared_ptr<graphar::EdgeInfo> edge_info,
                             unique_ptr<ReadBindData>& bind_data);
     static unique_ptr<FunctionData> Bind(ClientContext& context, TableFunctionBindInput& input,
                                          vector<LogicalType>& return_types, vector<string>& names);

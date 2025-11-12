@@ -63,14 +63,14 @@ TableFunction GraphArTableEntry::GetScanFunction(ClientContext& context, unique_
         case GraphArTableType::Vertex:
             ReadVertices::SetBindData(
                 tmp_table_info->GetCatalog().GetGraphInfo(),
-                *tmp_table_info->GetCatalog().GetGraphInfo()->GetVertexInfo(tmp_table_info->GetParams()[0]),
+                tmp_table_info->GetCatalog().GetGraphInfo()->GetVertexInfo(tmp_table_info->GetParams()[0]),
                 bind_data_);
             bind_data = std::move(bind_data_);
             return ReadVertices::GetScanFunction();
         case GraphArTableType::Edge:
             ReadEdges::SetBindData(
                 tmp_table_info->GetCatalog().GetGraphInfo(),
-                *tmp_table_info->GetCatalog().GetGraphInfo()->GetEdgeInfo(
+                tmp_table_info->GetCatalog().GetGraphInfo()->GetEdgeInfo(
                     tmp_table_info->GetParams()[0], tmp_table_info->GetParams()[1], tmp_table_info->GetParams()[2]),
                 bind_data_);
             bind_data = std::move(bind_data_);
