@@ -22,8 +22,8 @@ namespace duckdb {
 //-------------------------------------------------------------------
 // GetBindData
 //-------------------------------------------------------------------
-void ReadEdges::SetBindData(std::shared_ptr<graphar::GraphInfo> graph_info, std::shared_ptr<graphar::EdgeInfo> edge_info,
-                            unique_ptr<ReadBindData>& bind_data) {
+void ReadEdges::SetBindData(std::shared_ptr<graphar::GraphInfo> graph_info,
+                            std::shared_ptr<graphar::EdgeInfo> edge_info, unique_ptr<ReadBindData>& bind_data) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::SetBindData");
     ReadBase::SetBindData(graph_info, edge_info, bind_data, "read_edges", 0, 1, {SRC_GID_COLUMN, DST_GID_COLUMN});
 }
@@ -98,17 +98,19 @@ std::shared_ptr<Reader> ReadEdges::GetReader(ReadBaseGlobalTableFunctionState& g
                 context, gstate.file_reader, bind_data.chunk_size, edge_info, adj_list_type, prefix));
         } else {
             DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader: making arrow reader...");
-            return ConvertReader(graphar::DuckAdjListArrowChunkReader::Make(
-                context, edge_info, adj_list_type, prefix));
+            return ConvertReader(graphar::DuckAdjListArrowChunkReader::Make(context, edge_info, adj_list_type, prefix));
         }
     }
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader: making property reader...");
     if (edge_info->GetAdjacentList(adj_list_type)->GetFileType() == graphar::FileType::PARQUET) {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader: making duckdb reader...");
-        return ConvertReader(graphar::DuckAdjListPropertyChunkReader::Make(context, gstate.file_reader, bind_data.chunk_size, edge_info, bind_data.pgs[ind - 1], adj_list_type, prefix));
+        return ConvertReader(
+            graphar::DuckAdjListPropertyChunkReader::Make(context, gstate.file_reader, bind_data.chunk_size, edge_info,
+                                                          bind_data.pgs[ind - 1], adj_list_type, prefix));
     } else {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader: making arrow reader...");
-        return ConvertReader(graphar::DuckAdjListPropertyArrowChunkReader::Make(context, edge_info, bind_data.pgs[ind - 1], adj_list_type, prefix));
+        return ConvertReader(graphar::DuckAdjListPropertyArrowChunkReader::Make(
+            context, edge_info, bind_data.pgs[ind - 1], adj_list_type, prefix));
     }
 }
 //-------------------------------------------------------------------
@@ -129,16 +131,19 @@ void ReadEdges::SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData
     // if (filter_column == "") {
     //     return;
     // }
-    // auto edge_info = bind_data.graph_info->GetEdgeInfo(bind_data.params[0], bind_data.params[1], bind_data.params[2]);
-    // std::shared_ptr<graphar::AdjListOffsetArrowChunkReader> offset_reader = nullptr;
-    // if (filter_column == SRC_GID_COLUMN) {
+    // auto edge_info = bind_data.graph_info->GetEdgeInfo(bind_data.params[0], bind_data.params[1],
+    // bind_data.params[2]); std::shared_ptr<graphar::AdjListOffsetArrowChunkReader> offset_reader = nullptr; if
+    // (filter_column == SRC_GID_COLUMN) {
     //     offset_reader =
-    //         graphar::AdjListOffsetArrowChunkReader::Make(bind_data.graph_info, bind_data.params[0], bind_data.params[1],
-    //                                                      bind_data.params[2], graphar::AdjListType::ordered_by_source)
+    //         graphar::AdjListOffsetArrowChunkReader::Make(bind_data.graph_info, bind_data.params[0],
+    //         bind_data.params[1],
+    //                                                      bind_data.params[2],
+    //                                                      graphar::AdjListType::ordered_by_source)
     //             .value();
     // } else if (filter_column == DST_GID_COLUMN) {
     //     offset_reader =
-    //         graphar::AdjListOffsetArrowChunkReader::Make(bind_data.graph_info, bind_data.params[0], bind_data.params[1],
+    //         graphar::AdjListOffsetArrowChunkReader::Make(bind_data.graph_info, bind_data.params[0],
+    //         bind_data.params[1],
     //                                                      bind_data.params[2], graphar::AdjListType::ordered_by_dest)
     //             .value();
     // } else {
@@ -198,12 +203,8 @@ unique_ptr<BaseStatistics> ReadEdges::GetStatistics(ClientContext& context, cons
 void ReadEdges::PushdownComplexFilter(ClientContext& context, LogicalGet& get, FunctionData* bind_data,
                                       vector<unique_ptr<Expression>>& filters) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::PushdownComplexFilter");
-    for (auto& filter : filters) {
-        std::cout << "filter " << filter->ToString() << std::endl;
-    }
-    std::cout << std::endl;
     auto read_bind_data = dynamic_cast<ReadBindData*>(bind_data);
-    for (auto &pg: read_bind_data->pgs) {
+    for (auto& pg : read_bind_data->pgs) {
         if (pg->GetFileType() != graphar::FileType::PARQUET) {
             // our pushdown works greatly only for parquet files
             return;
@@ -213,7 +214,6 @@ void ReadEdges::PushdownComplexFilter(ClientContext& context, LogicalGet& get, F
     vector<unique_ptr<Expression>> filters_new;
     bool already_pushed = false;
     for (auto& filter : filters) {
-        std::cout << "filter " << filter->ToString() << std::endl;
         if (already_pushed) {
             filters_new.push_back(std::move(filter));
             continue;
@@ -226,8 +226,14 @@ void ReadEdges::PushdownComplexFilter(ClientContext& context, LogicalGet& get, F
                 bool right_is_scalar = comparison.right->IsFoldable();
                 if (left_is_scalar || right_is_scalar) {
                     auto column_name = comparison.left->ToString();
-                    if (column_name == SRC_GID_COLUMN && edge_info->HasAdjacentListType(graphar::AdjListType::ordered_by_source) && edge_info->GetAdjacentList(graphar::AdjListType::ordered_by_source)->GetFileType() == graphar::FileType::PARQUET ||
-                        column_name == DST_GID_COLUMN && edge_info->HasAdjacentListType(graphar::AdjListType::ordered_by_dest) && edge_info->GetAdjacentList(graphar::AdjListType::ordered_by_dest)->GetFileType() == graphar::FileType::PARQUET) {
+                    if (column_name == SRC_GID_COLUMN &&
+                            edge_info->HasAdjacentListType(graphar::AdjListType::ordered_by_source) &&
+                            edge_info->GetAdjacentList(graphar::AdjListType::ordered_by_source)->GetFileType() ==
+                                graphar::FileType::PARQUET ||
+                        column_name == DST_GID_COLUMN &&
+                            edge_info->HasAdjacentListType(graphar::AdjListType::ordered_by_dest) &&
+                            edge_info->GetAdjacentList(graphar::AdjListType::ordered_by_dest)->GetFileType() ==
+                                graphar::FileType::PARQUET) {
                         can_pushdown = true;
                         read_bind_data->vid_range = std::make_pair(std::stoll(comparison.right->ToString()),
                                                                    std::stoll(comparison.right->ToString()));
@@ -269,7 +275,7 @@ TableFunction ReadEdges::GetScanFunction() {
     TableFunction read_edges({}, Execute, Bind);
     read_edges.init_global = ReadEdges::Init;
 
-    read_edges.filter_pushdown = false;
+    read_edges.filter_pushdown = true;
     read_edges.projection_pushdown = true;
     read_edges.statistics = ReadEdges::GetStatistics;
     read_edges.pushdown_complex_filter = ReadEdges::PushdownComplexFilter;

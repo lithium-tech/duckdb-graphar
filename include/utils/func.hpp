@@ -231,6 +231,6 @@ std::string GetDirectory(const std::string& path);
 std::int64_t GetCount(const std::string& path);
 std::int64_t GetVertexCount(const std::shared_ptr<graphar::EdgeInfo>& edge_info, const std::string& directory);
 
-void ConvertArrowTableToDataChunk(const arrow::Table& table, DataChunk& output,
-                                             const std::vector<column_t>& column_ids, ClientContext& context);
+void ConvertArrowTableToDataChunk(const arrow::Table& table, DataChunk& output, const std::vector<column_t>& column_ids,
+                                  ClientContext& context);
 }  // namespace duckdb

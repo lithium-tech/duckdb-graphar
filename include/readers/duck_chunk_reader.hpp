@@ -1,13 +1,12 @@
 #pragma once
 
-#include <duckdb.hpp>
-
-#include <graphar/fwd.h>
-#include <graphar/types.h>
 #include <graphar/chunk_info_reader.h>
-#include <graphar/result.h>
+#include <graphar/fwd.h>
 #include <graphar/reader_util.h>
+#include <graphar/result.h>
+#include <graphar/types.h>
 
+#include <duckdb.hpp>
 #include <memory>
 #include <string>
 #include <utility>
@@ -22,7 +21,8 @@ namespace duckdb {
 class QueryStringConstructor {
 public:
     enum class QueryType { FIRST, MIDDLE, LAST, SINGLE };
-    std::string GetMainQueryString(const std::vector<column_t>& proj_columns, std::pair<int64_t, int64_t> range = {-1, -1});
+    std::string GetMainQueryString(const std::vector<column_t>& proj_columns,
+                                   std::pair<int64_t, int64_t> range = {-1, -1});
 
     std::string GetGrapharOffsetQueryString();
 
@@ -44,9 +44,9 @@ private:
 
 class DuckParquetFileReader {
 public:
-    DuckParquetFileReader(std::shared_ptr<duckdb::Connection> conn_) : conn(conn_) {
-    }
-    unique_ptr<QueryResult> ReadFileToTable(const std::string& path, const std::vector<duckdb::column_t>& proj_columns, std::pair<int64_t, int64_t> range = {-1, -1}) {
+    DuckParquetFileReader(std::shared_ptr<duckdb::Connection> conn_) : conn(conn_) {}
+    unique_ptr<QueryResult> ReadFileToTable(const std::string& path, const std::vector<duckdb::column_t>& proj_columns,
+                                            std::pair<int64_t, int64_t> range = {-1, -1}) {
         auto query_string = query_string_constructor.GetMainQueryString(proj_columns, range);
         auto query_result = conn->Query(query_string, Value(path));
         if (query_result->HasError()) {
@@ -54,17 +54,19 @@ public:
         }
         return std::move(query_result);
     }
+
 private:
     std::shared_ptr<duckdb::Connection> conn;
     QueryStringConstructor query_string_constructor;
 };
 
-template<typename BaseArrowChunkReader>
+template <typename BaseArrowChunkReader>
 class BaseDuckChunkReader {
 public:
-    BaseDuckChunkReader(std::shared_ptr<BaseArrowChunkReader> base_, std::shared_ptr<DuckParquetFileReader> file_reader_, ClientContext& context_, idx_t chunk_size_ = -1) :
-    base(std::move(base_)), file_reader(std::move(file_reader_)), context(context_), chunk_size(chunk_size_) {
-    }
+    BaseDuckChunkReader(std::shared_ptr<BaseArrowChunkReader> base_,
+                        std::shared_ptr<DuckParquetFileReader> file_reader_, ClientContext& context_,
+                        idx_t chunk_size_ = -1)
+        : base(std::move(base_)), file_reader(std::move(file_reader_)), context(context_), chunk_size(chunk_size_) {}
 
     idx_t EnsureNotRead() {
         if (rows_to_read == 0) {
@@ -123,6 +125,7 @@ public:
         }
         proj_columns = std::move(proj_columns_);
     }
+
 protected:
     std::shared_ptr<BaseArrowChunkReader> base;
     std::vector<duckdb::column_t> proj_columns;
@@ -142,14 +145,13 @@ protected:
 
 class DuckVertexChunkReader : public BaseDuckChunkReader<graphar::VertexPropertyChunkInfoReader> {
 public:
-    template<typename... Args>
+    template <typename... Args>
     explicit DuckVertexChunkReader(Args&&... args)
-        : BaseDuckChunkReader<graphar::VertexPropertyChunkInfoReader>(std::forward<Args>(args)...) {
-    }
+        : BaseDuckChunkReader<graphar::VertexPropertyChunkInfoReader>(std::forward<Args>(args)...) {}
 
-    template<typename... Args>
-    static graphar::Result<std::shared_ptr<DuckVertexChunkReader>> Make(ClientContext& context, std::shared_ptr<DuckParquetFileReader> file_reader, idx_t chunk_size,
-      Args&&... args) {
+    template <typename... Args>
+    static graphar::Result<std::shared_ptr<DuckVertexChunkReader>> Make(
+        ClientContext& context, std::shared_ptr<DuckParquetFileReader> file_reader, idx_t chunk_size, Args&&... args) {
         GAR_ASSIGN_OR_RAISE(auto base_ptr, graphar::VertexPropertyChunkInfoReader::Make(std::forward<Args>(args)...));
         return std::make_shared<DuckVertexChunkReader>(std::move(base_ptr), file_reader, context, chunk_size);
     }
@@ -168,31 +170,40 @@ public:
     }
 };
 
-template<typename BaseArrowChunkReader>
+template <typename BaseArrowChunkReader>
 class DuckEdgeChunkReader : public BaseDuckChunkReader<BaseArrowChunkReader> {
 public:
     // using BaseDuckChunkReader<BaseArrowChunkReader>::cur_result;
     // using BaseDuckChunkReader<BaseArrowChunkReader>::chunk_size;
     // using BaseDuckChunkReader<BaseArrowChunkReader>::base;
 
-    DuckEdgeChunkReader(std::shared_ptr<BaseArrowChunkReader> base_, std::shared_ptr<DuckParquetFileReader> file_reader_, ClientContext& context_, idx_t chunk_size_,
-    const std::shared_ptr<graphar::EdgeInfo>& edge_info_, graphar::AdjListType adj_list_type_, const std::string& prefix_) :
-    BaseDuckChunkReader<BaseArrowChunkReader>(std::move(base_), std::move(file_reader_), context_, chunk_size_),
-    edge_info(edge_info_), adj_list_type(adj_list_type_), prefix(prefix_) {
-    }
+    DuckEdgeChunkReader(std::shared_ptr<BaseArrowChunkReader> base_,
+                        std::shared_ptr<DuckParquetFileReader> file_reader_, ClientContext& context_, idx_t chunk_size_,
+                        const std::shared_ptr<graphar::EdgeInfo>& edge_info_, graphar::AdjListType adj_list_type_,
+                        const std::string& prefix_)
+        : BaseDuckChunkReader<BaseArrowChunkReader>(std::move(base_), std::move(file_reader_), context_, chunk_size_),
+          edge_info(edge_info_),
+          adj_list_type(adj_list_type_),
+          prefix(prefix_) {}
 
-    static graphar::Result<std::shared_ptr<DuckEdgeChunkReader>> Make(ClientContext& context, std::shared_ptr<DuckParquetFileReader> file_reader, idx_t chunk_size,
-      const std::shared_ptr<graphar::EdgeInfo>& edge_info, graphar::AdjListType adj_list_type,
-      const std::string& prefix) {
+    static graphar::Result<std::shared_ptr<DuckEdgeChunkReader>> Make(
+        ClientContext& context, std::shared_ptr<DuckParquetFileReader> file_reader, idx_t chunk_size,
+        const std::shared_ptr<graphar::EdgeInfo>& edge_info, graphar::AdjListType adj_list_type,
+        const std::string& prefix) {
         GAR_ASSIGN_OR_RAISE(auto base_ptr, BaseArrowChunkReader::Make(edge_info, adj_list_type, prefix));
-        return std::make_shared<DuckEdgeChunkReader>(std::move(base_ptr), file_reader, context, chunk_size, edge_info, adj_list_type, prefix);
+        return std::make_shared<DuckEdgeChunkReader>(std::move(base_ptr), file_reader, context, chunk_size, edge_info,
+                                                     adj_list_type, prefix);
     }
 
-    static graphar::Result<std::shared_ptr<DuckEdgeChunkReader>> Make(ClientContext& context, std::shared_ptr<DuckParquetFileReader> file_reader, idx_t chunk_size,
-      const std::shared_ptr<graphar::EdgeInfo>& edge_info, const std::shared_ptr<graphar::PropertyGroup>& property_group, graphar::AdjListType adj_list_type,
-      const std::string& prefix) {
-        GAR_ASSIGN_OR_RAISE(auto base_ptr, BaseArrowChunkReader::Make(edge_info, property_group, adj_list_type, prefix));
-        return std::make_shared<DuckEdgeChunkReader>(std::move(base_ptr), file_reader, context, chunk_size, edge_info, adj_list_type, prefix);
+    static graphar::Result<std::shared_ptr<DuckEdgeChunkReader>> Make(
+        ClientContext& context, std::shared_ptr<DuckParquetFileReader> file_reader, idx_t chunk_size,
+        const std::shared_ptr<graphar::EdgeInfo>& edge_info,
+        const std::shared_ptr<graphar::PropertyGroup>& property_group, graphar::AdjListType adj_list_type,
+        const std::string& prefix) {
+        GAR_ASSIGN_OR_RAISE(auto base_ptr,
+                            BaseArrowChunkReader::Make(edge_info, property_group, adj_list_type, prefix));
+        return std::make_shared<DuckEdgeChunkReader>(std::move(base_ptr), file_reader, context, chunk_size, edge_info,
+                                                     adj_list_type, prefix);
     }
 
     void FilterByRange(std::pair<int64_t, int64_t> vid_range, const std::string& filter_column) {
@@ -210,7 +221,8 @@ public:
         } else {
             this->base->seek_dst(vid_range.first);
         }
-        GAR_ASSIGN_OR_RAISE_ERROR(auto offset_pair, graphar::util::GetAdjListOffsetOfVertex(edge_info, prefix, adj_list_type, vid_range.first));
+        GAR_ASSIGN_OR_RAISE_ERROR(auto offset_pair, graphar::util::GetAdjListOffsetOfVertex(
+                                                        edge_info, prefix, adj_list_type, vid_range.first));
         this->offset_rows = offset_pair.first % this->chunk_size;
         this->rows_to_read = offset_pair.second - offset_pair.first;
         this->single_chunk = true;
@@ -225,13 +237,14 @@ public:
         }
         this->proj_columns = std::move(proj_columns_);
     }
+
 private:
     graphar::AdjListType adj_list_type;
     std::shared_ptr<graphar::EdgeInfo> edge_info;
     const std::string& prefix;
 };
 
-} // namespace duckdb
+}  // namespace duckdb
 
 namespace graphar {
 
@@ -239,4 +252,4 @@ using DuckAdjListChunkReader = duckdb::DuckEdgeChunkReader<AdjListChunkInfoReade
 using DuckAdjListPropertyChunkReader = duckdb::DuckEdgeChunkReader<AdjListPropertyChunkInfoReader>;
 using DuckVertexPropertyChunkReader = duckdb::DuckVertexChunkReader;
 
-} // namespace graphar
+}  // namespace graphar

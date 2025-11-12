@@ -187,8 +187,8 @@ std::int64_t GetVertexCount(const std::shared_ptr<graphar::EdgeInfo>& edge_info,
     return GetCount(directory + vertex_num_path);
 }
 
-void ConvertArrowTableToDataChunk(const arrow::Table& table, DataChunk& output,
-                                             const std::vector<column_t>& column_ids, ClientContext& context) {
+void ConvertArrowTableToDataChunk(const arrow::Table& table, DataChunk& output, const std::vector<column_t>& column_ids,
+                                  ClientContext& context) {
     auto schema = table.schema();
 
     ArrowSchema c_schema;
@@ -246,10 +246,10 @@ void ConvertArrowTableToDataChunk(const arrow::Table& table, DataChunk& output,
         array_state.owned_data->arrow_array = std::move(c_array);
 
         ArrowToDuckDBConversion::SetValidityMask(output.data[col_idx], array_state.owned_data->arrow_array, 0,
-                                                    output.size(), 0, -1);
+                                                 output.size(), 0, -1);
 
         ArrowToDuckDBConversion::ColumnArrowToDuckDB(output.data[col_idx], array_state.owned_data->arrow_array, 0,
-                                                        array_state, output.size(), arrow_type);
+                                                     array_state, output.size(), arrow_type);
     }
 }
 

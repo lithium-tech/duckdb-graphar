@@ -23,8 +23,8 @@ namespace duckdb {
 //-------------------------------------------------------------------
 // GetBindData
 //-------------------------------------------------------------------
-void ReadVertices::SetBindData(std::shared_ptr<graphar::GraphInfo> graph_info, std::shared_ptr<graphar::VertexInfo> vertex_info,
-                               unique_ptr<ReadBindData>& bind_data) {
+void ReadVertices::SetBindData(std::shared_ptr<graphar::GraphInfo> graph_info,
+                               std::shared_ptr<graphar::VertexInfo> vertex_info, unique_ptr<ReadBindData>& bind_data) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadVertices::SetBindData");
     ReadBase::SetBindData(graph_info, vertex_info, bind_data, "read_vertices", 1, 0, {GID_COLUMN_INTERNAL});
 }
@@ -83,10 +83,12 @@ std::shared_ptr<Reader> ReadVertices::GetReader(ReadBaseGlobalTableFunctionState
     const auto& prefix = bind_data.graph_info->GetPrefix();
     if (bind_data.pgs[ind]->GetFileType() == graphar::FileType::PARQUET) {
         DUCKDB_GRAPHAR_LOG_DEBUG("Making duckdb reader");
-        return ConvertReader(graphar::DuckVertexPropertyChunkReader::Make(context, gstate.file_reader, bind_data.chunk_size, vertex_info, bind_data.pgs[ind], prefix));
+        return ConvertReader(graphar::DuckVertexPropertyChunkReader::Make(
+            context, gstate.file_reader, bind_data.chunk_size, vertex_info, bind_data.pgs[ind], prefix));
     } else {
         DUCKDB_GRAPHAR_LOG_DEBUG("Making arrow reader");
-        return ConvertReader(graphar::DuckVertexPropertyArrowChunkReader::Make(context, vertex_info, bind_data.pgs[ind], prefix));
+        return ConvertReader(
+            graphar::DuckVertexPropertyArrowChunkReader::Make(context, vertex_info, bind_data.pgs[ind], prefix));
     }
 }
 //-------------------------------------------------------------------
@@ -118,12 +120,8 @@ unique_ptr<BaseStatistics> ReadVertices::GetStatistics(ClientContext& context, c
 void ReadVertices::PushdownComplexFilter(ClientContext& context, LogicalGet& get, FunctionData* bind_data,
                                          vector<unique_ptr<Expression>>& filters) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadVertices::PushdownComplexFilter");
-    for (auto& filter : filters) {
-        std::cout << "filter " << filter->ToString() << std::endl;
-    }
-    std::cout << std::endl;
     auto read_bind_data = dynamic_cast<ReadBindData*>(bind_data);
-    for (auto &pg: read_bind_data->pgs) {
+    for (auto& pg : read_bind_data->pgs) {
         if (pg->GetFileType() != graphar::FileType::PARQUET) {
             // our pushdown works greatly only for parquet files
             return;
@@ -183,7 +181,7 @@ TableFunction ReadVertices::GetScanFunction() {
     TableFunction read_vertices({}, Execute, Bind);
     read_vertices.init_global = ReadVertices::Init;
 
-    read_vertices.filter_pushdown = false;
+    read_vertices.filter_pushdown = true;
     read_vertices.projection_pushdown = true;
     read_vertices.statistics = ReadVertices::GetStatistics;
     read_vertices.pushdown_complex_filter = ReadVertices::PushdownComplexFilter;

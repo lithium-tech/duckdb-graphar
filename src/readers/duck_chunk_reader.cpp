@@ -28,8 +28,8 @@ std::string QueryStringConstructor::GetMainQueryString(const std::vector<column_
             } else if (query_type == QueryType::LAST) {
                 ss << " " << SQL_WHERE_CLAUSE << " " << FILE_ROW_NUMBER_CLAUSE << " <= " << range.second;
             } else if (query_type == QueryType::SINGLE) {
-                ss << " " << SQL_WHERE_CLAUSE << " " << FILE_ROW_NUMBER_CLAUSE << " " << SQL_BETWEEN_CLAUSE << " " << range.first << " AND "
-                   << range.second;
+                ss << " " << SQL_WHERE_CLAUSE << " " << FILE_ROW_NUMBER_CLAUSE << " " << SQL_BETWEEN_CLAUSE << " "
+                   << range.first << " AND " << range.second;
             }
             break;
         default:
@@ -39,4 +39,4 @@ std::string QueryStringConstructor::GetMainQueryString(const std::vector<column_
     return ss.str();
 }
 
-} // namespace duckdb
+}  // namespace duckdb

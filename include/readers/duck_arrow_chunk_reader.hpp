@@ -3,24 +3,22 @@
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
 
-#include <duckdb.hpp>
-
 #include <graphar/arrow/chunk_reader.h>
 #include <graphar/result.h>
 
+#include <duckdb.hpp>
 #include <iostream>
 
 namespace graphar {
 
-template<typename BaseArrowChunkReader>
-requires(std::is_same_v<BaseArrowChunkReader, VertexPropertyArrowChunkReader>
-    || std::is_same_v<BaseArrowChunkReader, AdjListArrowChunkReader>
-    || std::is_same_v<BaseArrowChunkReader, AdjListPropertyArrowChunkReader>
-)
+template <typename BaseArrowChunkReader>
+requires(std::is_same_v<BaseArrowChunkReader, VertexPropertyArrowChunkReader> ||
+         std::is_same_v<BaseArrowChunkReader, AdjListArrowChunkReader> ||
+         std::is_same_v<BaseArrowChunkReader, AdjListPropertyArrowChunkReader>)
 class DuckArrowChunkReader {
 public:
-    DuckArrowChunkReader(std::shared_ptr<BaseArrowChunkReader> base_, duckdb::ClientContext& context_) : base(std::move(base_)), context(context_) {
-    }
+    DuckArrowChunkReader(std::shared_ptr<BaseArrowChunkReader> base_, duckdb::ClientContext& context_)
+        : base(std::move(base_)), context(context_) {}
 
     template <typename... Args>
     static Result<std::shared_ptr<DuckArrowChunkReader>> Make(duckdb::ClientContext& context, Args&&... args) {
@@ -64,9 +62,7 @@ public:
         throw duckdb::NotImplementedException("Arrow-based readers do not suppport filtering!");
     }
 
-    void SelectColumns(std::vector<duckdb::column_t>& proj_columns_) {
-        proj_columns = std::move(proj_columns_);
-    }
+    void SelectColumns(std::vector<duckdb::column_t>& proj_columns_) { proj_columns = std::move(proj_columns_); }
 
 private:
     std::vector<duckdb::column_t> proj_columns;
@@ -80,4 +76,4 @@ using DuckVertexPropertyArrowChunkReader = DuckArrowChunkReader<VertexPropertyAr
 using DuckAdjListArrowChunkReader = DuckArrowChunkReader<AdjListArrowChunkReader>;
 using DuckAdjListPropertyArrowChunkReader = DuckArrowChunkReader<AdjListPropertyArrowChunkReader>;
 
-} // namespace graphar
+}  // namespace graphar
