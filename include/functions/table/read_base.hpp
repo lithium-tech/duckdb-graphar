@@ -73,10 +73,6 @@ static const graphar::PropertyGroupVector& GetPropertyGroups(TypeInfoPtr& type_i
                       type_info);
 }
 
-static int64_t GetChunkSize(TypeInfoPtr& type_info) {
-    return std::visit([&](auto& t) { return t->GetChunkSize(); }, type_info);
-}
-
 static std::string GetVertexTypeName(TypeInfoPtr& type_info, const std::string& column_name) {
     return std::visit(
         [&](auto& t) {
@@ -118,7 +114,6 @@ private:
     graphar::PropertyGroupVector pgs;
     idx_t id_columns_num = 0;
     idx_t pg_for_id = 0;
-    idx_t chunk_size = -1;
 
     std::pair<graphar::IdType, graphar::IdType> vid_range = {-1, -1};
     std::string filter_column;
@@ -207,10 +202,6 @@ public:
         bind_data->id_columns_num = id_columns_num;
         bind_data->pg_for_id = pg_for_id;
         bind_data->type_info = type_info;
-        bind_data->chunk_size = GetChunkSize(type_info);
-        if (bind_data->chunk_size == 0) {
-            throw IOException("Chunk size can not be 0");
-        }
         if (std::holds_alternative<std::shared_ptr<graphar::VertexInfo>>(type_info)) {
             auto vertex_info = *std::get_if<std::shared_ptr<graphar::VertexInfo>>(&type_info);
             bind_data->params = {vertex_info->GetType()};
@@ -313,7 +304,8 @@ public:
             vid_range.first = std::max(zero, vid_range.first);
             vid_range.second = std::min(vertex_num - 1, vid_range.second);
             if (vid_range.first > vid_range.second) {
-                throw IOException("Invalid filter range");
+                throw IOException("Invalid filter range: " + std::to_string(vid_range.first) + " > " +
+                                  std::to_string(vid_range.second));
             }
             for (auto& reader : gstate.readers) {
                 FilterByRange(*reader, vid_range, filter_column);

@@ -83,8 +83,8 @@ std::shared_ptr<Reader> ReadVertices::GetReader(ReadBaseGlobalTableFunctionState
     const auto& prefix = bind_data.graph_info->GetPrefix();
     if (bind_data.pgs[ind]->GetFileType() == graphar::FileType::PARQUET) {
         DUCKDB_GRAPHAR_LOG_DEBUG("Making duckdb reader");
-        return ConvertReader(graphar::DuckVertexPropertyChunkReader::Make(
-            context, gstate.file_reader, bind_data.chunk_size, vertex_info, bind_data.pgs[ind], prefix));
+        return ConvertReader(graphar::DuckVertexPropertyChunkReader::Make(context, gstate.file_reader, vertex_info,
+                                                                          bind_data.pgs[ind], prefix));
     } else {
         DUCKDB_GRAPHAR_LOG_DEBUG("Making arrow reader");
         return ConvertReader(
@@ -144,8 +144,8 @@ void ReadVertices::PushdownComplexFilter(ClientContext& context, LogicalGet& get
                     auto column_name = comparison.left->ToString();
                     if (column_name == GID_COLUMN_INTERNAL) {
                         can_pushdown = true;
-                        read_bind_data->vid_range = std::make_pair(std::stoll(comparison.right->ToString()),
-                                                                   std::stoll(comparison.right->ToString()));
+                        const auto vid = std::stoll(comparison.right->ToString());
+                        read_bind_data->vid_range = std::make_pair(vid, vid);
                         read_bind_data->filter_column = column_name;
                     }
                 }

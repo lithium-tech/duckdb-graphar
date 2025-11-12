@@ -32,9 +32,5 @@ public:
 
     static TableFunction GetFunction();
     static TableFunction GetScanFunction();
-
-    static void SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
-                          const std::pair<graphar::IdType, graphar::IdType>& vid_range,
-                          const std::string& filter_column);
 };
 }  // namespace duckdb

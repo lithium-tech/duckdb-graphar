@@ -72,7 +72,7 @@ private:
     unique_ptr<DataChunk> cur_chunk = nullptr;
 };
 
-} // namespace duckdb
+}  // namespace duckdb
 
 namespace graphar {
 
