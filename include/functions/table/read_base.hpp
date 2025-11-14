@@ -139,6 +139,7 @@ private:
     std::string function_name;
     int64_t total_rows = 0;
     vector<column_t> column_ids;
+    vector<vector<column_t>> global_projected_inds;
     idx_t id_columns_num = 0;
 
     std::shared_ptr<DuckParquetFileReader> file_reader;
@@ -252,9 +253,6 @@ public:
         columns_pref_num[0] = 0;
         for (idx_t i = 0; i < prop_types_size; i++) {
             columns_pref_num[i + 1] = columns_pref_num[i] + bind_data.prop_types[i].size();
-            if (!bind_data.pg_for_id && i > 1) {
-                columns_pref_num[i + 1] -= bind_data.id_columns_num;
-            }
         }
 
         gstate.file_reader = std::make_shared<DuckParquetFileReader>(std::make_shared<Connection>(*context.db));
@@ -263,33 +261,35 @@ public:
 
         gstate.prop_names = std::move(bind_data.prop_names);
         gstate.prop_types = std::move(bind_data.prop_types);
-        vector<vector<column_t>> projected_inds(prop_types_size);
-        gstate.readers.reserve(prop_types_size);
+        vector<vector<column_t>> local_projected_inds(prop_types_size);
+        gstate.global_projected_inds.resize(prop_types_size);
+        gstate.readers.resize(prop_types_size);
         if (gstate.column_ids.empty() ||
             gstate.column_ids.size() == 1 && gstate.column_ids[0] == COLUMN_IDENTIFIER_ROW_ID) {
             DUCKDB_GRAPHAR_LOG_DEBUG("Returning any column");
-            projected_inds[0].emplace_back(0);
-            gstate.readers.emplace_back(GetReader(context, gstate, bind_data, 0, filter_column));
-            SelectColumns(*gstate.readers.back(), projected_inds[0]);
+            local_projected_inds[0].emplace_back(0);
+            gstate.readers[0] = GetReader(context, gstate, bind_data, 0, filter_column);
+            gstate.global_projected_inds[0].emplace_back(0);
+            SelectColumns(*gstate.readers[0], local_projected_inds[0]);
         } else {
             DUCKDB_GRAPHAR_LOG_DEBUG("Returning specific columns");
-            idx_t it = 0;
-            for (idx_t i = 1; i < columns_pref_num.size(); ++i) {
-                while (it < gstate.column_ids.size() && gstate.column_ids[it] < columns_pref_num[i]) {
-                    auto projected_ind = gstate.column_ids[it] - columns_pref_num[i - 1];
-                    if (!bind_data.pg_for_id && i > 1) {
-                        projected_ind += bind_data.id_columns_num;
-                    }
-                    projected_inds[i - 1].emplace_back(projected_ind);
-                    it++;
+            for (idx_t column_i = 0; column_i < gstate.column_ids.size(); ++column_i) {
+                const auto &column_id = gstate.column_ids[column_i];
+                const auto i = std::upper_bound(columns_pref_num.begin(), columns_pref_num.end(), column_id) - columns_pref_num.begin() - 1;
+                auto projected_ind = column_id - columns_pref_num[i];
+                if (!bind_data.pg_for_id && i > 0) {
+                    projected_ind += bind_data.id_columns_num;
                 }
+                local_projected_inds[i].emplace_back(projected_ind);
+                gstate.global_projected_inds[i].emplace_back(column_i);
             }
+
             for (idx_t i = 0; i < prop_types_size; ++i) {
-                if (projected_inds[i].empty()) {
+                if (local_projected_inds[i].empty()) {
                     continue;
                 }
-                gstate.readers.emplace_back(GetReader(context, gstate, bind_data, i, filter_column));
-                SelectColumns(*gstate.readers.back(), projected_inds[i]);
+                gstate.readers[i] = std::move(GetReader(context, gstate, bind_data, i, filter_column));
+                SelectColumns(*gstate.readers[i], local_projected_inds[i]);
             }
         }
 
@@ -308,6 +308,9 @@ public:
                                   std::to_string(vid_range.second));
             }
             for (auto& reader : gstate.readers) {
+                if (!reader) {
+                    continue;
+                }
                 FilterByRange(*reader, vid_range, filter_column);
             }
         }
@@ -343,17 +346,22 @@ public:
         DUCKDB_GRAPHAR_LOG_DEBUG("Chunk " + std::to_string(gstate.chunk_count) + ": Begin iteration");
 
         idx_t num_rows = STANDARD_VECTOR_SIZE;
-        for (idx_t i = 0; i < gstate.readers.size() && num_rows; i++) {
-            num_rows = std::min(num_rows, ReserveRowsToRead(*gstate.readers[i]));
+        for (auto &reader: gstate.readers) {
+            if (!reader || !num_rows) {
+                continue;
+            }
+            num_rows = std::min(num_rows, ReserveRowsToRead(*reader));
         }
         DUCKDB_GRAPHAR_LOG_DEBUG("num rows final: " + std::to_string(num_rows));
 
         if (num_rows > 0) {
-            idx_t it = 0;
             for (idx_t i = 0; i < gstate.readers.size(); i++) {
+                if (!gstate.readers[i]) {
+                    continue;
+                }
                 gstate.cur_chunks[i] = std::move(GetChunk(*gstate.readers[i], num_rows));
                 for (idx_t j = 0; j < gstate.cur_chunks[i]->ColumnCount(); j++) {
-                    output.data[it++].Reference(gstate.cur_chunks[i]->data[j]);
+                    output.data[gstate.global_projected_inds[i][j]].Reference(gstate.cur_chunks[i]->data[j]);
                 }
             }
         }
