@@ -77,8 +77,8 @@ unique_ptr<FunctionData> ReadEdges::Bind(ClientContext& context, TableFunctionBi
 //-------------------------------------------------------------------
 // GetReader
 //-------------------------------------------------------------------
-std::shared_ptr<Reader> ReadEdges::GetReader(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
-                                             idx_t ind, const std::string& filter_column, ClientContext& context) {
+std::shared_ptr<Reader> ReadEdges::GetReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate,
+                                             ReadBindData& bind_data, idx_t ind, const std::string& filter_column) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader");
     graphar::AdjListType adj_list_type;
     if (filter_column == "" or filter_column == SRC_GID_COLUMN) {
@@ -89,6 +89,9 @@ std::shared_ptr<Reader> ReadEdges::GetReader(ReadBaseGlobalTableFunctionState& g
         throw NotImplementedException("Only src and dst filters are supported");
     }
     auto edge_info = *std::get_if<std::shared_ptr<graphar::EdgeInfo>>(&bind_data.type_info);
+    if (!edge_info) {
+        throw InternalException("Failed to get edge info");
+    }
     const auto& prefix = bind_data.graph_info->GetPrefix();
     if (ind == 0) {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader: making src and dst reader...");
@@ -142,6 +145,9 @@ unique_ptr<BaseStatistics> ReadEdges::GetStatistics(ClientContext& context, cons
 void ReadEdges::PushdownComplexFilter(ClientContext& context, LogicalGet& get, FunctionData* bind_data,
                                       vector<unique_ptr<Expression>>& filters) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::PushdownComplexFilter");
+    if (!bind_data) {
+        throw InternalException("Bind data is nullptr");
+    }
     auto read_bind_data = dynamic_cast<ReadBindData*>(bind_data);
     for (auto& pg : read_bind_data->pgs) {
         if (pg->GetFileType() != graphar::FileType::PARQUET) {

@@ -54,8 +54,8 @@ static unique_ptr<DataChunk> GetChunk(Reader& reader, int64_t num_rows) {
         reader);
 }
 
-static idx_t EnsureNotRead(Reader& reader) {
-    return std::visit([&](auto& r) { return r.EnsureNotRead(); }, reader);
+static idx_t ReserveRowsToRead(Reader& reader) {
+    return std::visit([&](auto& r) { return r.ReserveRowsToRead(); }, reader);
 }
 
 static void FilterByRange(Reader& reader, std::pair<int64_t, int64_t> vid_range, const std::string& filter_column) {
@@ -219,9 +219,9 @@ public:
         return ReadFinal::Bind(context, input, return_types, names);
     }
 
-    static std::shared_ptr<Reader> GetReader(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
-                                             idx_t ind, const std::string& filter_column, ClientContext& context) {
-        return ReadFinal::GetReader(gstate, bind_data, ind, filter_column, context);
+    static std::shared_ptr<Reader> GetReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate,
+                                             ReadBindData& bind_data, idx_t ind, const std::string& filter_column) {
+        return ReadFinal::GetReader(context, gstate, bind_data, ind, filter_column);
     }
 
     static unique_ptr<GlobalTableFunctionState> Init(ClientContext& context, TableFunctionInitInput& input) {
@@ -269,7 +269,7 @@ public:
             gstate.column_ids.size() == 1 && gstate.column_ids[0] == COLUMN_IDENTIFIER_ROW_ID) {
             DUCKDB_GRAPHAR_LOG_DEBUG("Returning any column");
             projected_inds[0].emplace_back(0);
-            gstate.readers.emplace_back(GetReader(gstate, bind_data, 0, filter_column, context));
+            gstate.readers.emplace_back(GetReader(context, gstate, bind_data, 0, filter_column));
             SelectColumns(*gstate.readers.back(), projected_inds[0]);
         } else {
             DUCKDB_GRAPHAR_LOG_DEBUG("Returning specific columns");
@@ -288,7 +288,7 @@ public:
                 if (projected_inds[i].empty()) {
                     continue;
                 }
-                gstate.readers.emplace_back(GetReader(gstate, bind_data, i, filter_column, context));
+                gstate.readers.emplace_back(GetReader(context, gstate, bind_data, i, filter_column));
                 SelectColumns(*gstate.readers.back(), projected_inds[i]);
             }
         }
@@ -344,7 +344,7 @@ public:
 
         idx_t num_rows = STANDARD_VECTOR_SIZE;
         for (idx_t i = 0; i < gstate.readers.size() && num_rows; i++) {
-            num_rows = std::min(num_rows, EnsureNotRead(*gstate.readers[i]));
+            num_rows = std::min(num_rows, ReserveRowsToRead(*gstate.readers[i]));
         }
         DUCKDB_GRAPHAR_LOG_DEBUG("num rows final: " + std::to_string(num_rows));
 

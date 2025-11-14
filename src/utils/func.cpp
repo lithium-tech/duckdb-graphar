@@ -192,8 +192,7 @@ void ConvertArrowTableToDataChunk(const arrow::Table& table, DataChunk& output, 
     auto schema = table.schema();
 
     ArrowSchema c_schema;
-    auto export_schema_status = arrow::ExportSchema(*schema, &c_schema);
-    if (!export_schema_status.ok()) {
+    if (auto export_schema_status = arrow::ExportSchema(*schema, &c_schema); !export_schema_status.ok()) {
         throw std::runtime_error("Failed to export schema: " + export_schema_status.message());
     }
 
@@ -202,9 +201,10 @@ void ConvertArrowTableToDataChunk(const arrow::Table& table, DataChunk& output, 
 
     if (output.ColumnCount() == 0) {
         vector<LogicalType> types;
+        types.reserve(column_ids.size());
         for (idx_t col_idx = 0; col_idx < column_ids.size(); col_idx++) {
             auto& arrow_type = *arrow_table_schema.GetColumns().at(column_ids[col_idx]);
-            types.push_back(arrow_type.GetDuckType());
+            types.emplace_back(arrow_type.GetDuckType());
         }
         output.Initialize(context, types, table.num_rows());
     }
@@ -233,7 +233,7 @@ void ConvertArrowTableToDataChunk(const arrow::Table& table, DataChunk& output, 
         if (!flatten_result.ok()) {
             throw std::runtime_error("Failed to flatten Arrow column");
         }
-        auto arrow_array = flatten_result.ValueOrDie();
+        auto arrow_array = flatten_result.ValueUnsafe();
 
         ArrowArray c_array;
         auto export_array_status = arrow::ExportArray(*arrow_array, &c_array);

@@ -1,5 +1,16 @@
 #include "readers/duck_chunk_reader.hpp"
 
+namespace {
+constexpr std::string_view SQL_SELECT_CLAUSE = "SELECT";
+constexpr std::string_view SQL_FROM_CLAUSE = "FROM";
+constexpr std::string_view SQL_WHERE_CLAUSE = "WHERE";
+constexpr std::string_view SQL_BETWEEN_CLAUSE = "BETWEEN";
+constexpr std::string_view SQL_LIMIT_CLAUSE = "LIMIT";
+constexpr std::string_view SQL_OFFSET_CLAUSE = "OFFSET";
+constexpr std::string_view READ_PARQUET_FUNCTION = "read_parquet";
+constexpr std::string_view FILE_ROW_NUMBER_CLAUSE = "file_row_number";
+}  // namespace
+
 namespace duckdb {
 
 std::string QueryStringConstructor::GetMainQueryString(const std::vector<column_t>& proj_columns,
@@ -23,13 +34,20 @@ std::string QueryStringConstructor::GetMainQueryString(const std::vector<column_
             ss << " " << SQL_FROM_CLAUSE << " ";
             ss << READ_PARQUET_FUNCTION;
             ss << "($1, " << FILE_ROW_NUMBER_CLAUSE << "=true)";
-            if (query_type == QueryType::FIRST) {
-                ss << " " << SQL_WHERE_CLAUSE << " " << FILE_ROW_NUMBER_CLAUSE << " >= " << range.first;
-            } else if (query_type == QueryType::LAST) {
-                ss << " " << SQL_WHERE_CLAUSE << " " << FILE_ROW_NUMBER_CLAUSE << " <= " << range.second;
-            } else if (query_type == QueryType::SINGLE) {
-                ss << " " << SQL_WHERE_CLAUSE << " " << FILE_ROW_NUMBER_CLAUSE << " " << SQL_BETWEEN_CLAUSE << " "
-                   << range.first << " AND " << range.second;
+            switch (query_type) {
+                case QueryType::FIRST:
+                    ss << " " << SQL_WHERE_CLAUSE << " " << FILE_ROW_NUMBER_CLAUSE << " >= " << range.first;
+                    break;
+                case QueryType::LAST:
+                    ss << " " << SQL_WHERE_CLAUSE << " " << FILE_ROW_NUMBER_CLAUSE << " <= " << range.second;
+                    break;
+                case QueryType::SINGLE:
+                    ss << " " << SQL_WHERE_CLAUSE << " " << FILE_ROW_NUMBER_CLAUSE << " " << SQL_BETWEEN_CLAUSE << " "
+                       << range.first << " AND " << range.second;
+                    break;
+                case QueryType::MIDDLE:
+                    // No WHERE clause needed
+                    break;
             }
             break;
         default:

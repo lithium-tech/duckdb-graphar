@@ -17,8 +17,8 @@ requires(std::is_same_v<BaseArrowChunkReader, graphar::VertexPropertyArrowChunkR
          std::is_same_v<BaseArrowChunkReader, graphar::AdjListPropertyArrowChunkReader>)
 class DuckArrowChunkReader {
 public:
-    DuckArrowChunkReader(std::shared_ptr<BaseArrowChunkReader> base_, ClientContext& context_)
-        : base(std::move(base_)), context(context_) {}
+    DuckArrowChunkReader(std::shared_ptr<BaseArrowChunkReader> init_base, ClientContext& init_context)
+        : base(std::move(init_base)), context(init_context) {}
 
     template <typename... Args>
     static graphar::Result<std::shared_ptr<DuckArrowChunkReader>> Make(ClientContext& context, Args&&... args) {
@@ -26,7 +26,7 @@ public:
         return std::make_shared<DuckArrowChunkReader>(std::move(base_ptr), context);
     }
 
-    idx_t EnsureNotRead() {
+    idx_t ReserveRowsToRead() {
         if (!cur_chunk) {
             GAR_ASSIGN_OR_RAISE_ERROR(auto arrow_table, base->GetChunk());
             cur_chunk = make_uniq<DataChunk>();
@@ -44,7 +44,7 @@ public:
     }
 
     graphar::Result<unique_ptr<DataChunk>> GetChunk(idx_t num_rows) {
-        if (EnsureNotRead() == 0) {
+        if (ReserveRowsToRead() == 0) {
             throw graphar::Status::IndexError("No more chunks to read!");
         }
         if (num_rows > cur_chunk->size() - read_rows) {

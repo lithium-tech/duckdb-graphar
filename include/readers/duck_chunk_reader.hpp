@@ -21,19 +21,7 @@ public:
     std::string GetMainQueryString(const std::vector<column_t>& proj_columns,
                                    std::pair<int64_t, int64_t> range = {-1, -1});
 
-    std::string GetGrapharOffsetQueryString();
-
-    void SetFileType(graphar::FileType file_type_) { file_type = file_type_; }
-
-private:
-    static constexpr std::string_view SQL_SELECT_CLAUSE = "SELECT";
-    static constexpr std::string_view SQL_FROM_CLAUSE = "FROM";
-    static constexpr std::string_view SQL_WHERE_CLAUSE = "WHERE";
-    static constexpr std::string_view SQL_BETWEEN_CLAUSE = "BETWEEN";
-    static constexpr std::string_view SQL_LIMIT_CLAUSE = "LIMIT";
-    static constexpr std::string_view SQL_OFFSET_CLAUSE = "OFFSET";
-    static constexpr std::string_view READ_PARQUET_FUNCTION = "read_parquet";
-    static constexpr std::string_view FILE_ROW_NUMBER_CLAUSE = "file_row_number";
+    void SetFileType(graphar::FileType new_file_type) { file_type = new_file_type; }
 
 private:
     graphar::FileType file_type = graphar::FileType::PARQUET;
@@ -60,11 +48,11 @@ private:
 template <typename BaseArrowChunkReader>
 class BaseDuckChunkReader {
 public:
-    BaseDuckChunkReader(std::shared_ptr<BaseArrowChunkReader> base_,
-                        std::shared_ptr<DuckParquetFileReader> file_reader_, ClientContext& context_)
-        : base(std::move(base_)), file_reader(std::move(file_reader_)), context(context_) {}
+    BaseDuckChunkReader(ClientContext& init_context, std::shared_ptr<BaseArrowChunkReader> init_base,
+                        std::shared_ptr<DuckParquetFileReader> init_file_reader)
+        : context(init_context), base(std::move(init_base)), file_reader(std::move(init_file_reader)) {}
 
-    idx_t EnsureNotRead() {
+    idx_t ReserveRowsToRead() {
         if (rows_to_read == 0) {
             return 0;
         }
@@ -98,11 +86,12 @@ public:
     }
 
     graphar::Result<duckdb::unique_ptr<duckdb::DataChunk>> GetChunk(duckdb::idx_t num_rows) {
-        if (EnsureNotRead() == 0) {
+        if (ReserveRowsToRead() == 0) {
             throw graphar::Status::IndexError("No more chunks to read!");
         }
         if (num_rows > cur_chunk->size() - read_rows) {
-            throw graphar::Status::IndexError("Can't read this many rows");
+            throw graphar::Status::IndexError("Could read at most " + std::to_string(cur_chunk->size() - read_rows) +
+                                              " rows, but " + std::to_string(num_rows) + " were requested");
         }
         auto res = duckdb::make_uniq<duckdb::DataChunk>();
         res->Initialize(context, cur_chunk->GetTypes());
@@ -142,10 +131,10 @@ protected:
 class DuckVertexChunkReader : public BaseDuckChunkReader<graphar::VertexPropertyChunkInfoReader> {
 public:
     template <typename... Args>
-    explicit DuckVertexChunkReader(const std::shared_ptr<graphar::VertexInfo>& vertex_info_, Args&&... args)
+    explicit DuckVertexChunkReader(const std::shared_ptr<graphar::VertexInfo>& init_vertex_info, Args&&... args)
         : BaseDuckChunkReader<graphar::VertexPropertyChunkInfoReader>(std::forward<Args>(args)...),
-          vertex_info(vertex_info_) {
-        this->chunk_size = vertex_info_->GetChunkSize();
+          vertex_info(init_vertex_info) {
+        this->chunk_size = vertex_info->GetChunkSize();
     }
 
     template <typename... Args>
@@ -153,14 +142,14 @@ public:
         ClientContext& context, std::shared_ptr<DuckParquetFileReader> file_reader,
         const std::shared_ptr<graphar::VertexInfo>& vertex_info,
         const std::shared_ptr<graphar::PropertyGroup>& property_group, const std::string& prefix) {
-        GAR_ASSIGN_OR_RAISE(auto base_ptr,
+        GAR_ASSIGN_OR_RAISE(auto init_baseptr,
                             graphar::VertexPropertyChunkInfoReader::Make(vertex_info, property_group, prefix));
-        return std::make_shared<DuckVertexChunkReader>(vertex_info, std::move(base_ptr), file_reader, context);
+        return std::make_shared<DuckVertexChunkReader>(vertex_info, context, std::move(init_baseptr), file_reader);
     }
 
-    void FilterByRange(std::pair<int64_t, int64_t> vid_range, const std::string& filter_column) {
+    void FilterByRange(const std::pair<int64_t, int64_t>& vid_range, const std::string& filter_column) {
         if (cur_result) {
-            throw std::runtime_error("Can't filter after reading started!");
+            throw std::runtime_error("Can't filter the data after the start of reading");
         }
         GAR_RAISE_ERROR_NOT_OK(base->seek(vid_range.first));
         offset_rows = vid_range.first % this->chunk_size;
@@ -175,11 +164,11 @@ private:
 template <typename BaseArrowChunkReader>
 class DuckEdgeChunkReader : public BaseDuckChunkReader<BaseArrowChunkReader> {
 public:
-    DuckEdgeChunkReader(std::shared_ptr<BaseArrowChunkReader> base_,
-                        std::shared_ptr<DuckParquetFileReader> file_reader_, ClientContext& context_,
+    DuckEdgeChunkReader(std::shared_ptr<BaseArrowChunkReader> init_base,
+                        std::shared_ptr<DuckParquetFileReader> init_file_reader, ClientContext& init_context,
                         const std::shared_ptr<graphar::EdgeInfo>& edge_info_, graphar::AdjListType adj_list_type_,
                         const std::string& prefix_)
-        : BaseDuckChunkReader<BaseArrowChunkReader>(std::move(base_), std::move(file_reader_), context_),
+        : BaseDuckChunkReader<BaseArrowChunkReader>(init_context, std::move(init_base), std::move(init_file_reader)),
           edge_info(edge_info_),
           adj_list_type(adj_list_type_),
           prefix(prefix_) {
@@ -190,8 +179,8 @@ public:
         ClientContext& context, std::shared_ptr<DuckParquetFileReader> file_reader,
         const std::shared_ptr<graphar::EdgeInfo>& edge_info, graphar::AdjListType adj_list_type,
         const std::string& prefix) {
-        GAR_ASSIGN_OR_RAISE(auto base_ptr, BaseArrowChunkReader::Make(edge_info, adj_list_type, prefix));
-        return std::make_shared<DuckEdgeChunkReader>(std::move(base_ptr), file_reader, context, edge_info,
+        GAR_ASSIGN_OR_RAISE(auto init_baseptr, BaseArrowChunkReader::Make(edge_info, adj_list_type, prefix));
+        return std::make_shared<DuckEdgeChunkReader>(std::move(init_baseptr), file_reader, context, edge_info,
                                                      adj_list_type, prefix);
     }
 
@@ -200,13 +189,13 @@ public:
         const std::shared_ptr<graphar::EdgeInfo>& edge_info,
         const std::shared_ptr<graphar::PropertyGroup>& property_group, graphar::AdjListType adj_list_type,
         const std::string& prefix) {
-        GAR_ASSIGN_OR_RAISE(auto base_ptr,
+        GAR_ASSIGN_OR_RAISE(auto init_baseptr,
                             BaseArrowChunkReader::Make(edge_info, property_group, adj_list_type, prefix));
-        return std::make_shared<DuckEdgeChunkReader>(std::move(base_ptr), file_reader, context, edge_info,
+        return std::make_shared<DuckEdgeChunkReader>(std::move(init_baseptr), file_reader, context, edge_info,
                                                      adj_list_type, prefix);
     }
 
-    void FilterByRange(std::pair<int64_t, int64_t> vid_range, const std::string& filter_column) {
+    void FilterByRange(const std::pair<int64_t, int64_t>& vid_range, const std::string& filter_column) {
         if (this->cur_result) {
             throw std::runtime_error("Can't filter after reading started!");
         }

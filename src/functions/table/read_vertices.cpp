@@ -76,10 +76,13 @@ unique_ptr<FunctionData> ReadVertices::Bind(ClientContext& context, TableFunctio
 //-------------------------------------------------------------------
 // GetReader
 //-------------------------------------------------------------------
-std::shared_ptr<Reader> ReadVertices::GetReader(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
-                                                idx_t ind, const std::string& filter_column, ClientContext& context) {
+std::shared_ptr<Reader> ReadVertices::GetReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate,
+                                                ReadBindData& bind_data, idx_t ind, const std::string& filter_column) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadVertices::GetReader");
     auto vertex_info = *std::get_if<std::shared_ptr<graphar::VertexInfo>>(&bind_data.type_info);
+    if (!vertex_info) {
+        throw InternalException("Failed to get vertex info");
+    }
     const auto& prefix = bind_data.graph_info->GetPrefix();
     if (bind_data.pgs[ind]->GetFileType() == graphar::FileType::PARQUET) {
         DUCKDB_GRAPHAR_LOG_DEBUG("Making duckdb reader");
@@ -120,6 +123,9 @@ unique_ptr<BaseStatistics> ReadVertices::GetStatistics(ClientContext& context, c
 void ReadVertices::PushdownComplexFilter(ClientContext& context, LogicalGet& get, FunctionData* bind_data,
                                          vector<unique_ptr<Expression>>& filters) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadVertices::PushdownComplexFilter");
+    if (!bind_data) {
+        throw InternalException("Bind data is nullptr");
+    }
     auto read_bind_data = dynamic_cast<ReadBindData*>(bind_data);
     for (auto& pg : read_bind_data->pgs) {
         if (pg->GetFileType() != graphar::FileType::PARQUET) {
