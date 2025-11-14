@@ -274,8 +274,9 @@ public:
         } else {
             DUCKDB_GRAPHAR_LOG_DEBUG("Returning specific columns");
             for (idx_t column_i = 0; column_i < gstate.column_ids.size(); ++column_i) {
-                const auto &column_id = gstate.column_ids[column_i];
-                const auto i = std::upper_bound(columns_pref_num.begin(), columns_pref_num.end(), column_id) - columns_pref_num.begin() - 1;
+                const auto& column_id = gstate.column_ids[column_i];
+                const auto i = std::upper_bound(columns_pref_num.begin(), columns_pref_num.end(), column_id) -
+                               columns_pref_num.begin() - 1;
                 auto projected_ind = column_id - columns_pref_num[i];
                 if (!bind_data.pg_for_id && i > 0) {
                     projected_ind += bind_data.id_columns_num;
@@ -346,7 +347,7 @@ public:
         DUCKDB_GRAPHAR_LOG_DEBUG("Chunk " + std::to_string(gstate.chunk_count) + ": Begin iteration");
 
         idx_t num_rows = STANDARD_VECTOR_SIZE;
-        for (auto &reader: gstate.readers) {
+        for (auto& reader : gstate.readers) {
             if (!reader || !num_rows) {
                 continue;
             }
