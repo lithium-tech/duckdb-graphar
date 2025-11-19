@@ -16,13 +16,13 @@
 namespace duckdb {
 class ReadVertices : public ReadBase<ReadVertices> {
 public:
-    static void SetBindData(std::shared_ptr<graphar::GraphInfo> graph_info, const graphar::VertexInfo& vertex_info,
-                            unique_ptr<ReadBindData>& bind_data);
+    static void SetBindData(std::shared_ptr<graphar::GraphInfo> graph_info,
+                            std::shared_ptr<graphar::VertexInfo> vertex_info, unique_ptr<ReadBindData>& bind_data);
     static unique_ptr<FunctionData> Bind(ClientContext& context, TableFunctionBindInput& input,
                                          vector<LogicalType>& return_types, vector<string>& names);
 
-    static std::shared_ptr<Reader> GetReader(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
-                                             idx_t ind, const std::string& filter_column);
+    static std::shared_ptr<Reader> GetReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate,
+                                             ReadBindData& bind_data, idx_t ind, const std::string& filter_column);
     static unique_ptr<BaseStatistics> GetStatistics(ClientContext& context, const FunctionData* bind_data,
                                                     column_t column_index);
 
@@ -32,9 +32,5 @@ public:
     static TableFunction GetFunction();
 
     static TableFunction GetScanFunction();
-
-    static void SetFilter(ReadBaseGlobalTableFunctionState& gstate, ReadBindData& bind_data,
-                          const std::pair<graphar::IdType, graphar::IdType>& vid_range,
-                          const std::string& filter_column);
 };
 }  // namespace duckdb
