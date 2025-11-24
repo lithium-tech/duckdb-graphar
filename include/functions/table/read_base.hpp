@@ -150,6 +150,16 @@ private:
     friend class ReadEdges;
 };
 
+class ReadBaseLocalTableFunctionState: public LocalTableFunctionState {
+private:
+    vector<std::shared_ptr<Reader>> readers;
+
+    template <typename ReadFinal>
+    friend class ReadBase;
+    friend class ReadVertices;
+    friend class ReadEdges;
+};
+
 template <typename ReadFinal>
 class ReadBase {
 public:
