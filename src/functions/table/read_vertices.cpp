@@ -74,9 +74,9 @@ unique_ptr<FunctionData> ReadVertices::Bind(ClientContext& context, TableFunctio
     return bind_data;
 }
 //-------------------------------------------------------------------
-// GetReader
+// GetBaseReader
 //-------------------------------------------------------------------
-std::shared_ptr<Reader> ReadVertices::GetReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate,
+BaseReaderPtr ReadVertices::GetBaseReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate,
                                                 ReadBindData& bind_data, idx_t ind, const std::string& filter_column) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadVertices::GetReader");
     auto vertex_info = *std::get_if<std::shared_ptr<graphar::VertexInfo>>(&bind_data.type_info);
@@ -86,12 +86,33 @@ std::shared_ptr<Reader> ReadVertices::GetReader(ClientContext& context, ReadBase
     const auto& prefix = bind_data.graph_info->GetPrefix();
     if (bind_data.pgs[ind]->GetFileType() == graphar::FileType::PARQUET) {
         DUCKDB_GRAPHAR_LOG_DEBUG("Making duckdb reader");
-        return ConvertReader(graphar::DuckVertexPropertyChunkReader::Make(context, gstate.file_reader, vertex_info,
+        return ConvertBaseReader(graphar::VertexPropertyChunkInfoReader::Make(vertex_info,
                                                                           bind_data.pgs[ind], prefix));
     } else {
         DUCKDB_GRAPHAR_LOG_DEBUG("Making arrow reader");
-        return ConvertReader(
-            graphar::DuckVertexPropertyArrowChunkReader::Make(context, vertex_info, bind_data.pgs[ind], prefix));
+        return ConvertBaseReader(
+            graphar::VertexPropertyArrowChunkReader::Make(vertex_info, bind_data.pgs[ind], prefix));
+    }
+}
+//-------------------------------------------------------------------
+// GetReader
+//-------------------------------------------------------------------
+ReaderPtr ReadVertices::GetReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate, ReadBaseLocalTableFunctionState& lstate,
+                                                idx_t ind, const std::string& filter_column) {
+    DUCKDB_GRAPHAR_LOG_TRACE("ReadVertices::GetReader");
+    auto vertex_info = *std::get_if<std::shared_ptr<graphar::VertexInfo>>(&gstate.type_info);
+    if (!vertex_info) {
+        throw InternalException("Failed to get vertex info");
+    }
+    const auto& prefix = gstate.graph_info->GetPrefix();
+    if (gstate.pgs[ind]->GetFileType() == graphar::FileType::PARQUET) {
+        DUCKDB_GRAPHAR_LOG_DEBUG("Making duckdb reader");
+        auto base_reader = std::get<std::shared_ptr<graphar::TSVertexPropertyChunkInfoReader>>(gstate.base_readers[ind]);
+        return ConvertReader(graphar::DuckVertexPropertyChunkReader::Make(context, lstate.file_reader, vertex_info, gstate.pgs[ind], prefix, base_reader));
+    } else {
+        DUCKDB_GRAPHAR_LOG_DEBUG("Making arrow reader");
+        auto base_reader = std::get<std::shared_ptr<graphar::TSVertexPropertyArrowChunkReader>>(gstate.base_readers[ind]);
+        return ConvertReader(graphar::DuckVertexPropertyArrowChunkReader::Make(context, base_reader));
     }
 }
 //-------------------------------------------------------------------
@@ -123,6 +144,7 @@ unique_ptr<BaseStatistics> ReadVertices::GetStatistics(ClientContext& context, c
 void ReadVertices::PushdownComplexFilter(ClientContext& context, LogicalGet& get, FunctionData* bind_data,
                                          vector<unique_ptr<Expression>>& filters) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadVertices::PushdownComplexFilter");
+    return;
     if (!bind_data) {
         throw InternalException("Bind data is nullptr");
     }
@@ -170,6 +192,7 @@ void ReadVertices::PushdownComplexFilter(ClientContext& context, LogicalGet& get
 TableFunction ReadVertices::GetFunction() {
     TableFunction read_vertices("read_vertices", {LogicalType::VARCHAR}, Execute, Bind);
     read_vertices.init_global = ReadVertices::Init;
+    read_vertices.init_local = ReadVertices::InitLocal;
 
     read_vertices.named_parameters["type"] = LogicalType::VARCHAR;
 
@@ -186,6 +209,7 @@ TableFunction ReadVertices::GetFunction() {
 TableFunction ReadVertices::GetScanFunction() {
     TableFunction read_vertices({}, Execute, Bind);
     read_vertices.init_global = ReadVertices::Init;
+    read_vertices.init_local = ReadVertices::InitLocal;
 
     read_vertices.filter_pushdown = false;
     read_vertices.projection_pushdown = true;

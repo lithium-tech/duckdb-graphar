@@ -12,13 +12,20 @@
 namespace duckdb {
 
 template <typename BaseArrowChunkReader>
-requires(std::is_same_v<BaseArrowChunkReader, graphar::VertexPropertyArrowChunkReader> ||
-         std::is_same_v<BaseArrowChunkReader, graphar::AdjListArrowChunkReader> ||
-         std::is_same_v<BaseArrowChunkReader, graphar::AdjListPropertyArrowChunkReader>)
+requires(std::is_same_v<BaseArrowChunkReader, graphar::TSVertexPropertyArrowChunkReader> ||
+         std::is_same_v<BaseArrowChunkReader, graphar::TSAdjListArrowChunkReader> ||
+         std::is_same_v<BaseArrowChunkReader, graphar::TSAdjListPropertyArrowChunkReader>)
 class DuckArrowChunkReader {
 public:
     DuckArrowChunkReader(std::shared_ptr<BaseArrowChunkReader> init_base, ClientContext& init_context)
         : base(std::move(init_base)), context(init_context) {}
+
+    static graphar::Result<std::shared_ptr<DuckArrowChunkReader>> Make(ClientContext& context, std::shared_ptr<BaseArrowChunkReader> base_ptr) {
+        if (!base_ptr) {
+            return graphar::Status::Invalid("base_ptr can't be null!");
+        }
+        return std::make_shared<DuckArrowChunkReader>(std::move(base_ptr), context);
+    }
 
     template <typename... Args>
     static graphar::Result<std::shared_ptr<DuckArrowChunkReader>> Make(ClientContext& context, Args&&... args) {
@@ -27,17 +34,18 @@ public:
     }
 
     idx_t ReserveRowsToRead() {
-        if (!cur_chunk) {
-            GAR_ASSIGN_OR_RAISE_ERROR(auto arrow_table, base->GetChunk());
-            cur_chunk = make_uniq<DataChunk>();
-            ConvertArrowTableToDataChunk(*arrow_table, *cur_chunk, proj_columns, context);
-        }
-        if (read_rows == cur_chunk->size()) {
-            if (!base->next_chunk().ok()) {
+        if (!cur_chunk || read_rows == cur_chunk->size()) {
+            auto maybe_arrow_table = base->GetChunk();
+            if (maybe_arrow_table.has_error() && maybe_arrow_table.error().IsIndexError()) {
                 return 0;
+            } else if (maybe_arrow_table.has_error()) {
+                throw maybe_arrow_table.error();
+            }
+            auto arrow_table = maybe_arrow_table.value();
+            if (!cur_chunk) {
+                cur_chunk = make_uniq<DataChunk>();
             }
             read_rows = 0;
-            GAR_ASSIGN_OR_RAISE_ERROR(auto arrow_table, base->GetChunk());
             ConvertArrowTableToDataChunk(*arrow_table, *cur_chunk, proj_columns, context);
         }
         return cur_chunk->size() - read_rows;
@@ -62,7 +70,7 @@ public:
         throw NotImplementedException("Arrow-based readers do not suppport filtering!");
     }
 
-    void SelectColumns(std::vector<column_t>& proj_columns_) { proj_columns = std::move(proj_columns_); }
+    void SelectColumns(std::vector<column_t> proj_columns_) { proj_columns = std::move(proj_columns_); }
 
 private:
     std::vector<column_t> proj_columns;
@@ -76,8 +84,8 @@ private:
 
 namespace graphar {
 
-using DuckVertexPropertyArrowChunkReader = duckdb::DuckArrowChunkReader<VertexPropertyArrowChunkReader>;
-using DuckAdjListArrowChunkReader = duckdb::DuckArrowChunkReader<AdjListArrowChunkReader>;
-using DuckAdjListPropertyArrowChunkReader = duckdb::DuckArrowChunkReader<AdjListPropertyArrowChunkReader>;
+using DuckVertexPropertyArrowChunkReader = duckdb::DuckArrowChunkReader<TSVertexPropertyArrowChunkReader>;
+using DuckAdjListArrowChunkReader = duckdb::DuckArrowChunkReader<TSAdjListArrowChunkReader>;
+using DuckAdjListPropertyArrowChunkReader = duckdb::DuckArrowChunkReader<TSAdjListPropertyArrowChunkReader>;
 
 }  // namespace graphar

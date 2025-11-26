@@ -21,8 +21,10 @@ public:
     static unique_ptr<FunctionData> Bind(ClientContext& context, TableFunctionBindInput& input,
                                          vector<LogicalType>& return_types, vector<string>& names);
 
-    static std::shared_ptr<Reader> GetReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate,
+    static BaseReaderPtr GetBaseReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate,
                                              ReadBindData& bind_data, idx_t ind, const std::string& filter_column);
+    static ReaderPtr GetReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate, ReadBaseLocalTableFunctionState& lstate,
+                                             idx_t ind, const std::string& filter_column);
 
     static unique_ptr<BaseStatistics> GetStatistics(ClientContext& context, const FunctionData* bind_data,
                                                     column_t column_index);
