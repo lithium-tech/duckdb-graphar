@@ -26,47 +26,50 @@ public:
         constexpr const char* EDGE_LABEL = "knows"; 
 
         constexpr const char* TRIAL_GRAPH_NAME = "trial";
-        const std::string folder_trial_graph = BasicGrapharFixture<FileTypeTag>::CreateTestGraph(
-            TRIAL_GRAPH_NAME, 
-            {
-                VerticesSchema(
-                    VERTEX_LABEL, 1024, 
-                    {PropertySchema("hash_phone_no", "int32", false, true)}, 
-                    {
-                        {1, {{"hash_phone_no", int32_t{10}}}}, 
-                        {2, {{"hash_phone_no", int32_t{20}}}}, 
-                        {3, {{"hash_phone_no", int32_t{30}}}}, 
-                        {4, {{"hash_phone_no", int32_t{40}}}}, 
-                        {5, {{"hash_phone_no", int32_t{50}}}},
-                        {6, {{"hash_phone_no", int32_t{60}}}},
-                        {7, {{"hash_phone_no", int32_t{70}}}},
-                        {8, {{"hash_phone_no", int32_t{80}}}},
-                        {9, {{"hash_phone_no", int32_t{90}}}},
-                        {10, {{"hash_phone_no", int32_t{100}}}}
-                    }
-                )
-            }, 
-            {
-                EdgesSchema(
-                    VERTEX_LABEL, EDGE_LABEL, VERTEX_LABEL, 0, false, 
-                    {}, 
-                    {
-                        {1, 2}, 
-                        {1, 3}, 
-                        {2, 3}, 
-                        {2, 4}, 
-                        {3, 4}, 
-                        {3, 5}, 
-                        {4, 5},
-                        {6, 7},
-                        {6, 8},
-                        {8, 10},
-                        {10, 6},
-                        {9, 7}
-                    },
-                    10
-                )
-            }
+        std::string folder_trial_graph;
+        REQUIRE_NOTHROW(
+            folder_trial_graph = BasicGrapharFixture<FileTypeTag>::CreateTestGraph(
+                TRIAL_GRAPH_NAME, 
+                {
+                    VerticesSchema(
+                        VERTEX_LABEL, 1024, 
+                        {PropertySchema("hash_phone_no", "int32", false, true)}, 
+                        {
+                            {1, {{"hash_phone_no", int32_t{10}}}}, 
+                            {2, {{"hash_phone_no", int32_t{20}}}}, 
+                            {3, {{"hash_phone_no", int32_t{30}}}}, 
+                            {4, {{"hash_phone_no", int32_t{40}}}}, 
+                            {5, {{"hash_phone_no", int32_t{50}}}},
+                            {6, {{"hash_phone_no", int32_t{60}}}},
+                            {7, {{"hash_phone_no", int32_t{70}}}},
+                            {8, {{"hash_phone_no", int32_t{80}}}},
+                            {9, {{"hash_phone_no", int32_t{90}}}},
+                            {10, {{"hash_phone_no", int32_t{100}}}}
+                        }
+                    )
+                }, 
+                {
+                    EdgesSchema(
+                        VERTEX_LABEL, EDGE_LABEL, VERTEX_LABEL, 0, false, 
+                        {}, 
+                        {
+                            {1, 2}, 
+                            {1, 3}, 
+                            {2, 3}, 
+                            {2, 4}, 
+                            {3, 4}, 
+                            {3, 5}, 
+                            {4, 5},
+                            {6, 7},
+                            {6, 8},
+                            {8, 10},
+                            {10, 6},
+                            {9, 7}
+                        },
+                        10
+                    )
+                }
+            )
         );
         REQUIRE(!folder_trial_graph.empty());
         path_trial_graph = folder_trial_graph + "/" + TRIAL_GRAPH_NAME + GraphFileExtension;
@@ -86,31 +89,34 @@ public:
             vertices[i] = {i, {{"hash_phone_no", int32_t{i * 10}}, {"first_name", std::string{"Person"}}, {"last_name", std::string{"no "} + std::to_string(i)}}};
         }
         constexpr const char* LARGE_GRAPH_NAME = "large_graph";
-        const std::string folder_large_graph = BasicGrapharFixture<FileTypeTag>::CreateTestGraph(
-            LARGE_GRAPH_NAME, 
-            {
-                VerticesSchema(
-                    VERTEX_LABEL, 1024, 
-                    {
-                        PropertySchema("hash_phone_no", "int32", false, true), 
-                        PropertySchema("first_name", "string", false, false),
-                        PropertySchema("last_name", "string", false, false)
-                    }, 
-                    vertices
-                )
-            }, 
-            {
-                EdgesSchema(
-                    VERTEX_LABEL, EDGE_LABEL, VERTEX_LABEL, 0, false, 
-                    {
-                        PropertySchema("friend_score", "int32", false, false),
-                        PropertySchema("created_at", "string", false, false), 
-                        PropertySchema("tmp_", "float", false, false)
-                    }, 
-                    edges,
-                    vertices.size()
-                )
-            }
+        std::string folder_large_graph;
+        REQUIRE_NOTHROW(
+            folder_large_graph = BasicGrapharFixture<FileTypeTag>::CreateTestGraph(
+                LARGE_GRAPH_NAME, 
+                {
+                    VerticesSchema(
+                        VERTEX_LABEL, 1024, 
+                        {
+                            PropertySchema("hash_phone_no", "int32", false, true), 
+                            PropertySchema("first_name", "string", false, false),
+                            PropertySchema("last_name", "string", false, false)
+                        }, 
+                        vertices
+                    )
+                }, 
+                {
+                    EdgesSchema(
+                        VERTEX_LABEL, EDGE_LABEL, VERTEX_LABEL, 0, false, 
+                        {
+                            PropertySchema("friend_score", "int32", false, false),
+                            PropertySchema("created_at", "string", false, false), 
+                            PropertySchema("tmp_", "float", false, false)
+                        }, 
+                        edges,
+                        vertices.size()
+                    )
+                }
+            )
         );
         REQUIRE(!folder_large_graph.empty());
         path_large_graph = folder_large_graph + "/" + LARGE_GRAPH_NAME + GraphFileExtension;   
