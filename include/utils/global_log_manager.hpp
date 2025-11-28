@@ -4,26 +4,28 @@
 #include <duckdb/logging/logging.hpp>
 #include <duckdb/main/database.hpp>
 
+#include <optional>
+
 namespace duckdb {
 class GlobalLogManager {
 public:
     static void Initialize(DatabaseInstance& db, LogLevel log_level = LogLevel::LOG_INFO);
 
-    static optional_ptr<LogManager> GetLogManager() { return log_manager; }
+    static LogManager& GetLogManager() {
+        if (!log_manager.has_value()) {
+            throw InternalException("LogManager is not initialized");
+        }
+        return log_manager.value();
+    }
 
 private:
-    GlobalLogManager() = default;
-    ~GlobalLogManager() = default;
-    GlobalLogManager(const GlobalLogManager&) = delete;
-    GlobalLogManager& operator=(const GlobalLogManager&) = delete;
-
-    static optional_ptr<LogManager> log_manager;
+    static std::optional<std::reference_wrapper<LogManager>> log_manager;
 };
 };  // namespace duckdb
 
-#define DUCKDB_GRAPHAR_LOG_TRACE(msg) DUCKDB_LOG_TRACE(GlobalLogManager::GetLogManager()->GlobalLoggerReference(), msg)
-#define DUCKDB_GRAPHAR_LOG_DEBUG(msg) DUCKDB_LOG_DEBUG(GlobalLogManager::GetLogManager()->GlobalLoggerReference(), msg)
-#define DUCKDB_GRAPHAR_LOG_INFO(msg) DUCKDB_LOG_INFO(GlobalLogManager::GetLogManager()->GlobalLoggerReference(), msg)
-#define DUCKDB_GRAPHAR_LOG_WARN(msg) DUCKDB_LOG_WARN(GlobalLogManager::GetLogManager()->GlobalLoggerReference(), msg)
-#define DUCKDB_GRAPHAR_LOG_ERROR(msg) DUCKDB_LOG_ERROR(GlobalLogManager::GetLogManager()->GlobalLoggerReference(), msg)
-#define DUCKDB_GRAPHAR_LOG_FATAL(msg) DUCKDB_LOG_FATAL(GlobalLogManager::GetLogManager()->GlobalLoggerReference(), msg)
+#define DUCKDB_GRAPHAR_LOG_TRACE(msg) DUCKDB_LOG_TRACE(GlobalLogManager::GetLogManager().GlobalLoggerReference(), msg)
+#define DUCKDB_GRAPHAR_LOG_DEBUG(msg) DUCKDB_LOG_DEBUG(GlobalLogManager::GetLogManager().GlobalLoggerReference(), msg)
+#define DUCKDB_GRAPHAR_LOG_INFO(msg) DUCKDB_LOG_INFO(GlobalLogManager::GetLogManager().GlobalLoggerReference(), msg)
+#define DUCKDB_GRAPHAR_LOG_WARN(msg) DUCKDB_LOG_WARN(GlobalLogManager::GetLogManager().GlobalLoggerReference(), msg)
+#define DUCKDB_GRAPHAR_LOG_ERROR(msg) DUCKDB_LOG_ERROR(GlobalLogManager::GetLogManager().GlobalLoggerReference(), msg)
+#define DUCKDB_GRAPHAR_LOG_FATAL(msg) DUCKDB_LOG_FATAL(GlobalLogManager::GetLogManager().GlobalLoggerReference(), msg)

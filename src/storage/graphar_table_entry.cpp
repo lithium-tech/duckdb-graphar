@@ -59,19 +59,18 @@ TableFunction GraphArTableEntry::GetScanFunction(ClientContext& context, unique_
     DUCKDB_GRAPHAR_LOG_TRACE("GraphArTableEntry::GetScanFunction");
     auto bind_data_ = make_uniq<ReadBindData>();
     auto tmp_table_info = table_info.lock();
+    const auto graph_info = tmp_table_info->GetCatalog().GetGraphInfo();
     switch (tmp_table_info->GetType()) {
         case GraphArTableType::Vertex:
-            ReadVertices::SetBindData(
-                tmp_table_info->GetCatalog().GetGraphInfo(),
-                *tmp_table_info->GetCatalog().GetGraphInfo()->GetVertexInfo(tmp_table_info->GetParams()[0]),
-                bind_data_);
+            ReadVertices::SetBindData(graph_info, graph_info->GetVertexInfo(tmp_table_info->GetParams()[0]),
+                                      bind_data_);
             bind_data = std::move(bind_data_);
             return ReadVertices::GetScanFunction();
         case GraphArTableType::Edge:
             ReadEdges::SetBindData(
-                tmp_table_info->GetCatalog().GetGraphInfo(),
-                *tmp_table_info->GetCatalog().GetGraphInfo()->GetEdgeInfo(
-                    tmp_table_info->GetParams()[0], tmp_table_info->GetParams()[1], tmp_table_info->GetParams()[2]),
+                graph_info,
+                graph_info->GetEdgeInfo(tmp_table_info->GetParams()[0], tmp_table_info->GetParams()[1],
+                                        tmp_table_info->GetParams()[2]),
                 bind_data_);
             bind_data = std::move(bind_data_);
             return ReadEdges::GetScanFunction();

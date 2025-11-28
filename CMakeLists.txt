@@ -179,7 +179,7 @@ set(DISABLE_VPTR_SANITIZER ON CACHE BOOL "")
 FetchContent_Declare(
     duckdb
     GIT_REPOSITORY https://github.com/duckdb/duckdb.git
-    GIT_TAG v1.4.0
+    GIT_TAG v1.4.2
     GIT_SHALLOW TRUE
     GIT_PROGRESS TRUE
 )
