@@ -78,7 +78,7 @@ unique_ptr<FunctionData> ReadEdges::Bind(ClientContext& context, TableFunctionBi
 // GetBaseReader
 //-------------------------------------------------------------------
 BaseReaderPtr ReadEdges::GetBaseReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate,
-                                             ReadBindData& bind_data, idx_t ind, const std::string& filter_column) {
+                                       ReadBindData& bind_data, idx_t ind, const std::string& filter_column) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader");
     graphar::AdjListType adj_list_type;
     if (filter_column == "" or filter_column == SRC_GID_COLUMN) {
@@ -97,8 +97,7 @@ BaseReaderPtr ReadEdges::GetBaseReader(ClientContext& context, ReadBaseGlobalTab
         DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetBaseReader: making src and dst reader...");
         if (edge_info->GetAdjacentList(adj_list_type)->GetFileType() == graphar::FileType::PARQUET) {
             DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetBaseReader: making duckdb reader...");
-            return ConvertBaseReader(
-                graphar::AdjListChunkInfoReader::Make(edge_info, adj_list_type, prefix));
+            return ConvertBaseReader(graphar::AdjListChunkInfoReader::Make(edge_info, adj_list_type, prefix));
         } else {
             DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetBaseReader: making arrow reader...");
             return ConvertBaseReader(graphar::AdjListArrowChunkReader::Make(edge_info, adj_list_type, prefix));
@@ -107,17 +106,19 @@ BaseReaderPtr ReadEdges::GetBaseReader(ClientContext& context, ReadBaseGlobalTab
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetBaseReader: making property reader...");
     if (edge_info->GetAdjacentList(adj_list_type)->GetFileType() == graphar::FileType::PARQUET) {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetBaseReader: making duckdb reader...");
-        return ConvertBaseReader(graphar::AdjListPropertyChunkInfoReader::Make(edge_info, bind_data.pgs[ind - 1], adj_list_type, prefix));
+        return ConvertBaseReader(
+            graphar::AdjListPropertyChunkInfoReader::Make(edge_info, bind_data.pgs[ind - 1], adj_list_type, prefix));
     } else {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetBaseReader: making arrow reader...");
-        return ConvertBaseReader(graphar::AdjListPropertyArrowChunkReader::Make(edge_info, bind_data.pgs[ind - 1], adj_list_type, prefix));
+        return ConvertBaseReader(
+            graphar::AdjListPropertyArrowChunkReader::Make(edge_info, bind_data.pgs[ind - 1], adj_list_type, prefix));
     }
 }
 //-------------------------------------------------------------------
 // GetReader
 //-------------------------------------------------------------------
-ReaderPtr ReadEdges::GetReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate, ReadBaseLocalTableFunctionState& lstate,
-                                             idx_t ind, const std::string& filter_column) {
+ReaderPtr ReadEdges::GetReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate,
+                               ReadBaseLocalTableFunctionState& lstate, idx_t ind, const std::string& filter_column) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader");
     graphar::AdjListType adj_list_type;
     if (filter_column == "" or filter_column == SRC_GID_COLUMN) {
@@ -137,8 +138,8 @@ ReaderPtr ReadEdges::GetReader(ClientContext& context, ReadBaseGlobalTableFuncti
         if (edge_info->GetAdjacentList(adj_list_type)->GetFileType() == graphar::FileType::PARQUET) {
             DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader: making duckdb reader...");
             auto base_reader = std::get<std::shared_ptr<graphar::TSAdjListChunkInfoReader>>(gstate.base_readers[ind]);
-            return ConvertReader(
-                graphar::DuckAdjListChunkReader::Make(context, lstate.file_reader, edge_info, adj_list_type, prefix, base_reader));
+            return ConvertReader(graphar::DuckAdjListChunkReader::Make(context, lstate.file_reader, edge_info,
+                                                                       adj_list_type, prefix, base_reader));
         } else {
             DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader: making arrow reader...");
             auto base_reader = std::get<std::shared_ptr<graphar::TSAdjListArrowChunkReader>>(gstate.base_readers[ind]);
@@ -148,12 +149,14 @@ ReaderPtr ReadEdges::GetReader(ClientContext& context, ReadBaseGlobalTableFuncti
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader: making property reader...");
     if (edge_info->GetAdjacentList(adj_list_type)->GetFileType() == graphar::FileType::PARQUET) {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader: making duckdb reader...");
-        auto base_reader = std::get<std::shared_ptr<graphar::TSAdjListPropertyChunkInfoReader>>(gstate.base_readers[ind]);
+        auto base_reader =
+            std::get<std::shared_ptr<graphar::TSAdjListPropertyChunkInfoReader>>(gstate.base_readers[ind]);
         return ConvertReader(graphar::DuckAdjListPropertyChunkReader::Make(
             context, lstate.file_reader, edge_info, gstate.pgs[ind - 1], adj_list_type, prefix, base_reader));
     } else {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader: making arrow reader...");
-        auto base_reader = std::get<std::shared_ptr<graphar::TSAdjListPropertyArrowChunkReader>>(gstate.base_readers[ind]);
+        auto base_reader =
+            std::get<std::shared_ptr<graphar::TSAdjListPropertyArrowChunkReader>>(gstate.base_readers[ind]);
         return ConvertReader(graphar::DuckAdjListPropertyArrowChunkReader::Make(context, base_reader));
     }
 }

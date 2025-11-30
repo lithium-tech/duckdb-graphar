@@ -20,7 +20,8 @@ public:
     DuckArrowChunkReader(std::shared_ptr<BaseArrowChunkReader> init_base, ClientContext& init_context)
         : base(std::move(init_base)), context(init_context) {}
 
-    static graphar::Result<std::shared_ptr<DuckArrowChunkReader>> Make(ClientContext& context, std::shared_ptr<BaseArrowChunkReader> base_ptr) {
+    static graphar::Result<std::shared_ptr<DuckArrowChunkReader>> Make(ClientContext& context,
+                                                                       std::shared_ptr<BaseArrowChunkReader> base_ptr) {
         if (!base_ptr) {
             return graphar::Status::Invalid("base_ptr can't be null!");
         }

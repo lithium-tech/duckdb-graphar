@@ -22,9 +22,9 @@ public:
                                          vector<LogicalType>& return_types, vector<string>& names);
 
     static BaseReaderPtr GetBaseReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate,
-                                             ReadBindData& bind_data, idx_t ind, const std::string& filter_column);
-    static ReaderPtr GetReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate, ReadBaseLocalTableFunctionState& lstate,
-                                             idx_t ind, const std::string& filter_column);
+                                       ReadBindData& bind_data, idx_t ind, const std::string& filter_column);
+    static ReaderPtr GetReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate,
+                               ReadBaseLocalTableFunctionState& lstate, idx_t ind, const std::string& filter_column);
     static unique_ptr<BaseStatistics> GetStatistics(ClientContext& context, const FunctionData* bind_data,
                                                     column_t column_index);
 

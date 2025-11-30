@@ -29,16 +29,19 @@
 
 namespace duckdb {
 
-using BaseReaderPtr = std::variant<std::shared_ptr<graphar::ThreadSafeReader<graphar::VertexPropertyChunkInfoReader>>,
-                                std::shared_ptr<graphar::ThreadSafeReader<graphar::AdjListChunkInfoReader>>,
-                                std::shared_ptr<graphar::ThreadSafeReader<graphar::AdjListPropertyChunkInfoReader>>,
-                                std::shared_ptr<graphar::ThreadSafeReader<graphar::VertexPropertyArrowChunkReader>>,
-                                std::shared_ptr<graphar::ThreadSafeReader<graphar::AdjListArrowChunkReader>>,
-                                std::shared_ptr<graphar::ThreadSafeReader<graphar::AdjListPropertyArrowChunkReader>>>;
+using BaseReaderPtr =
+    std::variant<std::shared_ptr<graphar::ThreadSafeReader<graphar::VertexPropertyChunkInfoReader>>,
+                 std::shared_ptr<graphar::ThreadSafeReader<graphar::AdjListChunkInfoReader>>,
+                 std::shared_ptr<graphar::ThreadSafeReader<graphar::AdjListPropertyChunkInfoReader>>,
+                 std::shared_ptr<graphar::ThreadSafeReader<graphar::VertexPropertyArrowChunkReader>>,
+                 std::shared_ptr<graphar::ThreadSafeReader<graphar::AdjListArrowChunkReader>>,
+                 std::shared_ptr<graphar::ThreadSafeReader<graphar::AdjListPropertyArrowChunkReader>>>;
 
-using ReaderPtr = std::variant<std::shared_ptr<graphar::DuckVertexPropertyArrowChunkReader>, std::shared_ptr<graphar::DuckAdjListArrowChunkReader>,
-                            std::shared_ptr<graphar::DuckAdjListPropertyArrowChunkReader>, std::shared_ptr<graphar::DuckVertexPropertyChunkReader>,
-                            std::shared_ptr<graphar::DuckAdjListChunkReader>, std::shared_ptr<graphar::DuckAdjListPropertyChunkReader>>;
+using ReaderPtr = std::variant<
+    std::shared_ptr<graphar::DuckVertexPropertyArrowChunkReader>, std::shared_ptr<graphar::DuckAdjListArrowChunkReader>,
+    std::shared_ptr<graphar::DuckAdjListPropertyArrowChunkReader>,
+    std::shared_ptr<graphar::DuckVertexPropertyChunkReader>, std::shared_ptr<graphar::DuckAdjListChunkReader>,
+    std::shared_ptr<graphar::DuckAdjListPropertyChunkReader>>;
 
 template <typename SomeReader>
 BaseReaderPtr ConvertBaseReader(graphar::Result<std::shared_ptr<SomeReader>> maybe_reader) {
@@ -151,9 +154,8 @@ private:
 
 class ReadBaseGlobalTableFunctionState : public GlobalTableFunctionState {
 public:
-    idx_t MaxThreads() const override {
-		return 12;
-	}
+    idx_t MaxThreads() const override { return 12; }
+
 private:
     graphar::PropertyGroupVector pgs;
     vector<vector<std::string>> prop_names;
@@ -180,7 +182,7 @@ private:
     friend class ReadEdges;
 };
 
-class ReadBaseLocalTableFunctionState: public LocalTableFunctionState {
+class ReadBaseLocalTableFunctionState : public LocalTableFunctionState {
 private:
     vector<ReaderPtr> readers;
     std::shared_ptr<DuckParquetFileReader> file_reader;
@@ -263,12 +265,12 @@ public:
     }
 
     static BaseReaderPtr GetBaseReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate,
-                                             ReadBindData& bind_data, idx_t ind, const std::string& filter_column) {
+                                       ReadBindData& bind_data, idx_t ind, const std::string& filter_column) {
         return ReadFinal::GetBaseReader(context, gstate, bind_data, ind, filter_column);
     }
 
-    static ReaderPtr GetReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate, ReadBaseLocalTableFunctionState& lstate,
-                                             idx_t ind, const std::string& filter_column) {
+    static ReaderPtr GetReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate,
+                               ReadBaseLocalTableFunctionState& lstate, idx_t ind, const std::string& filter_column) {
         return ReadFinal::GetReader(context, gstate, lstate, ind, filter_column);
     }
 
@@ -383,9 +385,8 @@ public:
         return std::move(gstate_ptr);
     }
 
-    static unique_ptr<LocalTableFunctionState> InitLocal(ExecutionContext &context,
-                                                         TableFunctionInitInput &input,
-                                                         GlobalTableFunctionState *gstate_ptr) {
+    static unique_ptr<LocalTableFunctionState> InitLocal(ExecutionContext& context, TableFunctionInitInput& input,
+                                                         GlobalTableFunctionState* gstate_ptr) {
         DUCKDB_GRAPHAR_LOG_TRACE("Local init started");
         // std::ostringstream log;
         // log << "initializing thread " << std::this_thread::get_id() << "\n";

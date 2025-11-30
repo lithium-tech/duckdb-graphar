@@ -194,8 +194,7 @@ public:
     static graphar::Result<std::shared_ptr<DuckEdgeChunkReader>> Make(
         ClientContext& context, std::shared_ptr<DuckParquetFileReader> file_reader,
         const std::shared_ptr<graphar::EdgeInfo>& edge_info, graphar::AdjListType adj_list_type,
-        const std::string& prefix,
-        std::shared_ptr<BaseArrowChunkReader> init_baseptr = nullptr) {
+        const std::string& prefix, std::shared_ptr<BaseArrowChunkReader> init_baseptr = nullptr) {
         if (!init_baseptr) {
             GAR_ASSIGN_OR_RAISE(auto init_baseptr, BaseArrowChunkReader::Make(edge_info, adj_list_type, prefix));
         }
@@ -207,8 +206,7 @@ public:
         ClientContext& context, std::shared_ptr<DuckParquetFileReader> file_reader,
         const std::shared_ptr<graphar::EdgeInfo>& edge_info,
         const std::shared_ptr<graphar::PropertyGroup>& property_group, graphar::AdjListType adj_list_type,
-        const std::string& prefix,
-        std::shared_ptr<BaseArrowChunkReader> init_baseptr = nullptr) {
+        const std::string& prefix, std::shared_ptr<BaseArrowChunkReader> init_baseptr = nullptr) {
         if (!init_baseptr) {
             GAR_ASSIGN_OR_RAISE(auto init_baseptr,
                                 BaseArrowChunkReader::Make(edge_info, property_group, adj_list_type, prefix))
