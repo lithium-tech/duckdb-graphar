@@ -89,9 +89,9 @@ public:
                 range.second = rows_to_read - 1;
             }
         }
-        std::ostringstream log;
-        log << "thread " << std::this_thread::get_id() << " read " << path << "\n";
-        std::cout << log.str() << std::endl;
+        // std::ostringstream log;
+        // log << "thread " << std::this_thread::get_id() << " read " << path << "\n";
+        // std::cout << log.str() << std::endl;
         cur_result = file_reader->ReadFileToTable(path, proj_columns, range);
         cur_chunk = cur_result->Fetch();
         return cur_chunk->size();
