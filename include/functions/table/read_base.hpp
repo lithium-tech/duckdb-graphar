@@ -388,9 +388,9 @@ public:
     static unique_ptr<LocalTableFunctionState> InitLocal(ExecutionContext& context, TableFunctionInitInput& input,
                                                          GlobalTableFunctionState* gstate_ptr) {
         DUCKDB_GRAPHAR_LOG_TRACE("Local init started");
-        // std::ostringstream log;
-        // log << "initializing thread " << std::this_thread::get_id() << "\n";
-        // std::cout << log.str() << std::endl;
+        std::ostringstream log;
+        log << "initializing thread " << std::this_thread::get_id() << "\n";
+        std::cout << log.str() << std::endl;
         auto bind_data = input.bind_data->Cast<ReadBindData>();
 
         DUCKDB_GRAPHAR_LOG_TRACE(bind_data.function_name + "::Init");
