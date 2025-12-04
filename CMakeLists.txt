@@ -23,6 +23,7 @@ include(ExternalProject)
 
 option(LOAD_TESTS "Build extension tests" OFF)
 option(SHOW_LOG_STAGES "Display progress logs for each stage" ON)
+option(ENABLE_UNIT_TESTS "Build unit tests" OFF)
 
 # =============================================
 # Progress Reporting Functions
@@ -167,11 +168,6 @@ log_done()
 set(DUCKDB_EXTENSION_CONFIGS "${CMAKE_CURRENT_SOURCE_DIR}/config/extension_config.cmake")
 
 log_stage("Declaring DuckDB")
-if (LOAD_TESTS)  # DuckDB sql logical tests
-    set(BUILD_UNITTESTS ON CACHE BOOL "")
-else()
-    set(BUILD_UNITTESTS OFF CACHE BOOL "")
-endif()
 set(ENABLE_SANITIZER OFF CACHE BOOL "")
 set(ENABLE_UBSAN OFF CACHE BOOL "")
 set(DISABLE_VPTR_SANITIZER ON CACHE BOOL "")

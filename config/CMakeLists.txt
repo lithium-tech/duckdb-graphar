@@ -69,7 +69,7 @@ install(DIRECTORY include/ DESTINATION include
 )
 log_done()
 
-if(BUILD_TESTS)
+if(ENABLE_UNIT_TESTS)
     log_stage("Building tests of extension...")
     add_subdirectory(${EXTENSION_ROOT_DIR}/tests tests)
     log_done()

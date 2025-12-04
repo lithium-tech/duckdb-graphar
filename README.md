@@ -2,7 +2,7 @@
 > While functional, it may contain unstable features, unexpected behavior, or breaking changes in future releases.
 > Use with appropriate caution in non-production environments.
 
-# DuckDB <img src="docs/logo.png" alt="DuckDB-GraphAr" width="28" height="28"/> GraphAr
+# DuckDB `<img src="docs/logo.png" alt="DuckDB-GraphAr" width="28" height="28"/>` GraphAr
 
 A [DuckDB](https://duckdb.org/) extension that enables reading data stored in the
 [Apache GraphAr](https://graphar.apache.org) format.
@@ -28,13 +28,21 @@ This extension requires the following dependencies:
 ### Build extension:
 
 Development Build:
+
 ```bash
 mkdir build && cd build
-cmake .. -DLOAD_TESTS=ON
+cmake .. -DLOAD_TESTS=ON -DENABLE_UNIT_TESTS=ON
 make
 ```
 
 Run test:
+
 ```bash
 ./build/_deps/duckdb-build/test/unittest "[graphar]"
+```
+
+Run Unittests for extension:
+
+```bash
+./build/_deps/duckdb-build/extension/duckdb_graphar/tests/unittest_graphar
 ```

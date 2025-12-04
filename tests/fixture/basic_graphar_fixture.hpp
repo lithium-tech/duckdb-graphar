@@ -135,7 +135,6 @@ static void FillProperties(T& obj, const std::vector<PropertySchema>& propeties_
 }
 
 struct FileTypeJson { FileTypeJson(){}; };
-
 struct FileTypeOrc { FileTypeOrc(){}; };
 struct FileTypeParquet { FileTypeParquet(){}; };
 struct FileTypeCsv { FileTypeCsv(){}; };
@@ -336,7 +335,7 @@ protected:
     }
 
 public:
-    BasicGrapharFixture(): db(nullptr), conn(db), tmp_folder(std::filesystem::temp_directory_path() / "duckdb_graphar/data/") {};
+    BasicGrapharFixture(): tmp_folder(std::filesystem::temp_directory_path() / "duckdb_graphar/data/"), db(nullptr), conn(db) {};
     ~BasicGrapharFixture(){
         for (const auto& graph_folder : graph_folders){
             REQUIRE_NOTHROW(std::filesystem::remove_all(graph_folder));
