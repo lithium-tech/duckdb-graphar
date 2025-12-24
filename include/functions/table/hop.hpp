@@ -14,7 +14,7 @@ namespace duckdb {
 class TwoHopBindData final : public TableFunctionData {
 public:
     TwoHopBindData(std::shared_ptr<graphar::EdgeInfo> edge_info, std::string prefix, graphar::IdType src_id)
-        : edge_info(edge_info), prefix(prefix), src_id(src_id){};
+        : edge_info(edge_info), prefix(prefix), src_id(src_id) {};
 
     const std::shared_ptr<graphar::EdgeInfo>& GetEdgeInfo() const { return edge_info; }
     const std::string& GetPrefix() const { return prefix; }
@@ -52,7 +52,7 @@ private:
 struct TwoHopGlobalTableFunctionState : public GlobalTableFunctionState {
 public:
     TwoHopGlobalTableFunctionState(ClientContext& context, const TwoHopBindData& bind_data)
-        : state(context, bind_data){};
+        : state(context, bind_data) {};
 
     static unique_ptr<GlobalTableFunctionState> Init(ClientContext& context, TableFunctionInitInput& input);
 
@@ -89,7 +89,7 @@ public:
 struct OneMoreHopGlobalTableFunctionState : public GlobalTableFunctionState {
 public:
     OneMoreHopGlobalTableFunctionState(ClientContext& context, const TwoHopBindData& bind_data)
-        : state(context, bind_data){};
+        : state(context, bind_data) {};
 
     static unique_ptr<GlobalTableFunctionState> Init(ClientContext& context, TableFunctionInitInput& input);
 
