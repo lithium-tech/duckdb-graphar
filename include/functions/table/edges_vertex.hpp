@@ -14,7 +14,7 @@ struct EdgesVertexGlobalTableFunctionState;
 
 class EdgesVertexBindData final : public TableFunctionData {
 public:
-    explicit EdgesVertexBindData(const std::string& file_path) : file_path(file_path) {};
+    explicit EdgesVertexBindData(const std::string& file_path) : file_path(file_path){};
 
     const std::string& GetFilePath() const { return file_path; }
     void SetFilePath(const std::string& path) { file_path = path; }
@@ -39,7 +39,7 @@ public:
     EdgesVertexGlobalState(ClientContext& context, EdgesVertexBindData& bind_data,
                            std::shared_ptr<graphar::EdgeInfo> edge_info, const std::string& prefix, idx_t iter,
                            idx_t end_iter)
-        : edge_info(edge_info), prefix(prefix), iter(iter), end_iter(end_iter) {};
+        : edge_info(edge_info), prefix(prefix), iter(iter), end_iter(end_iter){};
 
     const std::shared_ptr<graphar::EdgeInfo>& GetEdgeInfo() const { return edge_info; }
     const std::string& GetPrefix() const { return prefix; }
@@ -65,7 +65,7 @@ public:
     EdgesVertexGlobalTableFunctionState(ClientContext& context, EdgesVertexBindData& bind_data,
                                         std::shared_ptr<graphar::EdgeInfo> edge_info, const std::string& prefix,
                                         idx_t iter, idx_t end_iter)
-        : state(context, bind_data, edge_info, prefix, iter, end_iter) {};
+        : state(context, bind_data, edge_info, prefix, iter, end_iter){};
 
     static unique_ptr<GlobalTableFunctionState> Init(ClientContext& context, TableFunctionInitInput& input);
 

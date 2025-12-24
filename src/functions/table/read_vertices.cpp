@@ -76,22 +76,33 @@ unique_ptr<FunctionData> ReadVertices::Bind(ClientContext& context, TableFunctio
 //-------------------------------------------------------------------
 // GetBaseReader
 //-------------------------------------------------------------------
-BaseReaderPtr ReadVertices::GetBaseReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate,
-                                          ReadBindData& bind_data, idx_t ind, const std::string& filter_column) {
+BaseReaderPtr ReadVertices::GetBaseReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate, idx_t ind,
+                                          const std::string& filter_column) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadVertices::GetReader");
-    auto vertex_info = *std::get_if<std::shared_ptr<graphar::VertexInfo>>(&bind_data.type_info);
+    auto vertex_info = *std::get_if<std::shared_ptr<graphar::VertexInfo>>(&gstate.type_info);
     if (!vertex_info) {
         throw InternalException("Failed to get vertex info");
     }
-    const auto& prefix = bind_data.graph_info->GetPrefix();
-    if (bind_data.pgs[ind]->GetFileType() == graphar::FileType::PARQUET) {
+    const auto& prefix = gstate.graph_info->GetPrefix();
+    if (gstate.pgs[ind]->GetFileType() == graphar::FileType::PARQUET) {
         DUCKDB_GRAPHAR_LOG_DEBUG("Making duckdb reader");
-        return ConvertBaseReader(graphar::VertexPropertyChunkInfoReader::Make(vertex_info, bind_data.pgs[ind], prefix));
+        return ConvertBaseReader(graphar::VertexPropertyChunkInfoReader::Make(vertex_info, gstate.pgs[ind], prefix));
     } else {
         DUCKDB_GRAPHAR_LOG_DEBUG("Making arrow reader");
-        return ConvertBaseReader(
-            graphar::VertexPropertyArrowChunkReader::Make(vertex_info, bind_data.pgs[ind], prefix));
+        return ConvertBaseReader(graphar::VertexPropertyArrowChunkReader::Make(vertex_info, gstate.pgs[ind], prefix));
     }
+}
+//-------------------------------------------------------------------
+// SetFilter
+//-------------------------------------------------------------------
+void ReadVertices::SetFilter(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate, idx_t ind,
+                             const std::pair<int64_t, int64_t>& vid_range, const std::string& filter_column) {
+    DUCKDB_GRAPHAR_LOG_TRACE("ReadVertices::SetFilter");
+    auto vertex_info = *std::get_if<std::shared_ptr<graphar::VertexInfo>>(&gstate.type_info);
+    if (!vertex_info) {
+        throw InternalException("Failed to get vertex info");
+    }
+    FilterByRangeVertex(gstate.base_readers[ind], vid_range, filter_column, vertex_info);
 }
 //-------------------------------------------------------------------
 // GetReader
@@ -147,7 +158,6 @@ unique_ptr<BaseStatistics> ReadVertices::GetStatistics(ClientContext& context, c
 void ReadVertices::PushdownComplexFilter(ClientContext& context, LogicalGet& get, FunctionData* bind_data,
                                          vector<unique_ptr<Expression>>& filters) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadVertices::PushdownComplexFilter");
-    return;
     if (!bind_data) {
         throw InternalException("Bind data is nullptr");
     }

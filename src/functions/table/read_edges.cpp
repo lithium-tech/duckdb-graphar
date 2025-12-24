@@ -77,8 +77,8 @@ unique_ptr<FunctionData> ReadEdges::Bind(ClientContext& context, TableFunctionBi
 //-------------------------------------------------------------------
 // GetBaseReader
 //-------------------------------------------------------------------
-BaseReaderPtr ReadEdges::GetBaseReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate,
-                                       ReadBindData& bind_data, idx_t ind, const std::string& filter_column) {
+BaseReaderPtr ReadEdges::GetBaseReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate, idx_t ind,
+                                       const std::string& filter_column) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader");
     graphar::AdjListType adj_list_type;
     if (filter_column == "" or filter_column == SRC_GID_COLUMN) {
@@ -88,11 +88,11 @@ BaseReaderPtr ReadEdges::GetBaseReader(ClientContext& context, ReadBaseGlobalTab
     } else {
         throw NotImplementedException("Only src and dst filters are supported");
     }
-    auto edge_info = *std::get_if<std::shared_ptr<graphar::EdgeInfo>>(&bind_data.type_info);
+    auto edge_info = *std::get_if<std::shared_ptr<graphar::EdgeInfo>>(&gstate.type_info);
     if (!edge_info) {
         throw InternalException("Failed to get edge info");
     }
-    const auto& prefix = bind_data.graph_info->GetPrefix();
+    const auto& prefix = gstate.graph_info->GetPrefix();
     if (ind == 0) {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetBaseReader: making src and dst reader...");
         if (edge_info->GetAdjacentList(adj_list_type)->GetFileType() == graphar::FileType::PARQUET) {
@@ -107,12 +107,25 @@ BaseReaderPtr ReadEdges::GetBaseReader(ClientContext& context, ReadBaseGlobalTab
     if (edge_info->GetAdjacentList(adj_list_type)->GetFileType() == graphar::FileType::PARQUET) {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetBaseReader: making duckdb reader...");
         return ConvertBaseReader(
-            graphar::AdjListPropertyChunkInfoReader::Make(edge_info, bind_data.pgs[ind - 1], adj_list_type, prefix));
+            graphar::AdjListPropertyChunkInfoReader::Make(edge_info, gstate.pgs[ind - 1], adj_list_type, prefix));
     } else {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetBaseReader: making arrow reader...");
         return ConvertBaseReader(
-            graphar::AdjListPropertyArrowChunkReader::Make(edge_info, bind_data.pgs[ind - 1], adj_list_type, prefix));
+            graphar::AdjListPropertyArrowChunkReader::Make(edge_info, gstate.pgs[ind - 1], adj_list_type, prefix));
     }
+}
+//-------------------------------------------------------------------
+// SetFilter
+//-------------------------------------------------------------------
+void ReadEdges::SetFilter(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate, idx_t ind,
+                          const std::pair<int64_t, int64_t>& vid_range, const std::string& filter_column) {
+    DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::SetFilter");
+    auto edge_info = *std::get_if<std::shared_ptr<graphar::EdgeInfo>>(&gstate.type_info);
+    if (!edge_info) {
+        throw InternalException("Failed to get edge info");
+    }
+    const auto& prefix = gstate.graph_info->GetPrefix();
+    FilterByRangeEdge(gstate.base_readers[ind], vid_range, filter_column, edge_info, prefix);
 }
 //-------------------------------------------------------------------
 // GetReader
@@ -190,7 +203,6 @@ unique_ptr<BaseStatistics> ReadEdges::GetStatistics(ClientContext& context, cons
 void ReadEdges::PushdownComplexFilter(ClientContext& context, LogicalGet& get, FunctionData* bind_data,
                                       vector<unique_ptr<Expression>>& filters) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::PushdownComplexFilter");
-    return;
     if (!bind_data) {
         throw InternalException("Bind data is nullptr");
     }

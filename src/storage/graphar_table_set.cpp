@@ -7,9 +7,11 @@
 #include "storage/graphar_table_information.hpp"
 #include "storage/graphar_transaction.hpp"
 #include "utils/func.hpp"
+#include "utils/global_log_manager.hpp"
 
 #include <duckdb/catalog/dependency_list.hpp>
 #include <duckdb/common/types.hpp>
+#include <duckdb/logging/logging.hpp>
 #include <duckdb/parser/constraints/list.hpp>
 #include <duckdb/parser/constraints/not_null_constraint.hpp>
 #include <duckdb/parser/constraints/unique_constraint.hpp>
@@ -54,8 +56,9 @@ optional_ptr<CatalogEntry> GraphArTableSet::CreateNewEntry(ClientContext& contex
 optional_ptr<CatalogEntry> GraphArTableSet::CreateNewEntry(ClientContext& context, Catalog& catalog,
                                                            GraphArSchemaEntry& schema, CreateViewInfo& info) {
     auto view = make_shared_ptr<ViewCatalogEntry>(catalog, schema, info);
-    view_entries[info.view_name] = view;
-    DUCKDB_GRAPHAR_LOG_INFO("View was created with name " + info.view_name)
+    const auto& view_name = info.view_name;
+    view_entries[view_name] = view;
+    DUCKDB_GRAPHAR_LOG_INFO("View was created with name " + view_name);
     return view.get();
 }
 

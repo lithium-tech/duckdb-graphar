@@ -15,7 +15,7 @@ class ScopedTimer {
 
 public:
     explicit ScopedTimer(const std::string& name);
-    ~ScopedTimer() {};
+    ~ScopedTimer(){};
 
     void print(const std::string& msg, bool all = false);
     void print() { print("", true); };

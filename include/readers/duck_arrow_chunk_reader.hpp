@@ -36,10 +36,12 @@ public:
 
     idx_t ReserveRowsToRead() {
         if (!cur_chunk || read_rows == cur_chunk->size()) {
-            auto maybe_arrow_table = base->GetChunk();
-            if (maybe_arrow_table.has_error() && maybe_arrow_table.error().IsIndexError()) {
+            auto gc_result = base->GetChunk();
+            if (gc_result.no_more_chunks) {
                 return 0;
-            } else if (maybe_arrow_table.has_error()) {
+            }
+            auto maybe_arrow_table = gc_result.chunk;
+            if (maybe_arrow_table.has_error()) {
                 throw maybe_arrow_table.error();
             }
             auto arrow_table = maybe_arrow_table.value();
@@ -64,7 +66,7 @@ public:
         res->Reference(*cur_chunk);
         res->Slice(read_rows, num_rows);
         read_rows += num_rows;
-        return std::move(res);
+        return res;
     }
 
     void FilterByRange(std::pair<int64_t, int64_t> vid_range, const std::string& filter_column) {

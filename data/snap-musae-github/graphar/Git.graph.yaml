@@ -1,0 +1,6 @@
+edges:
+  - Person_knows_Person.edge.yml
+name: Git
+vertices:
+  - Person.vertex.yml
+version: gar/v1
