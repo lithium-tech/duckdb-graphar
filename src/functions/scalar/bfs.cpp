@@ -84,7 +84,7 @@ void Bfs::WayLength(DataChunk& args, ExpressionState& state, Vector& result) {
     }
 
     result.SetVectorType(VectorType::FLAT_VECTOR);
-    auto result_data = FlatVector::GetData<long long>(result);
+    auto result_data = FlatVector::GetData<int64_t>(result);
 
     if (time_logging) {
         t.print("preprocessing", true);

@@ -33,13 +33,13 @@ jobs:
       - name: Build
         run: |
           cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=On -B build .
-          cmake --build build -j
+          cmake --build build -j$(getconf _NPROCESSORS_ONLN)
 
       - name: Analyze and generate report
         run: |
           if [ -s source-files.txt ]; then
             pvs-studio-analyzer analyze -f build/compile_commands.json --exclude-path 'build/_deps/' \
-              --disableLicenseExpirationCheck -S source-files.txt -j
+              --disableLicenseExpirationCheck -S source-files.txt -j $(getconf _NPROCESSORS_ONLN)
 
             plog-converter PVS-Studio.log -t json -n relative -R toRelative -r $PWD
             plog-converter relative.json -t sarif -n pvs-report -r file://

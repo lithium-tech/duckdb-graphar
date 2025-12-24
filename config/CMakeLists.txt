@@ -24,6 +24,7 @@ set(EXTENSION_INCLUDES
     $<BUILD_INTERFACE:${GRAPHAR_SOURCE_DIR}/cpp/thirdparty>
     $<BUILD_INTERFACE:${duckdb_SOURCE_DIR}/src/include>
     $<BUILD_INTERFACE:${arrow_SOURCE_DIR}/cpp/src>
+    $<BUILD_INTERFACE:${ARROW_INSTALL_DIR}/include>
 )
 
 target_include_directories(duckdb_graphar_extension PUBLIC ${EXTENSION_INCLUDES} $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
@@ -66,5 +67,10 @@ install(TARGETS duckdb_graphar_loadable_extension
 install(DIRECTORY include/ DESTINATION include
     FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
 )
-
 log_done()
+
+if(ENABLE_UNIT_TESTS)
+    log_stage("Building tests of extension...")
+    add_subdirectory(${EXTENSION_ROOT_DIR}/tests tests)
+    log_done()
+endif()
