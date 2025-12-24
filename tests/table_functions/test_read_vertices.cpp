@@ -54,7 +54,14 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadVertices Bind and Execute 
     unique_ptr<GlobalTableFunctionState> gstate;
     REQUIRE_NOTHROW(gstate = read_vertices.init_global(*TestFixture::conn.context, func_init_input));
 
-    TableFunctionInput func_input(bind_data.get(), nullptr, gstate.get());
+    ThreadContext thread(*TestFixture::conn.context);  
+    ExecutionContext exec_context(*TestFixture::conn.context, thread, nullptr);  
+    unique_ptr<LocalTableFunctionState> lstate;  
+    if (read_vertices.init_local) {  
+        REQUIRE_NOTHROW(lstate = read_vertices.init_local(exec_context, func_init_input, gstate.get()));  
+    }  
+  
+    TableFunctionInput func_input(bind_data.get(), lstate.get(), gstate.get()); 
 
     DataChunk res;
     res.Initialize(*TestFixture::conn.context, return_types);

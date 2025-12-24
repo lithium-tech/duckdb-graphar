@@ -2,7 +2,7 @@
 > While functional, it may contain unstable features, unexpected behavior, or breaking changes in future releases.
 > Use with appropriate caution in non-production environments.
 
-# DuckDB `<img src="docs/logo.png" alt="DuckDB-GraphAr" width="28" height="28"/>` GraphAr
+# DuckDB <img src="docs/logo.png" alt="DuckDB-GraphAr" width="28" height="28"/> GraphAr
 
 A [DuckDB](https://duckdb.org/) extension that enables reading data stored in the
 [Apache GraphAr](https://graphar.apache.org) format.

@@ -45,7 +45,7 @@ jobs:
 
       - name: Verify C++ Code Style
         run: |
-          find src/ include/ -name '*.cpp' -o -name '*.hpp' | xargs clang-format-19 --dry-run -Werror
+          find src/ include/ tests/ -name '*.cpp' -o -name '*.hpp' | xargs clang-format-19 --dry-run -Werror
 
   build:
     name: ${{ matrix.os }} Build and Test
