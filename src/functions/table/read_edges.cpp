@@ -124,6 +124,13 @@ void ReadEdges::SetFilter(ClientContext& context, ReadBaseGlobalTableFunctionSta
     if (!edge_info) {
         throw InternalException("Failed to get edge info");
     }
+    const int64_t vertex_num = (filter_column == SRC_GID_COLUMN)
+                                   ? GraphArFunctions::GetVertexNum(gstate.graph_info, gstate.params[0])
+                                   : GraphArFunctions::GetVertexNum(gstate.graph_info, gstate.params[2]);
+    if (vid_range.first < 0 || vid_range.first >= vertex_num || vid_range.second <= 0 ||
+        vid_range.second > vertex_num) {
+        throw BinderException("Invalid filter vertex id range");
+    }
     const auto& prefix = gstate.graph_info->GetPrefix();
     FilterByRangeEdge(gstate.base_readers[ind], vid_range, filter_column, edge_info, prefix);
 }

@@ -42,8 +42,8 @@ std::string QueryStringConstructor::GetMainQueryString(const std::vector<column_
                     ss << " " << SQL_WHERE_CLAUSE << " " << FILE_ROW_NUMBER_CLAUSE << " < " << range.second;
                     break;
                 case QueryType::SINGLE:
-                    ss << " " << SQL_WHERE_CLAUSE << " " << FILE_ROW_NUMBER_CLAUSE << " >= " << range.first
-                       << " AND " << FILE_ROW_NUMBER_CLAUSE << " < " << range.second;
+                    ss << " " << SQL_WHERE_CLAUSE << " " << FILE_ROW_NUMBER_CLAUSE << " >= " << range.first << " AND "
+                       << FILE_ROW_NUMBER_CLAUSE << " < " << range.second;
                     break;
                 case QueryType::MIDDLE:
                     // No WHERE clause needed

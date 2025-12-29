@@ -102,6 +102,11 @@ void ReadVertices::SetFilter(ClientContext& context, ReadBaseGlobalTableFunction
     if (!vertex_info) {
         throw InternalException("Failed to get vertex info");
     }
+    int64_t vertex_num = GraphArFunctions::GetVertexNum(bind_data.graph_info, bind_data.params[0]);
+    if (vid_range.first < 0 || vid_range.first >= vertex_num || vid_range.second <= 0 ||
+        vid_range.second > vertex_num) {
+        throw BinderException("Invalid filter vertex id range");
+    }
     FilterByRangeVertex(gstate.base_readers[ind], vid_range, filter_column, vertex_info);
 }
 //-------------------------------------------------------------------

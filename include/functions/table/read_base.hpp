@@ -178,6 +178,7 @@ public:
     idx_t MaxThreads() const override { return MAX_THREADS; }
 
 private:
+    vector<std::string> params;
     graphar::PropertyGroupVector pgs;
     vector<vector<std::string>> prop_names;
     vector<vector<std::string>> prop_types;
@@ -326,6 +327,7 @@ public:
         gstate.filter_column = bind_data.filter_column;
         gstate.type_info = bind_data.type_info;
         gstate.graph_info = bind_data.graph_info;
+        gstate.params = bind_data.params;
 
         const auto prop_types_size = bind_data.prop_types.size();
         vector<idx_t> columns_pref_num(prop_types_size + 1);
