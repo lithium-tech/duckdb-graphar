@@ -56,9 +56,12 @@ public:
             return cur_result;
         }
         if (chunk_count > 0) {
-            if (!reader->next_chunk().ok()) {
+            const auto next_chunk_result = reader->next_chunk();
+            if (!next_chunk_result.ok() && next_chunk_result.IsIndexError()) {
                 cur_result.no_more_chunks = true;
                 return cur_result;
+            } else if (!next_chunk_result.ok()) {
+                GAR_RAISE_ERROR_NOT_OK(next_chunk_result);
             }
         }
         cur_result.chunk = reader->GetChunk();
@@ -80,23 +83,30 @@ public:
                              std::shared_ptr<graphar::VertexInfo> vertex_info)
     requires IsVertexReader<StoredReader>
     {
-        GAR_RAISE_ERROR_NOT_OK(reader->seek(vid_range.first));
+        if (filter_column != duckdb::GID_COLUMN_INTERNAL) {
+            throw duckdb::NotImplementedException("Only graphar id filter is supported");
+        }
         filter_info = std::make_unique<FilterInfo>();
+        if (vid_range.first >= vid_range.second) {
+            filter_info->total_chunks = 0;
+            return;
+        }
+        GAR_RAISE_ERROR_NOT_OK(reader->seek(vid_range.first));
         const auto chunk_size = vertex_info->GetChunkSize();
         filter_info->offset_rows = vid_range.first % chunk_size;
-        filter_info->last_chunk_rows = vid_range.second % chunk_size;
-        filter_info->total_chunks = vid_range.second / chunk_size - vid_range.first / chunk_size + 1;
+        filter_info->last_chunk_rows = (vid_range.second - 1) % chunk_size + 1;
+        filter_info->total_chunks = (vid_range.second - 1) / chunk_size - vid_range.first / chunk_size + 1;
     }
 
     void FilterByRangeEdge(const std::pair<int64_t, int64_t>& vid_range, const std::string& filter_column,
                            std::shared_ptr<graphar::EdgeInfo> edge_info, const std::string& prefix)
     requires IsEdgeReader<StoredReader>
     {
-        if (vid_range.first != vid_range.second) {
+        if (vid_range.first + 1 != vid_range.second) {
             throw duckdb::NotImplementedException("FilterByRangeEdge not implemented for vid range");
         }
         graphar::AdjListType adj_list_type;
-        if (filter_column == "" or filter_column == duckdb::SRC_GID_COLUMN) {
+        if (filter_column == duckdb::SRC_GID_COLUMN) {
             adj_list_type = graphar::AdjListType::ordered_by_source;
         } else if (filter_column == duckdb::DST_GID_COLUMN) {
             adj_list_type = graphar::AdjListType::ordered_by_dest;
@@ -112,9 +122,13 @@ public:
         GAR_ASSIGN_OR_RAISE_ERROR(auto offset_pair, graphar::util::GetAdjListOffsetOfVertex(
                                                         edge_info, prefix, adj_list_type, vid_range.first));
         filter_info = std::make_unique<FilterInfo>();
+        if (offset_pair.first >= offset_pair.second) {
+            filter_info->total_chunks = 0;
+            return;
+        }
         filter_info->offset_rows = offset_pair.first % chunk_size;
-        filter_info->last_chunk_rows = offset_pair.second % chunk_size - 1;
-        filter_info->total_chunks = offset_pair.second / chunk_size - offset_pair.first / chunk_size + 1;
+        filter_info->last_chunk_rows = (offset_pair.second - 1) % chunk_size + 1;
+        filter_info->total_chunks = (offset_pair.second - 1) / chunk_size - offset_pair.first / chunk_size + 1;
     }
 
 private:

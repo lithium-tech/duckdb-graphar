@@ -186,7 +186,7 @@ void ReadVertices::PushdownComplexFilter(ClientContext& context, LogicalGet& get
                     if (column_name == GID_COLUMN_INTERNAL) {
                         can_pushdown = true;
                         const auto vid = std::stoll(comparison.right->ToString());
-                        read_bind_data->vid_range = std::make_pair(vid, vid);
+                        read_bind_data->vid_range = std::make_pair(vid, vid + 1);
                         read_bind_data->filter_column = column_name;
                     }
                 }

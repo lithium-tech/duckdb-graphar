@@ -54,7 +54,7 @@ ReaderPtr ConvertReader(graphar::Result<std::shared_ptr<SomeReader>> maybe_reade
     if (maybe_reader.has_error()) {
         throw InternalException("Error converting reader: " + maybe_reader.error().message());
     }
-    return std::move(maybe_reader.value());
+    return maybe_reader.value();
 }
 
 static unique_ptr<DataChunk> GetChunk(ReaderPtr& reader, int64_t num_rows) {
