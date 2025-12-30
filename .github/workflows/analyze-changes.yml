@@ -23,11 +23,12 @@ jobs:
 
       - name: Check out repository code
         uses: actions/checkout@v4
+        with:
+           fetch-depth: 0
 
       - name: Get list of changed source files
         run: |
-          echo "$(git diff --name-only \
-            ${{ github.event.before }}..${{ github.event.after }})" > source-files.txt
+          git diff --name-only ${{ github.event.before }}..${{ github.event.after }} > source-files.txt
           cat source-files.txt
 
       - name: Build
