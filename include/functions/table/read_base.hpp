@@ -109,8 +109,8 @@ static idx_t ReserveRowsToRead(ReaderPtr& reader) {
     return std::visit([&](auto& r) { return r->ReserveRowsToRead(); }, reader);
 }
 
-static void SelectColumns(ReaderPtr& reader, std::vector<column_t> proj_cols) {
-    return std::visit([&](auto& r) { r->SelectColumns(proj_cols); }, reader);
+static void SelectColumns(ReaderPtr& reader, std::vector<column_t> proj_columns) {
+    return std::visit([&](auto& r) { r->SelectColumns(proj_columns); }, reader);
 }
 
 using TypeInfoPtr = std::variant<std::shared_ptr<graphar::VertexInfo>, std::shared_ptr<graphar::EdgeInfo>>;
@@ -380,8 +380,8 @@ public:
                 GraphArFunctions::GetVertexNum(gstate.graph_info, GetVertexTypeName(gstate.type_info, filter_column));
             graphar::IdType zero = 0;
             vid_range.first = std::max(zero, vid_range.first);
-            vid_range.second = std::min(vertex_num - 1, vid_range.second);
-            if (vid_range.first > vid_range.second) {
+            vid_range.second = std::min(vertex_num, vid_range.second);
+            if (vid_range.first >= vid_range.second) {
                 throw IOException("Invalid filter range: " + std::to_string(vid_range.first) + " > " +
                                   std::to_string(vid_range.second));
             }

@@ -94,7 +94,7 @@ public:
         return res;
     }
 
-    void SelectColumns(std::vector<duckdb::column_t>& proj_columns_) {
+    void SelectColumns(std::vector<duckdb::column_t> proj_columns_) {
         if (cur_result) {
             throw std::runtime_error("Can't select columns after reading started!");
         }
@@ -103,7 +103,6 @@ public:
 
 protected:
     std::shared_ptr<BaseArrowChunkReader> base;
-    std::mutex mtx_base;
     std::vector<duckdb::column_t> proj_columns;
     duckdb::idx_t read_rows = 0;
     duckdb::unique_ptr<duckdb::DataChunk> cur_chunk = nullptr;
