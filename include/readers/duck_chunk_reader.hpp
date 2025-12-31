@@ -125,7 +125,7 @@ public:
         const std::shared_ptr<graphar::PropertyGroup>& property_group, const std::string& prefix,
         std::shared_ptr<graphar::TSVertexPropertyChunkInfoReader> init_baseptr = nullptr) {
         if (!init_baseptr) {
-            GAR_ASSIGN_OR_RAISE(auto init_baseptr,
+            GAR_ASSIGN_OR_RAISE(init_baseptr,
                                 graphar::TSVertexPropertyChunkInfoReader::Make(vertex_info, property_group, prefix));
         }
         return std::make_shared<DuckVertexChunkReader>(vertex_info, context, std::move(init_baseptr), file_reader);
@@ -152,7 +152,7 @@ public:
         const std::shared_ptr<graphar::EdgeInfo>& edge_info, graphar::AdjListType adj_list_type,
         const std::string& prefix, std::shared_ptr<BaseArrowChunkReader> init_baseptr = nullptr) {
         if (!init_baseptr) {
-            GAR_ASSIGN_OR_RAISE(auto init_baseptr, BaseArrowChunkReader::Make(edge_info, adj_list_type, prefix));
+            GAR_ASSIGN_OR_RAISE(init_baseptr, BaseArrowChunkReader::Make(edge_info, adj_list_type, prefix));
         }
         return std::make_shared<DuckEdgeChunkReader>(std::move(init_baseptr), file_reader, context, edge_info,
                                                      adj_list_type, prefix);
@@ -164,7 +164,7 @@ public:
         const std::shared_ptr<graphar::PropertyGroup>& property_group, graphar::AdjListType adj_list_type,
         const std::string& prefix, std::shared_ptr<BaseArrowChunkReader> init_baseptr = nullptr) {
         if (!init_baseptr) {
-            GAR_ASSIGN_OR_RAISE(auto init_baseptr,
+            GAR_ASSIGN_OR_RAISE(init_baseptr,
                                 BaseArrowChunkReader::Make(edge_info, property_group, adj_list_type, prefix))
         }
         return std::make_shared<DuckEdgeChunkReader>(std::move(init_baseptr), file_reader, context, edge_info,
