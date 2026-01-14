@@ -23,7 +23,7 @@ static unique_ptr<Catalog> GraphArAttach(optional_ptr<StorageExtensionInfo> stor
     DUCKDB_GRAPHAR_LOG_TRACE("GraphArAttach");
     auto maybe_graph_info = graphar::GraphInfo::Load(info.path);
     if (maybe_graph_info.has_error()) {
-        throw IOException("Failed to load graph info from path: %s", info.path);
+        throw IOException("Failed to load graph info from path: %s because of %s", info.path, maybe_graph_info.error().message());
     }
     auto graph_info = maybe_graph_info.value();
     if (std::filesystem::path(graph_info->GetPrefix()).is_relative()) {
