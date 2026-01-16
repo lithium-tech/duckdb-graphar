@@ -21,12 +21,24 @@ static unique_ptr<Catalog> GraphArAttach(optional_ptr<StorageExtensionInfo> stor
                                          AttachedDatabase& db, const string& name, AttachInfo& info,
                                          AttachOptions& attach_options) {
     DUCKDB_GRAPHAR_LOG_TRACE("GraphArAttach");
+    if (info.path.starts_with("s3://")) {
+        std::cout << "Initializing S3!!!!!!!!!!!!" << std::endl;
+        auto status = graphar::InitializeS3(); 
+        std::cout << "Initialized S3!!!!!" << std::endl;
+        std::atexit([]() { std::cout << "Finalzing S3!!!!!!!!!!!!!!" << std::endl; graphar::FinalizeS3(); std::cout << "Finalized S3!!!!!" << std::endl; });
+        if (!status.ok()) {
+            throw IOException("Failed to initialize S3: %s", status.message());
+        }
+    }
+    std::cout << "Loading graph info from path: " << info.path << std::endl;
     auto maybe_graph_info = graphar::GraphInfo::Load(info.path);
+    std::cout << "Loaded graph info from path: " << info.path << std::endl;
     if (maybe_graph_info.has_error()) {
         throw IOException("Failed to load graph info from path: %s because of %s", info.path, maybe_graph_info.error().message());
     }
     auto graph_info = maybe_graph_info.value();
-    if (std::filesystem::path(graph_info->GetPrefix()).is_relative()) {
+    if (!graph_info->GetPrefix().starts_with("s3://") && std::filesystem::path(graph_info->GetPrefix()).is_relative()) {
+        std::cout << "Prefix " << graph_info->GetPrefix() << " is relative" << std::endl;
         throw IOException(
             "Using relative path as prefix is not supported. Please use absolute path or just remove this field.");
     }
