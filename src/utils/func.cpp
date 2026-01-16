@@ -1,6 +1,7 @@
 #include "utils/func.hpp"
 
 #include "utils/global_log_manager.hpp"
+#include "utils/type_info.hpp"
 
 #include <arrow/c/bridge.h>
 
@@ -76,7 +77,7 @@ Value GraphArFunctions::ArrowScalar2DuckValue(const std::shared_ptr<arrow::Scala
 }
 
 template <typename Info>
-std::string GraphArFunctions::GetNameFromInfo(const std::shared_ptr<Info>& info) {
+std::string GraphArFunctions::GetNameFromInfo(const Info& info) {
     throw InternalException("Unsupported info");
 }
 
@@ -90,14 +91,14 @@ std::string GraphArFunctions::GetNameFromInfo(const std::shared_ptr<graphar::Edg
     return info->GetSrcType() + "_" + info->GetEdgeType() + "_" + info->GetDstType();
 }
 
-int64_t GraphArFunctions::GetVertexNum(std::shared_ptr<graphar::GraphInfo> graph_info, const std::string& type) {
-    auto vertex_info = graph_info->GetVertexInfo(type);
-    GAR_ASSIGN_OR_RAISE_ERROR(auto num_file_path, vertex_info->GetVerticesNumFilePath());
-    num_file_path = graph_info->GetPrefix() + num_file_path;
-    GAR_ASSIGN_OR_RAISE_ERROR(auto fs, graphar::FileSystemFromUriOrPath(num_file_path));
-    GAR_ASSIGN_OR_RAISE_ERROR(auto vertex_num, fs->ReadFileToValue<graphar::IdType>(num_file_path));
-    return vertex_num;
-}
+// int64_t GraphArFunctions::GetVertexNum(std::shared_ptr<graphar::GraphInfo> graph_info, const std::string& type) {
+//     auto vertex_info = graph_info->GetVertexInfo(type);
+//     GAR_ASSIGN_OR_RAISE_ERROR(auto num_file_path, vertex_info->GetVerticesNumFilePath());
+//     num_file_path = graph_info->GetPrefix() + num_file_path;
+//     GAR_ASSIGN_OR_RAISE_ERROR(auto fs, graphar::FileSystemFromUriOrPath(num_file_path));
+//     GAR_ASSIGN_OR_RAISE_ERROR(auto vertex_num, fs->ReadFileToValue<graphar::IdType>(num_file_path));
+//     return vertex_num;
+// }
 
 graphar::Result<std::shared_ptr<arrow::Schema>> GraphArFunctions::NamesAndTypesToArrowSchema(
     const vector<std::string>& names, const vector<std::string>& types) {
@@ -173,18 +174,6 @@ std::string GetDirectory(const std::string& path) {
         }
     }
     return path;
-}
-
-std::int64_t GetCount(const std::string& path) {
-    std::string no_url_path;
-    auto fs = graphar::FileSystemFromUriOrPath(path, &no_url_path).value();
-    return fs->ReadFileToValue<graphar::IdType>(path).value();
-}
-
-std::int64_t GetVertexCount(const std::shared_ptr<graphar::EdgeInfo>& edge_info, const std::string& directory) {
-    std::string vertex_num_path = edge_info->GetVerticesNumFilePath(graphar::AdjListType::ordered_by_source).value();
-
-    return GetCount(directory + vertex_num_path);
 }
 
 void ConvertArrowTableToDataChunk(const arrow::Table& table, DataChunk& output, const std::vector<column_t>& column_ids,

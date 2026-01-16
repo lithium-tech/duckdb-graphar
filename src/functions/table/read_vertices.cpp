@@ -102,7 +102,7 @@ void ReadVertices::SetFilter(ClientContext& context, ReadBaseGlobalTableFunction
     if (!vertex_info) {
         throw InternalException("Failed to get vertex info");
     }
-    int64_t vertex_num = GraphArFunctions::GetVertexNum(gstate.graph_info, gstate.params[0]);
+    int64_t vertex_num = GetCountClass::GetCount(vertex_info, gstate.graph_info->GetPrefix());
     if (vid_range.first < 0 || vid_range.first >= vertex_num || vid_range.second <= 0 ||
         vid_range.second > vertex_num) {
         throw BinderException("Invalid filter vertex id range");
@@ -154,7 +154,7 @@ unique_ptr<BaseStatistics> ReadVertices::GetStatistics(ClientContext& context, c
     auto stats = NumericStats::CreateEmpty(LogicalType::BIGINT);
     NumericStats::SetMin(stats, Value::BIGINT(0));
     NumericStats::SetMax(stats,
-                         Value::BIGINT(GraphArFunctions::GetVertexNum(read_bind_data.GetGraphInfo(), v_type) - 1));
+                         Value::BIGINT(GetCountClass::GetCount(read_bind_data.GetGraphInfo()->GetVertexInfo(v_type), read_bind_data.GetGraphInfo()->GetPrefix()) - 1));
     return stats.ToUnique();
 }
 //-------------------------------------------------------------------

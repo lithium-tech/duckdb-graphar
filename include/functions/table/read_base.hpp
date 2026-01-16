@@ -6,6 +6,7 @@
 #include "utils/benchmark.hpp"
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
+#include "utils/type_info.hpp"
 
 #include <arrow/c/bridge.h>
 
@@ -111,29 +112,6 @@ static idx_t ReserveRowsToRead(ReaderPtr& reader) {
 
 static void SelectColumns(ReaderPtr& reader, std::vector<column_t> proj_columns) {
     return std::visit([&](auto& r) { r->SelectColumns(proj_columns); }, reader);
-}
-
-using TypeInfoPtr = std::variant<std::shared_ptr<graphar::VertexInfo>, std::shared_ptr<graphar::EdgeInfo>>;
-
-static const graphar::PropertyGroupVector& GetPropertyGroups(TypeInfoPtr& type_info) {
-    return std::visit([&](auto& t) -> const graphar::PropertyGroupVector& { return t->GetPropertyGroups(); },
-                      type_info);
-}
-
-static std::string GetVertexTypeName(TypeInfoPtr& type_info, const std::string& column_name) {
-    return std::visit(
-        [&](auto& t) {
-            if constexpr (requires { t->GetSrcType(); }) {
-                if (column_name == SRC_GID_COLUMN) {
-                    return t->GetSrcType();
-                } else {
-                    return t->GetDstType();
-                }
-            } else {
-                return t->GetType();
-            }
-        },
-        type_info);
 }
 
 template <typename ReadFinal>
@@ -376,8 +354,7 @@ public:
         if (filter_column != "") {
             DUCKDB_GRAPHAR_LOG_TRACE("Filters found");
             auto vid_range = bind_data.vid_range;
-            const auto vertex_num =
-                GraphArFunctions::GetVertexNum(gstate.graph_info, GetVertexTypeName(gstate.type_info, filter_column));
+            const auto vertex_num = GetCountClass::GetCount(gstate.type_info, bind_data.GetGraphInfo()->GetPrefix());
             graphar::IdType zero = 0;
             vid_range.first = std::max(zero, vid_range.first);
             vid_range.second = std::min(vertex_num, vid_range.second);

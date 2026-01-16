@@ -125,8 +125,8 @@ void ReadEdges::SetFilter(ClientContext& context, ReadBaseGlobalTableFunctionSta
         throw InternalException("Failed to get edge info");
     }
     const int64_t vertex_num = (filter_column == SRC_GID_COLUMN)
-                                   ? GraphArFunctions::GetVertexNum(gstate.graph_info, gstate.params[0])
-                                   : GraphArFunctions::GetVertexNum(gstate.graph_info, gstate.params[2]);
+                                   ? GetCountClass::GetCount(gstate.graph_info->GetVertexInfo(edge_info->GetSrcType()), gstate.graph_info->GetPrefix())
+                                   : GetCountClass::GetCount(gstate.graph_info->GetVertexInfo(edge_info->GetDstType()), gstate.graph_info->GetPrefix());
     if (vid_range.first < 0 || vid_range.first >= vertex_num || vid_range.second <= 0 ||
         vid_range.second > vertex_num) {
         throw BinderException("Invalid filter vertex id range");
@@ -200,7 +200,7 @@ unique_ptr<BaseStatistics> ReadEdges::GetStatistics(ClientContext& context, cons
     auto stats = NumericStats::CreateEmpty(LogicalType::BIGINT);
     NumericStats::SetMin(stats, Value::BIGINT(0));
     NumericStats::SetMax(stats,
-                         Value::BIGINT(GraphArFunctions::GetVertexNum(read_bind_data.GetGraphInfo(), v_type) - 1));
+                         Value::BIGINT(GetCountClass::GetCount(read_bind_data.GetGraphInfo()->GetVertexInfo(v_type), read_bind_data.GetGraphInfo()->GetPrefix()) - 1));
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetStatistics: finished");
     return stats.ToUnique();
 }

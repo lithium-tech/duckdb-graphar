@@ -3,6 +3,7 @@
 #include "utils/benchmark.hpp"
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
+#include "utils/type_info.hpp"
 
 #include <duckdb/common/named_parameter_map.hpp>
 #include <duckdb/common/vector_size.hpp>
@@ -80,7 +81,7 @@ unique_ptr<GlobalTableFunctionState> EdgesVertexGlobalTableFunctionState::Init(C
     }
 
     auto prefix = GetDirectory(bind_data.GetFilePath());
-    auto vertex_count = GetVertexCount(bind_data.GetEdgeInfo(), prefix);
+    auto vertex_count = GetCountClass::GetCount(bind_data.graph_info->GetVertexInfo(bind_data.GetEdgeInfo()->GetSrcType()), prefix);
     idx_t iter = 0, end_iter = vertex_count;
 
     if (time_logging) {

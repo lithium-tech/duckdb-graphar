@@ -24,29 +24,6 @@ GraphArTableEntry::GraphArTableEntry(Catalog& catalog, unique_ptr<SchemaCatalogE
     : TableCatalogEntry(catalog, *schema, info), schema(std::move(schema)) {}
 
 unique_ptr<BaseStatistics> GraphArTableEntry::GetStatistics(ClientContext& context, column_t column_id) {
-    // DUCKDB_GRAPHAR_LOG_TRACE("GraphArTableEntry::GetStatistics");
-    // if (table_info.expired()) {
-    //     throw InvalidInputException("GraphArTableEntry::GetStatistics: table_info is expired");
-    // }
-    // auto tmp_table_info = table_info.lock();
-    // if (tmp_table_info->GetType() == GraphArTableType::Vertex) {
-    //     if (column_id > 0) {
-    //         return nullptr;
-    //     }
-    //     auto result = NumericStats::CreateEmpty(duckdb::LogicalType::BIGINT);
-    //     NumericStats::SetMin(result, 0);
-    //     NumericStats::SetMax(result, GraphArFunctions::GetVertexNum(tmp_table_info->GetCatalog().GetGraphInfo(),
-    //     tmp_table_info->GetParams()[0]) - 1); return result.ToUnique();
-    // } else {
-    //     if (column_id > 1) {
-    //         return nullptr;
-    //     }
-    //     auto result = NumericStats::CreateEmpty(duckdb::LogicalType::BIGINT);
-    //     NumericStats::SetMin(result, 0);
-    //     NumericStats::SetMax(result, GraphArFunctions::GetVertexNum(tmp_table_info->GetCatalog().GetGraphInfo(),
-    //     tmp_table_info->GetParams()[column_id == 0 ? 0 : 2]) - 1); return result.ToUnique();
-    // }
-    // return nullptr;
     throw NotImplementedException("GraphArTableEntry::GetStatistics");
 }
 
@@ -60,28 +37,27 @@ TableFunction GraphArTableEntry::GetScanFunction(ClientContext& context, unique_
     auto bind_data_ = make_uniq<ReadBindData>();
     auto tmp_table_info = table_info.lock();
     const auto graph_info = tmp_table_info->GetCatalog().GetGraphInfo();
-    switch (tmp_table_info->GetType()) {
-        case GraphArTableType::Vertex:
-            ReadVertices::SetBindData(graph_info, graph_info->GetVertexInfo(tmp_table_info->GetParams()[0]),
-                                      bind_data_);
-            bind_data = std::move(bind_data_);
-            return ReadVertices::GetScanFunction();
-        case GraphArTableType::Edge:
-            ReadEdges::SetBindData(
-                graph_info,
-                graph_info->GetEdgeInfo(tmp_table_info->GetParams()[0], tmp_table_info->GetParams()[1],
-                                        tmp_table_info->GetParams()[2]),
-                bind_data_);
-            bind_data = std::move(bind_data_);
-            return ReadEdges::GetScanFunction();
-        default:
-            throw InternalException("Unknown table type");
+    const auto& type_info = tmp_table_info->GetTypeInfo();
+    if (std::holds_alternative<std::shared_ptr<graphar::VertexInfo>>(type_info)) {
+        const auto& vertex_info = std::get<std::shared_ptr<graphar::VertexInfo>>(type_info);
+        ReadVertices::SetBindData(graph_info, vertex_info, bind_data_);
+        bind_data = std::move(bind_data_);
+        return ReadVertices::GetScanFunction();
+    } else {
+        const auto& edge_info = std::get<std::shared_ptr<graphar::EdgeInfo>>(type_info);
+        ReadEdges::SetBindData(graph_info, edge_info, bind_data_);
+        bind_data = std::move(bind_data_);
+        return ReadEdges::GetScanFunction();
     }
 }
 
 TableStorageInfo GraphArTableEntry::GetStorageInfo(ClientContext& context) {
     TableStorageInfo result;
-    // TODO fill info
+    if (table_info.expired()) {
+        throw InvalidInputException("GraphArTableEntry::GetStorageInfo: table_info is expired");
+    }
+    auto tmp_table_info = table_info.lock();
+    result.cardinality= GetCountClass::GetCount(tmp_table_info->GetTypeInfo(), tmp_table_info->GetCatalog().GetGraphInfo()->GetPrefix());
     return result;
 }
 

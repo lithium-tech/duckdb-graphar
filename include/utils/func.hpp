@@ -21,6 +21,12 @@ const std::string GID_COLUMN = "grapharId";
 const std::string GID_COLUMN_INTERNAL = "_graphArVertexIndex";
 const std::string SRC_GID_COLUMN = "_graphArSrcIndex";
 const std::string DST_GID_COLUMN = "_graphArDstIndex";
+const std::vector<graphar::AdjListType> all_adj_list_types = {
+    graphar::AdjListType::ordered_by_source,
+    graphar::AdjListType::ordered_by_dest,
+    graphar::AdjListType::unordered_by_source,
+    graphar::AdjListType::unordered_by_dest
+};
 
 struct GraphArFunctions {
     static LogicalTypeId graphArT2duckT(const std::string& name);
@@ -32,9 +38,7 @@ struct GraphArFunctions {
     static Value ArrowScalar2DuckValue(const std::shared_ptr<arrow::Scalar>& scalar);
 
     template <typename Info>
-    static std::string GetNameFromInfo(const std::shared_ptr<Info>& info);
-
-    static int64_t GetVertexNum(std::shared_ptr<graphar::GraphInfo> graph_info, const std::string& type);
+    static std::string GetNameFromInfo(const Info& info);
 
     template <typename GraphArIter>
     static void setByIter(DataChunk& output, GraphArIter& iter, const int prop_i, const int row_i,
@@ -217,8 +221,6 @@ inline void PrintArrowTable(const std::shared_ptr<arrow::Table>& table, int64_t 
 
 std::string GetYamlContent(const std::string& path);
 std::string GetDirectory(const std::string& path);
-std::int64_t GetCount(const std::string& path);
-std::int64_t GetVertexCount(const std::shared_ptr<graphar::EdgeInfo>& edge_info, const std::string& directory);
 
 void ConvertArrowTableToDataChunk(const arrow::Table& table, DataChunk& output, const std::vector<column_t>& column_ids,
                                   ClientContext& context);

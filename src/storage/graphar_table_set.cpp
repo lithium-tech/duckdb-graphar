@@ -69,9 +69,10 @@ GraphArTableSet::CreateTables(GraphArCatalog& graphar_catalog, const InfoVector&
     DUCKDB_GRAPHAR_LOG_TRACE("GraphArTableSet::CreateTables");
 
     for (auto& info : infos) {
-        auto type_info = make_uniq<CreateTableInfo>();
+        auto create_table_info = make_uniq<CreateTableInfo>();
+        create_table_info->tags["type"] = (type == GraphArTableType::Vertex) ? "vertex" : "edge";
         auto file_name = GraphArFunctions::GetNameFromInfo(info);
-        type_info->table = file_name;
+        create_table_info->table = file_name;
 
         auto bind_data = make_uniq<ReadBindData>();
         auto& graphar_catalog = catalog.Cast<GraphArCatalog>();
@@ -86,13 +87,14 @@ GraphArTableSet::CreateTables(GraphArCatalog& graphar_catalog, const InfoVector&
             columns.emplace_back(bind_data->GetFlattenPropNames()[i],
                                  GraphArFunctions::graphArT2duckT(bind_data->GetFlattenPropTypes()[i]));
         }
-        type_info->columns = ColumnList(std::move(columns));
+        create_table_info->columns = ColumnList(std::move(columns));
 
         CreateSchemaInfo fake_schema_info;
         auto schema = make_uniq<GraphArSchemaEntry>(catalog, fake_schema_info);
-        auto table_entry = make_uniq<GraphArTableEntry>(catalog, std::move(schema), *type_info);
+        auto table_entry = make_uniq<GraphArTableEntry>(catalog, std::move(schema), *create_table_info);
+        TypeInfoPtr type_info = info;
         auto table_info = make_shared_ptr<GraphArTableInformation>(graphar_catalog, std::move(table_entry), file_name,
-                                                                   type, bind_data->GetParams());
+                                                                   type, type_info);
         table_info->GetEntry().SetTableInfo(table_info);
         table_entries[file_name] = std::move(table_info);
         DUCKDB_GRAPHAR_LOG_INFO("Table was created with name " + file_name);
