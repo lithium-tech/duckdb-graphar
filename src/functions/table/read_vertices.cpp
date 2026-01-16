@@ -154,7 +154,9 @@ unique_ptr<BaseStatistics> ReadVertices::GetStatistics(ClientContext& context, c
     auto stats = NumericStats::CreateEmpty(LogicalType::BIGINT);
     NumericStats::SetMin(stats, Value::BIGINT(0));
     NumericStats::SetMax(stats,
-                         Value::BIGINT(GetCountClass::GetCount(read_bind_data.GetGraphInfo()->GetVertexInfo(v_type), read_bind_data.GetGraphInfo()->GetPrefix()) - 1));
+                         Value::BIGINT(GetCountClass::GetCount(read_bind_data.GetGraphInfo()->GetVertexInfo(v_type),
+                                                               read_bind_data.GetGraphInfo()->GetPrefix()) -
+                                       1));
     return stats.ToUnique();
 }
 //-------------------------------------------------------------------

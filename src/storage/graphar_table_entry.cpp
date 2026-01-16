@@ -57,7 +57,8 @@ TableStorageInfo GraphArTableEntry::GetStorageInfo(ClientContext& context) {
         throw InvalidInputException("GraphArTableEntry::GetStorageInfo: table_info is expired");
     }
     auto tmp_table_info = table_info.lock();
-    result.cardinality= GetCountClass::GetCount(tmp_table_info->GetTypeInfo(), tmp_table_info->GetCatalog().GetGraphInfo()->GetPrefix());
+    result.cardinality = GetCountClass::GetCount(tmp_table_info->GetTypeInfo(),
+                                                 tmp_table_info->GetCatalog().GetGraphInfo()->GetPrefix());
     return result;
 }
 

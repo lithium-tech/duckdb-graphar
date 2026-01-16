@@ -23,9 +23,13 @@ static unique_ptr<Catalog> GraphArAttach(optional_ptr<StorageExtensionInfo> stor
     DUCKDB_GRAPHAR_LOG_TRACE("GraphArAttach");
     if (info.path.starts_with("s3://")) {
         std::cout << "Initializing S3!!!!!!!!!!!!" << std::endl;
-        auto status = graphar::InitializeS3(); 
+        auto status = graphar::InitializeS3();
         std::cout << "Initialized S3!!!!!" << std::endl;
-        std::atexit([]() { std::cout << "Finalzing S3!!!!!!!!!!!!!!" << std::endl; graphar::FinalizeS3(); std::cout << "Finalized S3!!!!!" << std::endl; });
+        std::atexit([]() {
+            std::cout << "Finalzing S3!!!!!!!!!!!!!!" << std::endl;
+            graphar::FinalizeS3();
+            std::cout << "Finalized S3!!!!!" << std::endl;
+        });
         if (!status.ok()) {
             throw IOException("Failed to initialize S3: %s", status.message());
         }
@@ -34,7 +38,8 @@ static unique_ptr<Catalog> GraphArAttach(optional_ptr<StorageExtensionInfo> stor
     auto maybe_graph_info = graphar::GraphInfo::Load(info.path);
     std::cout << "Loaded graph info from path: " << info.path << std::endl;
     if (maybe_graph_info.has_error()) {
-        throw IOException("Failed to load graph info from path: %s because of %s", info.path, maybe_graph_info.error().message());
+        throw IOException("Failed to load graph info from path: %s because of %s", info.path,
+                          maybe_graph_info.error().message());
     }
     auto graph_info = maybe_graph_info.value();
     if (!graph_info->GetPrefix().starts_with("s3://") && std::filesystem::path(graph_info->GetPrefix()).is_relative()) {

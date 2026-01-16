@@ -5,8 +5,8 @@
 
 #include <graphar/graph_info.h>
 
-#include <variant>
 #include <unordered_map>
+#include <variant>
 
 namespace duckdb {
 
@@ -35,9 +35,10 @@ static std::string GetVertexTypeName(TypeInfoPtr& type_info, const std::string& 
 
 class GetCountClass {
 public:
-    static int64_t GetCount(const TypeInfoPtr &type_info, const std::string& graph_prefix);
+    static int64_t GetCount(const TypeInfoPtr& type_info, const std::string& graph_prefix);
+
 private:
     static std::unordered_map<std::string, int64_t> count_cache;
 };
 
-} // namespace duckdb
+}  // namespace duckdb

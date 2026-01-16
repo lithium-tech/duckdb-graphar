@@ -81,7 +81,8 @@ unique_ptr<GlobalTableFunctionState> EdgesVertexGlobalTableFunctionState::Init(C
     }
 
     auto prefix = GetDirectory(bind_data.GetFilePath());
-    auto vertex_count = GetCountClass::GetCount(bind_data.graph_info->GetVertexInfo(bind_data.GetEdgeInfo()->GetSrcType()), prefix);
+    auto vertex_count =
+        GetCountClass::GetCount(bind_data.graph_info->GetVertexInfo(bind_data.GetEdgeInfo()->GetSrcType()), prefix);
     idx_t iter = 0, end_iter = vertex_count;
 
     if (time_logging) {

@@ -22,11 +22,8 @@ const std::string GID_COLUMN_INTERNAL = "_graphArVertexIndex";
 const std::string SRC_GID_COLUMN = "_graphArSrcIndex";
 const std::string DST_GID_COLUMN = "_graphArDstIndex";
 const std::vector<graphar::AdjListType> all_adj_list_types = {
-    graphar::AdjListType::ordered_by_source,
-    graphar::AdjListType::ordered_by_dest,
-    graphar::AdjListType::unordered_by_source,
-    graphar::AdjListType::unordered_by_dest
-};
+    graphar::AdjListType::ordered_by_source, graphar::AdjListType::ordered_by_dest,
+    graphar::AdjListType::unordered_by_source, graphar::AdjListType::unordered_by_dest};
 
 struct GraphArFunctions {
     static LogicalTypeId graphArT2duckT(const std::string& name);
