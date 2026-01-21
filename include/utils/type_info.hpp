@@ -5,6 +5,7 @@
 
 #include <graphar/graph_info.h>
 
+#include <mutex>
 #include <unordered_map>
 #include <variant>
 
@@ -39,6 +40,7 @@ public:
 
 private:
     static std::unordered_map<std::string, int64_t> count_cache;
+    static std::mutex count_cache_mutex;
 };
 
 }  // namespace duckdb
