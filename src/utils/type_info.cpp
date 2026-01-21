@@ -27,9 +27,8 @@ int64_t GetCountClass::GetCount(const TypeInfoPtr& type_info, const std::string&
                            if (!type_info->HasAdjacentListType(adj_list_type)) {
                                continue;
                            }
-                           GAR_ASSIGN_OR_RAISE_ERROR(
-                               auto vertices_num_file_path,
-                               type_info->GetVerticesNumFilePath(adj_list_type));
+                           GAR_ASSIGN_OR_RAISE_ERROR(auto vertices_num_file_path,
+                                                     type_info->GetVerticesNumFilePath(adj_list_type));
                            vertices_num_file_path = graph_prefix + vertices_num_file_path;
                            GAR_ASSIGN_OR_RAISE_ERROR(auto fs, graphar::FileSystemFromUriOrPath(vertices_num_file_path));
                            GAR_ASSIGN_OR_RAISE_ERROR(
@@ -38,9 +37,8 @@ int64_t GetCountClass::GetCount(const TypeInfoPtr& type_info, const std::string&
                            const auto vertex_chunk_count = (vertex_num + vertex_chunk_size - 1) / vertex_chunk_size;
                            int64_t edge_num = 0;
                            for (int64_t i = 0; i < vertex_chunk_count; ++i) {
-                               GAR_ASSIGN_OR_RAISE_ERROR(
-                                   auto chunk_path,
-                                   type_info->GetEdgesNumFilePath(i, adj_list_type));
+                               GAR_ASSIGN_OR_RAISE_ERROR(auto chunk_path,
+                                                         type_info->GetEdgesNumFilePath(i, adj_list_type));
                                chunk_path = graph_prefix + chunk_path;
                                GAR_ASSIGN_OR_RAISE_ERROR(auto chunk_edge_num,
                                                          fs->template ReadFileToValue<graphar::IdType>(chunk_path));
