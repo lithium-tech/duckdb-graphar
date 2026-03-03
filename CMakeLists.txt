@@ -120,7 +120,7 @@ log_stage("Setting up GraphAR...")
 ExternalProject_Add(
   graphar
   PREFIX ${GRAPHAR_PREFIX_DIR}
-  GIT_REPOSITORY https://github.com/apache/incubator-graphar.git
+  GIT_REPOSITORY https://github.com/lithium-tech/incubator-graphar.git
   GIT_TAG 1a44bc343e0e846df129c78152f6310a1d678429
   SOURCE_SUBDIR cpp
   CMAKE_ARGS
