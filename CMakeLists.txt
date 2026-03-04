@@ -121,7 +121,7 @@ ExternalProject_Add(
   graphar
   PREFIX ${GRAPHAR_PREFIX_DIR}
   GIT_REPOSITORY https://github.com/lithium-tech/incubator-graphar.git
-  GIT_TAG 1a44bc343e0e846df129c78152f6310a1d678429
+  GIT_TAG 6f112c69fef71bec0483ab0e5142e18f1165d1ea
   SOURCE_SUBDIR cpp
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${GRAPHAR_INSTALL_DIR}
