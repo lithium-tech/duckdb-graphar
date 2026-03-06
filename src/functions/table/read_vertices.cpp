@@ -78,7 +78,7 @@ unique_ptr<FunctionData> ReadVertices::Bind(ClientContext& context, TableFunctio
 //-------------------------------------------------------------------
 BaseReaderPtr ReadVertices::GetBaseReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate, idx_t ind,
                                           const std::string& filter_column) {
-    DUCKDB_GRAPHAR_LOG_TRACE("ReadVertices::GetReader");
+    DUCKDB_GRAPHAR_LOG_TRACE("ReadVertices::GetBaseReader");
     auto vertex_info = *std::get_if<std::shared_ptr<graphar::VertexInfo>>(&gstate.type_info);
     if (!vertex_info) {
         throw InternalException("Failed to get vertex info");

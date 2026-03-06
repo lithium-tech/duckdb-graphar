@@ -117,11 +117,22 @@ add_dependencies(arrow::arrow_shared arrow)
 
 log_stage("Setting up GraphAR...")
 
+if(PATH_TO_LOCAL_GRAPHAR)
+  set(COND_SOURCE_DIR SOURCE_DIR ${PATH_TO_LOCAL_GRAPHAR})
+  set(COND_GIT_ARGS "")
+else()
+  set(COND_SOURCE_DIR "")
+  set(COND_GIT_ARGS
+    GIT_REPOSITORY https://github.com/lithium-tech/incubator-graphar.git
+    GIT_TAG 6f112c69fef71bec0483ab0e5142e18f1165d1ea
+  )
+endif()
+
 ExternalProject_Add(
   graphar
   PREFIX ${GRAPHAR_PREFIX_DIR}
-  GIT_REPOSITORY https://github.com/lithium-tech/incubator-graphar.git
-  GIT_TAG 6f112c69fef71bec0483ab0e5142e18f1165d1ea
+  ${COND_SOURCE_DIR}
+  ${COND_GIT_ARGS}
   SOURCE_SUBDIR cpp
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${GRAPHAR_INSTALL_DIR}
