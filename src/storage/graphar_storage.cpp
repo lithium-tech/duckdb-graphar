@@ -11,8 +11,10 @@
 #include <duckdb/parser/parsed_data/attach_info.hpp>
 #include <duckdb/parser/parsed_data/create_schema_info.hpp>
 #include <duckdb/transaction/transaction_manager.hpp>
-
 #include <duckdb.hpp>
+
+#include <arrow/filesystem/s3fs.h>
+
 #include <filesystem>
 
 namespace duckdb {
@@ -27,9 +29,23 @@ static unique_ptr<Catalog> GraphArAttach(optional_ptr<StorageExtensionInfo> stor
                           maybe_graph_info.error().message());
     }
     auto graph_info = maybe_graph_info.value();
-    if (std::filesystem::path(graph_info->GetPrefix()).is_relative()) {
+    const auto& prefix = graph_info->GetPrefix();
+    std::cout << "graph prefix " << prefix << std::endl;
+    if (!prefix.starts_with("s3://") && std::filesystem::path(prefix).is_relative()) {
         throw IOException(
             "Using relative path as prefix is not supported. Please use absolute path or just remove this field.");
+    }
+
+    if (prefix.starts_with("s3://")) {
+        if (!arrow::fs::IsS3Initialized()) {
+            std::cout << "Initializing S3!!!!!!!!!!!!" << std::endl;
+            auto status = graphar::InitializeS3();
+            if (!status.ok()) {
+                throw IOException("Failed to initialize S3: %s", status.message());
+            }
+            std::cout << "Initialized S3!!!!!" << std::endl;
+        }
+        std::atexit([]() { std::cout << "Finalzing S3!!!!!!!!!!!!!!" << std::endl; graphar::FinalizeS3();  std::cout << "Finalized S3!!!!!" << std::endl; });
     }
     return make_uniq<GraphArCatalog>(db, info.path, graph_info, context, db.name);
 }
