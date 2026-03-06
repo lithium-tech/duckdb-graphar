@@ -123,8 +123,8 @@ if(PATH_TO_LOCAL_GRAPHAR)
 else()
   set(COND_SOURCE_DIR "")
   set(COND_GIT_ARGS
-    GIT_REPOSITORY https://github.com/lithium-tech/incubator-graphar.git
-    GIT_TAG 6f112c69fef71bec0483ab0e5142e18f1165d1ea
+    GIT_REPOSITORY https://github.com/RoyalMirMak/incubator-graphar.git
+    GIT_TAG ec5ed1f7e54e3fe79aa02da288360eb387d7594a
   )
 endif()
 
