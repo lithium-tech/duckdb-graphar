@@ -124,7 +124,7 @@ else()
   set(COND_SOURCE_DIR "")
   set(COND_GIT_ARGS
     GIT_REPOSITORY https://github.com/RoyalMirMak/incubator-graphar.git
-    GIT_TAG ec5ed1f7e54e3fe79aa02da288360eb387d7594a
+    GIT_TAG dd07a86a7e8bcbef48bff5f158aa121e4656996d
   )
 endif()
 
