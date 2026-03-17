@@ -57,12 +57,11 @@ if(APPLE)
 
     # === INSERT THIS DEBUG BLOCK ===
     add_custom_command(TARGET duckdb_graphar_loadable_extension PRE_LINK
-        COMMAND echo "======================================================="
-        COMMAND echo ">>> DEBUG: Dumping symbols containing 'duckdb_graphar' <<<"
-        # We use sh -c to allow piping to grep inside CMake
-        COMMAND sh -c "nm -g $<TARGET_OBJECTS:duckdb_graphar_loadable_extension> | grep 'duckdb_graphar' || echo 'NO SYMBOLS FOUND'"
-        COMMAND echo "======================================================="
-        COMMENT "Inspecting symbols before linking crash..."
+        COMMAND echo "--- START SYMBOL DUMP ---"
+        # This will print every external symbol in the object files
+        COMMAND nm -g $<TARGET_OBJECTS:duckdb_graphar_loadable_extension>
+        COMMAND echo "--- END SYMBOL DUMP ---"
+        VERBATIM
     )
     # ===============================
 endif()
