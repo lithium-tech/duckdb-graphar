@@ -57,10 +57,12 @@ if(APPLE)
 
     # === INSERT THIS DEBUG BLOCK ===
     add_custom_command(TARGET duckdb_graphar_loadable_extension PRE_LINK
-        COMMAND echo "--- START SYMBOL DUMP ---"
-        # This will print every external symbol in the object files
-        COMMAND nm -g $<TARGET_OBJECTS:duckdb_graphar_loadable_extension>
-        COMMAND echo "--- END SYMBOL DUMP ---"
+        COMMAND echo "======================================================="
+        COMMAND echo "--- DEBUG: Inspecting Entry Point Symbols ---"
+        # We use 'find' to locate the specific object file containing the entry point.
+        # This avoids the "File name too long" error by ignoring the hundreds of other object files.
+        COMMAND find ${CMAKE_CURRENT_BINARY_DIR} -name "*duckdb_graphar_extension.cpp.o" -exec nm -g {} +
+        COMMAND echo "======================================================="
         VERBATIM
     )
     # ===============================

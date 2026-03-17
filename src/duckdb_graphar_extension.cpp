@@ -69,6 +69,8 @@ std::string DuckdbGrapharExtension::Version() const {
 
 }  // namespace duckdb
 
-extern "C" {
-DUCKDB_CPP_EXTENSION_ENTRY(duckdb_graphar, loader) { duckdb::LoadInternal(loader); }
+extern "C" {  
+DUCKDB_EXTENSION_API void duckdb_graphar_duckdb_cpp_init(duckdb::ExtensionLoader &loader) {  
+    duckdb::LoadInternal(loader);  
+}  
 }
