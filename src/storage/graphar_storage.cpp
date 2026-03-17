@@ -5,16 +5,16 @@
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
 
+#include <arrow/filesystem/s3fs.h>
+
 #include <duckdb/catalog/catalog_entry/schema_catalog_entry.hpp>
 #include <duckdb/catalog/catalog_entry/table_catalog_entry.hpp>
 #include <duckdb/main/client_data.hpp>
 #include <duckdb/parser/parsed_data/attach_info.hpp>
 #include <duckdb/parser/parsed_data/create_schema_info.hpp>
 #include <duckdb/transaction/transaction_manager.hpp>
+
 #include <duckdb.hpp>
-
-#include <arrow/filesystem/s3fs.h>
-
 #include <filesystem>
 
 namespace duckdb {

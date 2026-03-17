@@ -127,11 +127,9 @@ private:
     std::atomic<int> active_connections{0};
 
 public:
-    void OnConnectionOpened(ClientContext &context) override {
-        active_connections++;
-    }
+    void OnConnectionOpened(ClientContext& context) override { active_connections++; }
 
-    void OnConnectionClosed(ClientContext &context) override {
+    void OnConnectionClosed(ClientContext& context) override {
         if (--active_connections == 0) {
             if (arrow::fs::IsS3Initialized() && !arrow::fs::IsS3Finalized()) {
                 graphar::FinalizeS3();

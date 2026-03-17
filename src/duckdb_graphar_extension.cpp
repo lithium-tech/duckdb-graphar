@@ -9,8 +9,8 @@
 #include "functions/table/read_edges.hpp"
 #include "functions/table/read_vertices.hpp"
 #include "storage/graphar_storage.hpp"
-#include "utils/global_log_manager.hpp"
 #include "utils/func.hpp"
+#include "utils/global_log_manager.hpp"
 
 #include <duckdb/common/exception.hpp>
 #include <duckdb/common/string_util.hpp>
@@ -70,7 +70,5 @@ std::string DuckdbGrapharExtension::Version() const {
 }  // namespace duckdb
 
 extern "C" {
-DUCKDB_CPP_EXTENSION_ENTRY(duckdb_graphar, loader) {
-    duckdb::LoadInternal(loader);
-}
+DUCKDB_CPP_EXTENSION_ENTRY(duckdb_graphar, loader) { duckdb::LoadInternal(loader); }
 }
