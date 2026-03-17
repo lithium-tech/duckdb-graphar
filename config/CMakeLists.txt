@@ -48,6 +48,11 @@ target_link_libraries(duckdb_graphar_loadable_extension
     ${EXT_LIBS}
 )
 
+if(APPLE)
+    set_target_properties(duckdb_graphar_loadable_extension PROPERTIES
+        LINK_FLAGS "-Wl,-exported_symbol,_duckdb_graphar_duckdb_cpp_init -Wl,-dead_strip")
+endif()
+
 # =============================================
 # Installation
 # =============================================
