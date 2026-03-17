@@ -20,8 +20,13 @@ add_executable(unittest_graphar ${ALL_OBJECT_FILES})
 
 target_link_libraries(unittest_graphar
     PRIVATE
-        duckdb_graphar_extension       
-        Catch2::Catch2WithMain         
+        duckdb_static
+        duckdb_generated_extension_loader
+        core_functions_extension
+        parquet_extension
+        jemalloc_extension
+        duckdb_graphar_extension
+        Catch2::Catch2WithMain
 )
 
 target_include_directories(unittest_graphar PRIVATE

@@ -9,6 +9,7 @@
 #include <duckdb/function/table_function.hpp>
 
 #include <graphar/api/high_level_reader.h>
+#include <graphar/graph_info.h>
 
 #include <iostream>
 
@@ -37,7 +38,7 @@ unique_ptr<FunctionData> TwoHop::Bind(ClientContext& context, TableFunctionBindI
 
     DUCKDB_GRAPHAR_LOG_DEBUG("Create BindData");
 
-    const std::string prefix = GetDirectory(file_path);
+    const std::string prefix = graphar::PathToDirectory(file_path);
     auto bind_data = make_uniq<TwoHopBindData>(edge_info, prefix, vid);
 
     DUCKDB_GRAPHAR_LOG_DEBUG("Set types and names");

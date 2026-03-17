@@ -148,25 +148,6 @@ std::string GetYamlContent(const std::string& path) {
     return yaml_content;
 }
 
-// Function from incubator-graphar
-std::string GetDirectory(const std::string& path) {
-    if (path.rfind("s3://", 0) == 0) {
-        int t = path.find_last_of('?');
-        std::string prefix = path.substr(0, t);
-        std::string suffix = path.substr(t);
-        const size_t last_slash_idx = prefix.rfind('/');
-        if (std::string::npos != last_slash_idx) {
-            return prefix.substr(0, last_slash_idx + 1) + suffix;
-        }
-    } else {
-        const size_t last_slash_idx = path.rfind('/');
-        if (std::string::npos != last_slash_idx) {
-            return path.substr(0, last_slash_idx + 1);  // +1 to include the slash
-        }
-    }
-    return path;
-}
-
 void ConvertArrowTableToDataChunk(const arrow::Table& table, DataChunk& output, const std::vector<column_t>& column_ids,
                                   ClientContext& context) {
     auto schema = table.schema();
@@ -177,7 +158,7 @@ void ConvertArrowTableToDataChunk(const arrow::Table& table, DataChunk& output, 
     }
 
     ArrowTableSchema arrow_table_schema;
-    ArrowTableFunction::PopulateArrowTableSchema(context.db->config, arrow_table_schema, c_schema);
+    ArrowTableFunction::PopulateArrowTableSchema(context, arrow_table_schema, c_schema);
 
     if (output.ColumnCount() == 0) {
         vector<LogicalType> types;

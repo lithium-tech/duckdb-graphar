@@ -10,6 +10,7 @@
 #include <duckdb/function/table_function.hpp>
 
 #include <graphar/api/high_level_reader.h>
+#include <graphar/graph_info.h>
 
 #include <iostream>
 
@@ -46,7 +47,7 @@ unique_ptr<GlobalTableFunctionState> TwoHopThreadsGlobalTableFunctionState::Init
     if (!edge_info) {
         throw BinderException("No found edge this type");
     }
-    const std::string prefix = GetDirectory(bind_data.edge_info_path);
+    const std::string prefix = graphar::PathToDirectory(bind_data.edge_info_path);
     std::shared_ptr<OffsetReader> offset_reader =
         std::make_shared<OffsetReader>(edge_info, prefix, graphar::AdjListType::ordered_by_source);
     LowEdgeReaderByVertex one_hop_reader =
@@ -85,9 +86,12 @@ void TwoHopThreads::Execute(ClientContext& context, TableFunctionInput& input, D
     TwoHopThreadsGlobalState& gstate = input.global_state->Cast<TwoHopThreadsGlobalTableFunctionState>().GetState();
 
     std::unique_ptr<LowEdgeReaderByVertex> reader;
-    while (!gstate.vertex_readers.empty()) {
+    while (true) {
         {
             std::lock_guard<std::mutex> lock(gstate.vertex_readers_mutex);
+            if (gstate.vertex_readers.empty()) {
+                break;
+            }
             reader = std::move(gstate.vertex_readers.front());
             gstate.vertex_readers.pop();
         }

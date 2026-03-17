@@ -4,6 +4,7 @@
 #include "utils/global_log_manager.hpp"
 
 #include <arrow/api.h>
+#include <arrow/filesystem/s3fs.h>
 #include <arrow/scalar.h>
 
 #include <duckdb/common/types.hpp>
@@ -12,6 +13,7 @@
 #include <duckdb/function/table/arrow.hpp>
 #include <duckdb/function/table/arrow/arrow_type_info.hpp>
 #include <duckdb/function/table/arrow/enum/arrow_type_info_type.hpp>
+#include <duckdb/planner/extension_callback.hpp>
 
 #include <graphar/api/arrow_reader.h>
 #include <graphar/reader_util.h>
@@ -116,8 +118,26 @@ inline void PrintArrowTable(const std::shared_ptr<arrow::Table>& table, int64_t 
 }
 
 std::string GetYamlContent(const std::string& path);
-std::string GetDirectory(const std::string& path);
 
 void ConvertArrowTableToDataChunk(const arrow::Table& table, DataChunk& output, const std::vector<column_t>& column_ids,
                                   ClientContext& context);
+
+class S3CleanupCallback : public ExtensionCallback {
+private:
+    std::atomic<int> active_connections{0};
+
+public:
+    void OnConnectionOpened(ClientContext &context) override {
+        active_connections++;
+    }
+
+    void OnConnectionClosed(ClientContext &context) override {
+        if (--active_connections == 0) {
+            if (arrow::fs::IsS3Initialized() && !arrow::fs::IsS3Finalized()) {
+                graphar::FinalizeS3();
+            }
+        }
+    }
+};
+
 }  // namespace duckdb

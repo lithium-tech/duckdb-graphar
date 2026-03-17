@@ -6,7 +6,10 @@ on:
       - '**.c'
       - '**.cpp'
   workflow_dispatch:
-
+permissions:
+  contents: read
+  actions: read
+  security-events: write
 jobs:
   analyze-changes:
     runs-on: ubuntu-22.04

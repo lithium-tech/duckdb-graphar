@@ -10,6 +10,7 @@
 #include <duckdb/function/table_function.hpp>
 
 #include <graphar/api/high_level_reader.h>
+#include <graphar/graph_info.h>
 #include <graphar/status.h>
 
 #include <iostream>
@@ -80,7 +81,7 @@ unique_ptr<GlobalTableFunctionState> EdgesVertexGlobalTableFunctionState::Init(C
         t.print("cast");
     }
 
-    auto prefix = GetDirectory(bind_data.GetFilePath());
+    auto prefix = graphar::PathToDirectory(bind_data.GetFilePath());
     auto vertex_count =
         GetCountClass::GetCount(bind_data.graph_info->GetVertexInfo(bind_data.GetEdgeInfo()->GetSrcType()), prefix);
     idx_t iter = 0, end_iter = vertex_count;
