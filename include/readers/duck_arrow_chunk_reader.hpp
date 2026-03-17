@@ -42,8 +42,7 @@ public:
             }
             auto maybe_arrow_table = gc_result.chunk;
             if (maybe_arrow_table.has_error()) {
-                DUCKDB_GRAPHAR_LOG_DEBUG("Error while getting chunk from base reader: " +
-                                         maybe_arrow_table.error().message());
+                DUCKDB_GRAPHAR_LOG_DEBUG("Error while getting chunk from base reader: " + maybe_arrow_table.error().message());
                 throw maybe_arrow_table.error();
             }
             auto arrow_table = maybe_arrow_table.value();

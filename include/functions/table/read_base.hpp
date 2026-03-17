@@ -201,7 +201,8 @@ public:
                             unique_ptr<ReadBindData>& bind_data, string function_name, idx_t id_columns_num = 0,
                             idx_t pg_for_id = 0, vector<string> id_columns = {}) {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadBase::SetBindData");
-        if (std::filesystem::path(graph_info->GetPrefix()).is_relative()) {
+        const auto& prefix = graph_info->GetPrefix();
+        if (!prefix.starts_with("s3://") && std::filesystem::path(prefix).is_relative()) {
             throw IOException(
                 "Using relative path as prefix is not supported. Please use an absolute path or just remove this "
                 "field.");

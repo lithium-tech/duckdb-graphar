@@ -11,8 +11,10 @@
 #include <duckdb/parser/parsed_data/attach_info.hpp>
 #include <duckdb/parser/parsed_data/create_schema_info.hpp>
 #include <duckdb/transaction/transaction_manager.hpp>
-
 #include <duckdb.hpp>
+
+#include <arrow/filesystem/s3fs.h>
+
 #include <filesystem>
 
 namespace duckdb {
