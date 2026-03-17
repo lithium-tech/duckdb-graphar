@@ -53,7 +53,7 @@ target_link_libraries(duckdb_graphar_loadable_extension
 if(APPLE)
     set_target_properties(duckdb_graphar_loadable_extension PROPERTIES
         CXX_VISIBILITY_PRESET hidden
-        LINK_FLAGS "-Wl,-exported_symbol,_duckdb_graphar_duckdb_cpp_init -Wl,-dead_strip")
+        LINK_FLAGS "-Wl,-exported_symbol,_duckdb_graphar_init -Wl,-dead_strip")
 endif()
 
 # =============================================
