@@ -24,10 +24,13 @@ target_link_libraries(unittest_graphar
         duckdb_generated_extension_loader
         core_functions_extension
         parquet_extension
-        jemalloc_extension
         duckdb_graphar_extension
         Catch2::Catch2WithMain
 )
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_link_libraries(unittest_graphar PRIVATE jemalloc_extension)
+endif()
 
 target_include_directories(unittest_graphar PRIVATE
     ${DUCKDB_INCLUDES}
