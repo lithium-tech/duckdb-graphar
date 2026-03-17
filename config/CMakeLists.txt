@@ -53,9 +53,19 @@ target_link_libraries(duckdb_graphar_loadable_extension
 if(APPLE)
     set_target_properties(duckdb_graphar_loadable_extension PROPERTIES
         CXX_VISIBILITY_PRESET hidden
-        LINK_FLAGS "-Wl,-exported_symbol,_duckdb_graphar_init -Wl,-dead_strip")
-endif()
+        LINK_FLAGS "-Wl,-exported_symbol,_duckdb_graphar_duckdb_cpp_init -Wl,-dead_strip")
 
+    # === INSERT THIS DEBUG BLOCK ===
+    add_custom_command(TARGET duckdb_graphar_loadable_extension PRE_LINK
+        COMMAND echo "======================================================="
+        COMMAND echo ">>> DEBUG: Dumping symbols containing 'duckdb_graphar' <<<"
+        # We use sh -c to allow piping to grep inside CMake
+        COMMAND sh -c "nm -g $<TARGET_OBJECTS:duckdb_graphar_loadable_extension> | grep 'duckdb_graphar' || echo 'NO SYMBOLS FOUND'"
+        COMMAND echo "======================================================="
+        COMMENT "Inspecting symbols before linking crash..."
+    )
+    # ===============================
+endif()
 # =============================================
 # Installation
 # =============================================
