@@ -6,6 +6,7 @@
 #include "utils/global_log_manager.hpp"
 
 #include <duckdb/common/exception/transaction_exception.hpp>
+#include <duckdb/catalog/catalog_search_path.hpp>
 #include <duckdb/parser/parsed_data/create_schema_info.hpp>
 #include <duckdb/parser/parsed_data/create_table_info.hpp>
 #include <duckdb/storage/database_size.hpp>

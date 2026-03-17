@@ -30,7 +30,6 @@ static unique_ptr<Catalog> GraphArAttach(optional_ptr<StorageExtensionInfo> stor
     }
     auto graph_info = maybe_graph_info.value();
     const auto& prefix = graph_info->GetPrefix();
-    std::cout << "graph prefix " << prefix << std::endl;
     if (!prefix.starts_with("s3://") && std::filesystem::path(prefix).is_relative()) {
         throw IOException(
             "Using relative path as prefix is not supported. Please use absolute path or just remove this field.");
@@ -38,14 +37,11 @@ static unique_ptr<Catalog> GraphArAttach(optional_ptr<StorageExtensionInfo> stor
 
     if (prefix.starts_with("s3://")) {
         if (!arrow::fs::IsS3Initialized()) {
-            std::cout << "Initializing S3!!!!!!!!!!!!" << std::endl;
             auto status = graphar::InitializeS3();
             if (!status.ok()) {
                 throw IOException("Failed to initialize S3: %s", status.message());
             }
-            std::cout << "Initialized S3!!!!!" << std::endl;
         }
-        std::atexit([]() { std::cout << "Finalzing S3!!!!!!!!!!!!!!" << std::endl; graphar::FinalizeS3();  std::cout << "Finalized S3!!!!!" << std::endl; });
     }
     return make_uniq<GraphArCatalog>(db, info.path, graph_info, context, db.name);
 }

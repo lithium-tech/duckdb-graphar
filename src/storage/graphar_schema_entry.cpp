@@ -7,6 +7,8 @@
 
 #include <duckdb/common/unordered_set.hpp>
 #include <duckdb/parser/constraints/list.hpp>
+#include <duckdb/parser/expression/columnref_expression.hpp>
+#include <duckdb/parser/tokens.hpp>
 #include <duckdb/parser/parsed_data/alter_info.hpp>
 #include <duckdb/parser/parsed_data/alter_table_info.hpp>
 #include <duckdb/parser/parsed_data/create_index_info.hpp>

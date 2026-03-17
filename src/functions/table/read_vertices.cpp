@@ -146,17 +146,7 @@ unique_ptr<BaseStatistics> ReadVertices::GetStatistics(ClientContext& context, c
     }
     auto duck_type = GraphArFunctions::graphArT2duckT(read_bind_data.GetFlattenPropTypes()[column_index]);
     auto column_name = read_bind_data.GetFlattenPropNames()[column_index];
-    if (column_name != SRC_GID_COLUMN && column_name != DST_GID_COLUMN) {
-        auto stats = BaseStatistics::CreateUnknown(duck_type);
-        return stats.ToUnique();
-    }
-    auto v_type = GetVertexTypeName(read_bind_data.type_info, column_name);
-    auto stats = NumericStats::CreateEmpty(LogicalType::BIGINT);
-    NumericStats::SetMin(stats, Value::BIGINT(0));
-    NumericStats::SetMax(stats,
-                         Value::BIGINT(GetCountClass::GetCount(read_bind_data.GetGraphInfo()->GetVertexInfo(v_type),
-                                                               read_bind_data.GetGraphInfo()->GetPrefix()) -
-                                       1));
+    auto stats = BaseStatistics::CreateUnknown(duck_type);
     return stats.ToUnique();
 }
 //-------------------------------------------------------------------
