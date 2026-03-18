@@ -4,12 +4,15 @@
 
 file(GLOB_RECURSE EXTENSION_SOURCES CONFIGURE_DEPENDS "${EXTENSION_ROOT_DIR}/src/*.cpp")
 
+set(PARAMETERS "-warnings")
+set(EXTENSION_STATIC_BUILD ON CACHE BOOL "Build extensions with static DuckDB")
+
 log_stage("Building static extension")
 build_static_extension(duckdb_graphar ${EXTENSION_SOURCES})
 log_done()
 
 log_stage("Building loadable extension")
-build_loadable_extension(duckdb_graphar ${EXTENSION_SOURCES})
+build_loadable_extension(duckdb_graphar ${PARAMETERS} ${EXTENSION_SOURCES})
 log_done()
 
 set(DEPS_INSTALL_DIR ${CMAKE_BINARY_DIR}/_deps)
@@ -43,32 +46,10 @@ target_link_libraries(duckdb_graphar_extension
     duckdb_static
     ${EXT_LIBS}
 )
-
-set(EXTENSION_STATIC_BUILD ON CACHE BOOL "Build extensions with static DuckDB")
   
 target_link_libraries(duckdb_graphar_loadable_extension
     ${EXT_LIBS}
 )
-
-if(APPLE)
-    set_target_properties(duckdb_graphar_loadable_extension PROPERTIES
-        CXX_VISIBILITY_PRESET hidden
-        # We allow all default-visibility symbols to be exported.
-        # This solves the name mismatch while still keeping internal symbols hidden via visibility preset.
-        LINK_FLAGS "-Wl,-dead_strip")
-
-    # === INSERT THIS DEBUG BLOCK ===
-    add_custom_command(TARGET duckdb_graphar_loadable_extension PRE_LINK
-        COMMAND echo "======================================================="
-        COMMAND echo "--- DEBUG: Inspecting Entry Point Symbols ---"
-        # We use 'find' to locate the specific object file containing the entry point.
-        # This avoids the "File name too long" error by ignoring the hundreds of other object files.
-        COMMAND find ${CMAKE_CURRENT_BINARY_DIR} -name "*duckdb_graphar_extension.cpp.o" -exec nm -g {} +
-        COMMAND echo "======================================================="
-        VERBATIM
-    )
-    # ===============================
-endif()
 # =============================================
 # Installation
 # =============================================
