@@ -46,10 +46,11 @@ target_link_libraries(duckdb_graphar_extension
     duckdb_static
     ${EXT_LIBS}
 )
-  
+
 target_link_libraries(duckdb_graphar_loadable_extension
     ${EXT_LIBS}
 )
+
 # =============================================
 # Installation
 # =============================================
