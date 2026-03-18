@@ -53,7 +53,9 @@ target_link_libraries(duckdb_graphar_loadable_extension
 if(APPLE)
     set_target_properties(duckdb_graphar_loadable_extension PROPERTIES
         CXX_VISIBILITY_PRESET hidden
-        LINK_FLAGS "-Wl,-exported_symbol,_duckdb_graphar_duckdb_cpp_init -Wl,-dead_strip")
+        # We allow all default-visibility symbols to be exported.
+        # This solves the name mismatch while still keeping internal symbols hidden via visibility preset.
+        LINK_FLAGS "-Wl,-dead_strip")
 
     # === INSERT THIS DEBUG BLOCK ===
     add_custom_command(TARGET duckdb_graphar_loadable_extension PRE_LINK
