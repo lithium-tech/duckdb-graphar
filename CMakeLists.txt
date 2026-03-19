@@ -124,8 +124,8 @@ if(PATH_TO_LOCAL_GRAPHAR)
   list(APPEND EP_ARGS SOURCE_DIR "${PATH_TO_LOCAL_GRAPHAR}")
 else()
   list(APPEND EP_ARGS
-    GIT_REPOSITORY https://github.com/RoyalMirMak/incubator-graphar.git
-    GIT_TAG        dd07a86a7e8bcbef48bff5f158aa121e4656996d
+    GIT_REPOSITORY https://github.com/lithium-tech/incubator-graphar.git
+    GIT_TAG        2fc1fcf2faed6259a72fb47f14585a09cd162f32
   )
 endif()
 
