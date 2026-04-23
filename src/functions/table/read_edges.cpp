@@ -254,21 +254,29 @@ void ReadEdges::PushdownComplexFilter(ClientContext& context, LogicalGet& get, F
     filters = std::move(filters_new);
 }
 //-------------------------------------------------------------------
-// GetFunction
+// InitFunction
 //-------------------------------------------------------------------
-TableFunction ReadEdges::GetFunction() {
-    TableFunction read_edges("read_edges", {LogicalType::VARCHAR}, Execute, Bind);
+static void InitFunction(TableFunction& read_edges) {
     read_edges.init_global = ReadEdges::Init;
     read_edges.init_local = ReadEdges::InitLocal;
-
-    read_edges.named_parameters["src"] = LogicalType::VARCHAR;
-    read_edges.named_parameters["dst"] = LogicalType::VARCHAR;
-    read_edges.named_parameters["type"] = LogicalType::VARCHAR;
 
     read_edges.filter_pushdown = false;
     read_edges.projection_pushdown = true;
     read_edges.statistics = ReadEdges::GetStatistics;
     read_edges.pushdown_complex_filter = ReadEdges::PushdownComplexFilter;
+
+    read_edges.get_partition_data = ReadBase<ReadEdges>::GetPartitionData;
+}
+//-------------------------------------------------------------------
+// GetFunction
+//-------------------------------------------------------------------
+TableFunction ReadEdges::GetFunction() {
+    TableFunction read_edges("read_edges", {LogicalType::VARCHAR}, Execute, Bind);
+    InitFunction(read_edges);
+
+    read_edges.named_parameters["src"] = LogicalType::VARCHAR;
+    read_edges.named_parameters["dst"] = LogicalType::VARCHAR;
+    read_edges.named_parameters["type"] = LogicalType::VARCHAR;
 
     return read_edges;
 }
@@ -277,13 +285,7 @@ TableFunction ReadEdges::GetFunction() {
 //-------------------------------------------------------------------
 TableFunction ReadEdges::GetScanFunction() {
     TableFunction read_edges({}, Execute, Bind);
-    read_edges.init_global = ReadEdges::Init;
-    read_edges.init_local = ReadEdges::InitLocal;
-
-    read_edges.filter_pushdown = false;
-    read_edges.projection_pushdown = true;
-    read_edges.statistics = ReadEdges::GetStatistics;
-    read_edges.pushdown_complex_filter = ReadEdges::PushdownComplexFilter;
+    InitFunction(read_edges);
 
     return read_edges;
 }

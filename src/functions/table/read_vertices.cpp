@@ -197,19 +197,27 @@ void ReadVertices::PushdownComplexFilter(ClientContext& context, LogicalGet& get
     filters = std::move(filters_new);
 }
 //-------------------------------------------------------------------
-// GetFunction
+// InitFunction
 //-------------------------------------------------------------------
-TableFunction ReadVertices::GetFunction() {
-    TableFunction read_vertices("read_vertices", {LogicalType::VARCHAR}, Execute, Bind);
+static void InitFunction(TableFunction& read_vertices) {
     read_vertices.init_global = ReadVertices::Init;
     read_vertices.init_local = ReadVertices::InitLocal;
-
-    read_vertices.named_parameters["type"] = LogicalType::VARCHAR;
 
     read_vertices.filter_pushdown = false;
     read_vertices.projection_pushdown = true;
     read_vertices.statistics = ReadVertices::GetStatistics;
     read_vertices.pushdown_complex_filter = ReadVertices::PushdownComplexFilter;
+
+    read_vertices.get_partition_data = ReadBase<ReadVertices>::GetPartitionData;
+}
+//-------------------------------------------------------------------
+// GetFunction
+//-------------------------------------------------------------------
+TableFunction ReadVertices::GetFunction() {
+    TableFunction read_vertices("read_vertices", {LogicalType::VARCHAR}, Execute, Bind);
+    InitFunction(read_vertices);
+
+    read_vertices.named_parameters["type"] = LogicalType::VARCHAR;
 
     return read_vertices;
 }
@@ -218,13 +226,7 @@ TableFunction ReadVertices::GetFunction() {
 //-------------------------------------------------------------------
 TableFunction ReadVertices::GetScanFunction() {
     TableFunction read_vertices({}, Execute, Bind);
-    read_vertices.init_global = ReadVertices::Init;
-    read_vertices.init_local = ReadVertices::InitLocal;
-
-    read_vertices.filter_pushdown = false;
-    read_vertices.projection_pushdown = true;
-    read_vertices.statistics = ReadVertices::GetStatistics;
-    read_vertices.pushdown_complex_filter = ReadVertices::PushdownComplexFilter;
+    InitFunction(read_vertices);
 
     return read_vertices;
 }

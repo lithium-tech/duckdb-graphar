@@ -1,6 +1,7 @@
 #pragma once
 
 #include "readers/base_reader.hpp"
+#include "utils/func.hpp"
 
 #include <graphar/chunk_info_reader.h>
 #include <graphar/fwd.h>
@@ -73,12 +74,14 @@ public:
             throw maybe_path.error();
         }
         auto path = maybe_path.value();
+        cur_result_idx = gc_result.chunk_idx;
+        cur_read_idx = 0;
         cur_result = file_reader->ReadFileToTable(path, proj_columns, gc_result.rows_range);
         cur_chunk = cur_result->Fetch();
         return cur_chunk->size();
     }
 
-    graphar::Result<duckdb::unique_ptr<duckdb::DataChunk>> GetChunk(duckdb::idx_t num_rows) {
+    graphar::Result<graphar::GetChunkFinalResult> GetChunk(duckdb::idx_t num_rows) {
         if (ReserveRowsToRead() == 0) {
             throw graphar::Status::IndexError("No more chunks to read!");
         }
@@ -91,7 +94,8 @@ public:
         res->Reference(*cur_chunk);
         res->Slice(read_rows, num_rows);
         read_rows += num_rows;
-        return res;
+        cur_read_idx++;
+        return std::make_pair(std::move(res), GetChunkIdx(cur_result_idx, cur_read_idx));
     }
 
     void SelectColumns(std::vector<duckdb::column_t> proj_columns_) {
@@ -106,7 +110,9 @@ protected:
     std::vector<duckdb::column_t> proj_columns;
     duckdb::idx_t read_rows = 0;
     duckdb::unique_ptr<duckdb::DataChunk> cur_chunk = nullptr;
+    duckdb::idx_t cur_read_idx = 0;
     duckdb::unique_ptr<duckdb::QueryResult> cur_result = nullptr;
+    duckdb::idx_t cur_result_idx = 0;
 
     std::shared_ptr<DuckParquetFileReader> file_reader;
     ClientContext& context;

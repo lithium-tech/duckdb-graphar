@@ -1,5 +1,6 @@
 #pragma once
 
+#include "readers/base_reader.hpp"
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
 
@@ -51,12 +52,14 @@ public:
                 cur_chunk = make_uniq<DataChunk>();
             }
             read_rows = 0;
+            cur_result_idx = gc_result.chunk_idx;
+            cur_read_idx = 0;
             ConvertArrowTableToDataChunk(*arrow_table, *cur_chunk, proj_columns, context);
         }
         return cur_chunk->size() - read_rows;
     }
 
-    graphar::Result<unique_ptr<DataChunk>> GetChunk(idx_t num_rows) {
+    graphar::Result<graphar::GetChunkFinalResult> GetChunk(idx_t num_rows) {
         if (ReserveRowsToRead() == 0) {
             throw graphar::Status::IndexError("No more chunks to read!");
         }
@@ -68,7 +71,8 @@ public:
         res->Reference(*cur_chunk);
         res->Slice(read_rows, num_rows);
         read_rows += num_rows;
-        return res;
+        cur_read_idx++;
+        return std::make_pair(std::move(res), GetChunkIdx(cur_result_idx, cur_read_idx));
     }
 
     void FilterByRange(std::pair<int64_t, int64_t> vid_range, const std::string& filter_column) {
@@ -83,6 +87,8 @@ private:
     std::shared_ptr<BaseArrowChunkReader> base;
     idx_t read_rows = 0;
     unique_ptr<DataChunk> cur_chunk = nullptr;
+    duckdb::idx_t cur_read_idx = 0;
+    duckdb::idx_t cur_result_idx = 0;
 };
 
 }  // namespace duckdb

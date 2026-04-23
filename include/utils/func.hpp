@@ -138,4 +138,12 @@ public:
     }
 };
 
+static idx_t GetChunkIdx(duckdb::idx_t result_idx, duckdb::idx_t read_idx) {
+     if (result_idx > NumericLimits<uint32_t>::Maximum() || read_idx > NumericLimits<uint32_t>::Maximum()) {
+        throw OutOfRangeException("Overflow encountered in GetChunkIdx with result_idx = %llu and read_idx = %llu",
+                                 result_idx, read_idx);
+    }
+    return (result_idx) << 32 | read_idx;
+}
+
 }  // namespace duckdb

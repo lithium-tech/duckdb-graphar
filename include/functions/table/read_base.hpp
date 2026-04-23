@@ -58,10 +58,10 @@ ReaderPtr ConvertReader(graphar::Result<std::shared_ptr<SomeReader>> maybe_reade
     return maybe_reader.value();
 }
 
-static unique_ptr<DataChunk> GetChunk(ReaderPtr& reader, int64_t num_rows) {
+static graphar::GetChunkFinalResult GetChunk(ReaderPtr& reader, int64_t num_rows) {
     DUCKDB_GRAPHAR_LOG_TRACE("GetChunk");
     return std::visit(
-        [&num_rows](auto& r) {
+        [&num_rows](auto& r) -> graphar::GetChunkFinalResult {
             auto maybe_chunk = r->GetChunk(num_rows);
             if (maybe_chunk.has_error()) {
                 throw InternalException("Error getting chunk: " + maybe_chunk.status().message());
@@ -187,6 +187,7 @@ private:
     vector<ReaderPtr> readers;
     std::shared_ptr<DuckParquetFileReader> file_reader;
     vector<unique_ptr<DataChunk>> cur_chunks;
+    idx_t cur_chunk_id = 0;
 
     template <typename ReadFinal>
     friend class ReadBase;
@@ -437,7 +438,9 @@ public:
                 if (IsNullPtr(lstate.readers[i])) {
                     continue;
                 }
-                lstate.cur_chunks[i] = std::move(GetChunk(lstate.readers[i], num_rows));
+                auto gc_result_final = GetChunk(lstate.readers[i], num_rows);
+                lstate.cur_chunks[i] = std::move(gc_result_final.first);
+                lstate.cur_chunk_id = gc_result_final.second;
                 for (idx_t j = 0; j < lstate.cur_chunks[i]->ColumnCount(); j++) {
                     output.data[gstate.global_projected_inds[i][j]].Reference(lstate.cur_chunks[i]->data[j]);
                 }
@@ -458,5 +461,9 @@ public:
     static void Register(ExtensionLoader& loader) { loader.RegisterFunction(ReadFinal::GetFunction()); }
     static TableFunction GetFunction() { return ReadFinal::GetFunction(); }
     static TableFunction GetScanFunction() { return ReadFinal::GetScanFunction(); }
+    static OperatorPartitionData GetPartitionData(ClientContext &context, TableFunctionGetPartitionInput &input) {
+        auto &lstate = input.local_state->Cast<ReadBaseLocalTableFunctionState>();
+        return OperatorPartitionData(lstate.cur_chunk_id);
+    }
 };
 }  // namespace duckdb

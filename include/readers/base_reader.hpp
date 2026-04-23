@@ -24,7 +24,10 @@ struct GetChunkResult {
     ChunkType chunk;
     std::pair<int64_t, int64_t> rows_range = {-1, -1};
     bool no_more_chunks = false;
+    duckdb::idx_t chunk_idx = -1;
 };
+
+using GetChunkFinalResult = std::pair<duckdb::unique_ptr<duckdb::DataChunk>, duckdb::idx_t>;
 
 template <typename T>
 concept IsVertexReader =
@@ -75,7 +78,7 @@ public:
             }
         }
 
-        chunk_count++;
+        cur_result.chunk_idx = chunk_count++;
         return cur_result;
     }
 
