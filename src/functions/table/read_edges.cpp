@@ -9,14 +9,15 @@
 #include <duckdb/function/table/arrow.hpp>
 #include <duckdb/function/table_function.hpp>
 #include <duckdb/planner/expression/bound_comparison_expression.hpp>
+#include <duckdb/planner/expression/bound_constant_expression.hpp>
+#include <duckdb/planner/expression/bound_function_expression.hpp>
+#include <duckdb/planner/expression/bound_operator_expression.hpp>
 
 #include <graphar/api/arrow_reader.h>
 #include <graphar/api/high_level_reader.h>
 #include <graphar/arrow/chunk_reader.h>
 #include <graphar/expression.h>
 #include <graphar/fwd.h>
-
-#include <iostream>
 
 namespace duckdb {
 //-------------------------------------------------------------------
@@ -78,7 +79,8 @@ unique_ptr<FunctionData> ReadEdges::Bind(ClientContext& context, TableFunctionBi
 // GetBaseReader
 //-------------------------------------------------------------------
 BaseReaderPtr ReadEdges::GetBaseReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate, idx_t ind,
-                                       const std::string& filter_column) {
+                                       const std::string& filter_column,
+                                       std::shared_ptr<graphar::SharedChunkCounter> counter) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader");
     graphar::AdjListType adj_list_type;
     if (filter_column == "" or filter_column == SRC_GID_COLUMN) {
@@ -97,28 +99,30 @@ BaseReaderPtr ReadEdges::GetBaseReader(ClientContext& context, ReadBaseGlobalTab
         DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetBaseReader: making src and dst reader...");
         if (edge_info->GetAdjacentList(adj_list_type)->GetFileType() == graphar::FileType::PARQUET) {
             DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetBaseReader: making duckdb reader...");
-            return ConvertBaseReader(graphar::AdjListChunkInfoReader::Make(edge_info, adj_list_type, prefix));
+            return ConvertBaseReader(graphar::AdjListChunkInfoReader::Make(edge_info, adj_list_type, prefix), counter);
         } else {
             DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetBaseReader: making arrow reader...");
-            return ConvertBaseReader(graphar::AdjListArrowChunkReader::Make(edge_info, adj_list_type, prefix));
+            return ConvertBaseReader(graphar::AdjListArrowChunkReader::Make(edge_info, adj_list_type, prefix), counter);
         }
     }
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetBaseReader: making property reader...");
     if (edge_info->GetAdjacentList(adj_list_type)->GetFileType() == graphar::FileType::PARQUET) {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetBaseReader: making duckdb reader...");
         return ConvertBaseReader(
-            graphar::AdjListPropertyChunkInfoReader::Make(edge_info, gstate.pgs[ind - 1], adj_list_type, prefix));
+            graphar::AdjListPropertyChunkInfoReader::Make(edge_info, gstate.pgs[ind - 1], adj_list_type, prefix),
+            counter);
     } else {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetBaseReader: making arrow reader...");
         return ConvertBaseReader(
-            graphar::AdjListPropertyArrowChunkReader::Make(edge_info, gstate.pgs[ind - 1], adj_list_type, prefix));
+            graphar::AdjListPropertyArrowChunkReader::Make(edge_info, gstate.pgs[ind - 1], adj_list_type, prefix),
+            counter);
     }
 }
 //-------------------------------------------------------------------
 // SetFilter
 //-------------------------------------------------------------------
 void ReadEdges::SetFilter(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate, idx_t ind,
-                          const std::pair<int64_t, int64_t>& vid_range, const std::string& filter_column) {
+                          const vector<std::pair<int64_t, int64_t>>& vid_ranges, const std::string& filter_column) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::SetFilter");
     auto edge_info = *std::get_if<std::shared_ptr<graphar::EdgeInfo>>(&gstate.type_info);
     if (!edge_info) {
@@ -129,12 +133,15 @@ void ReadEdges::SetFilter(ClientContext& context, ReadBaseGlobalTableFunctionSta
                                                              gstate.graph_info->GetPrefix())
                                    : GetCountClass::GetCount(gstate.graph_info->GetVertexInfo(edge_info->GetDstType()),
                                                              gstate.graph_info->GetPrefix());
-    if (vid_range.first < 0 || vid_range.first >= vertex_num || vid_range.second <= 0 ||
-        vid_range.second > vertex_num) {
-        throw BinderException("Invalid filter vertex id range");
-    }
     const auto& prefix = gstate.graph_info->GetPrefix();
-    FilterByRangeEdge(gstate.base_readers[ind], vid_range, filter_column, edge_info, prefix);
+    for (idx_t r = 0; r < vid_ranges.size(); ++r) {
+        const auto& vid_range = vid_ranges[r];
+        if (vid_range.first < 0 || vid_range.first >= vertex_num || vid_range.second <= 0 ||
+            vid_range.second > vertex_num) {
+            throw BinderException("Invalid filter vertex id range");
+        }
+        FilterByRangeEdge(gstate.base_readers[ind][r], vid_range, filter_column, edge_info, prefix);
+    }
 }
 //-------------------------------------------------------------------
 // GetReader
@@ -159,27 +166,41 @@ ReaderPtr ReadEdges::GetReader(ClientContext& context, ReadBaseGlobalTableFuncti
         DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader: making src and dst reader...");
         if (edge_info->GetAdjacentList(adj_list_type)->GetFileType() == graphar::FileType::PARQUET) {
             DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader: making duckdb reader...");
-            auto base_reader = std::get<std::shared_ptr<graphar::TSAdjListChunkInfoReader>>(gstate.base_readers[ind]);
+            std::vector<std::shared_ptr<graphar::TSAdjListChunkInfoReader>> base_readers;
+            base_readers.reserve(gstate.base_readers[ind].size());
+            for (const auto& base_reader : gstate.base_readers[ind]) {
+                base_readers.push_back(std::get<std::shared_ptr<graphar::TSAdjListChunkInfoReader>>(base_reader));
+            }
             return ConvertReader(graphar::DuckAdjListChunkReader::Make(context, lstate.file_reader, edge_info,
-                                                                       adj_list_type, prefix, base_reader));
+                                                                       adj_list_type, prefix, base_readers));
         } else {
             DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader: making arrow reader...");
-            auto base_reader = std::get<std::shared_ptr<graphar::TSAdjListArrowChunkReader>>(gstate.base_readers[ind]);
-            return ConvertReader(graphar::DuckAdjListArrowChunkReader::Make(context, base_reader));
+            std::vector<std::shared_ptr<graphar::TSAdjListArrowChunkReader>> base_readers;
+            base_readers.reserve(gstate.base_readers[ind].size());
+            for (const auto& base_reader : gstate.base_readers[ind]) {
+                base_readers.push_back(std::get<std::shared_ptr<graphar::TSAdjListArrowChunkReader>>(base_reader));
+            }
+            return ConvertReader(graphar::DuckAdjListArrowChunkReader::Make(context, base_readers));
         }
     }
     DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader: making property reader...");
     if (edge_info->GetAdjacentList(adj_list_type)->GetFileType() == graphar::FileType::PARQUET) {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader: making duckdb reader...");
-        auto base_reader =
-            std::get<std::shared_ptr<graphar::TSAdjListPropertyChunkInfoReader>>(gstate.base_readers[ind]);
+        std::vector<std::shared_ptr<graphar::TSAdjListPropertyChunkInfoReader>> base_readers;
+        base_readers.reserve(gstate.base_readers[ind].size());
+        for (const auto& base_reader : gstate.base_readers[ind]) {
+            base_readers.push_back(std::get<std::shared_ptr<graphar::TSAdjListPropertyChunkInfoReader>>(base_reader));
+        }
         return ConvertReader(graphar::DuckAdjListPropertyChunkReader::Make(
-            context, lstate.file_reader, edge_info, gstate.pgs[ind - 1], adj_list_type, prefix, base_reader));
+            context, lstate.file_reader, edge_info, gstate.pgs[ind - 1], adj_list_type, prefix, base_readers));
     } else {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetReader: making arrow reader...");
-        auto base_reader =
-            std::get<std::shared_ptr<graphar::TSAdjListPropertyArrowChunkReader>>(gstate.base_readers[ind]);
-        return ConvertReader(graphar::DuckAdjListPropertyArrowChunkReader::Make(context, base_reader));
+        std::vector<std::shared_ptr<graphar::TSAdjListPropertyArrowChunkReader>> base_readers;
+        base_readers.reserve(gstate.base_readers[ind].size());
+        for (const auto& base_reader : gstate.base_readers[ind]) {
+            base_readers.push_back(std::get<std::shared_ptr<graphar::TSAdjListPropertyArrowChunkReader>>(base_reader));
+        }
+        return ConvertReader(graphar::DuckAdjListPropertyArrowChunkReader::Make(context, base_readers));
     }
 }
 //-------------------------------------------------------------------
@@ -209,7 +230,6 @@ void ReadEdges::PushdownComplexFilter(ClientContext& context, LogicalGet& get, F
     auto read_bind_data = dynamic_cast<ReadBindData*>(bind_data);
     for (auto& pg : read_bind_data->pgs) {
         if (pg->GetFileType() != graphar::FileType::PARQUET) {
-            // our pushdown works greatly only for parquet files
             return;
         }
     }
@@ -239,8 +259,46 @@ void ReadEdges::PushdownComplexFilter(ClientContext& context, LogicalGet& get, F
                                 graphar::FileType::PARQUET) {
                         can_pushdown = true;
                         const auto vid = std::stoll(comparison.right->ToString());
-                        read_bind_data->vid_range = std::make_pair(vid, vid + 1);
+                        read_bind_data->vid_ranges.push_back(std::make_pair(vid, vid + 1));
                         read_bind_data->filter_column = column_name;
+                    }
+                }
+            }
+        }
+        if (filter->GetExpressionClass() == ExpressionClass::BOUND_FUNCTION) {
+            auto& op_expr = filter->Cast<BoundFunctionExpression>();
+            if (op_expr.GetExpressionType() == ExpressionType::BOUND_FUNCTION) {
+                if (op_expr.children.size() != 2) {
+                    continue;
+                }
+                if (op_expr.children[0]->GetExpressionClass() == ExpressionClass::BOUND_CONSTANT) {
+                    auto& const_expr = op_expr.children[0]->Cast<BoundConstantExpression>();
+                    auto column_name = op_expr.children[1]->ToString();
+                    if (column_name == SRC_GID_COLUMN &&
+                            edge_info->HasAdjacentListType(graphar::AdjListType::ordered_by_source) &&
+                            edge_info->GetAdjacentList(graphar::AdjListType::ordered_by_source)->GetFileType() ==
+                                graphar::FileType::PARQUET ||
+                        column_name == DST_GID_COLUMN &&
+                            edge_info->HasAdjacentListType(graphar::AdjListType::ordered_by_dest) &&
+                            edge_info->GetAdjacentList(graphar::AdjListType::ordered_by_dest)->GetFileType() ==
+                                graphar::FileType::PARQUET) {
+                        std::vector<int64_t> vids;
+                        auto& list_value = const_expr.value;
+                        if (list_value.type().id() == LogicalTypeId::LIST) {
+                            auto children = ListValue::GetChildren(list_value);
+                            for (const auto& child : children) {
+                                if (!child.IsNull()) {
+                                    vids.push_back(child.GetValue<int64_t>());
+                                }
+                            }
+                        }
+                        if (!vids.empty()) {
+                            can_pushdown = true;
+                            for (const auto vid : vids) {
+                                read_bind_data->vid_ranges.push_back(std::make_pair(vid, vid + 1));
+                            }
+                            read_bind_data->filter_column = column_name;
+                        }
                     }
                 }
             }

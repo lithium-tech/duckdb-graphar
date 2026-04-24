@@ -43,11 +43,12 @@ using ReaderPtr = std::variant<
     std::shared_ptr<graphar::DuckAdjListPropertyChunkReader>>;
 
 template <typename SomeReader>
-BaseReaderPtr ConvertBaseReader(graphar::Result<std::shared_ptr<SomeReader>> maybe_reader) {
+BaseReaderPtr ConvertBaseReader(graphar::Result<std::shared_ptr<SomeReader>> maybe_reader,
+                                std::shared_ptr<graphar::SharedChunkCounter> counter = nullptr) {
     if (maybe_reader.has_error()) {
         throw InternalException("Error converting reader: " + maybe_reader.error().message());
     }
-    return std::make_shared<graphar::ThreadSafeReader<SomeReader>>(std::move(maybe_reader.value()));
+    return std::make_shared<graphar::ThreadSafeReader<SomeReader>>(std::move(maybe_reader.value()), counter);
 }
 
 template <typename SomeReader>
@@ -140,7 +141,7 @@ private:
     idx_t id_columns_num = 0;
     idx_t pg_for_id = 0;
 
-    std::pair<graphar::IdType, graphar::IdType> vid_range = {-1, -1};
+    vector<std::pair<graphar::IdType, graphar::IdType>> vid_ranges;
     std::string filter_column;
 
     TypeInfoPtr type_info;
@@ -162,7 +163,7 @@ private:
     vector<vector<std::string>> prop_types;
     std::atomic<idx_t> chunk_count = 0;
     idx_t total_props_num = 0;
-    vector<BaseReaderPtr> base_readers;
+    vector<vector<BaseReaderPtr>> base_readers;
 
     TypeInfoPtr type_info;
     std::shared_ptr<graphar::GraphInfo> graph_info;
@@ -267,18 +268,23 @@ public:
     }
 
     static BaseReaderPtr GetBaseReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate, idx_t ind,
-                                       const std::string& filter_column) {
-        return ReadFinal::GetBaseReader(context, gstate, ind, filter_column);
+                                       const std::string& filter_column,
+                                       std::shared_ptr<graphar::SharedChunkCounter> counter = nullptr) {
+        return ReadFinal::GetBaseReader(context, gstate, ind, filter_column, counter);
     }
 
     static void SetFilter(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate, idx_t ind,
-                          const std::pair<int64_t, int64_t>& vid_range, const std::string& filter_column) {
-        return ReadFinal::SetFilter(context, gstate, ind, vid_range, filter_column);
+                          const vector<std::pair<int64_t, int64_t>>& vid_ranges, const std::string& filter_column) {
+        return ReadFinal::SetFilter(context, gstate, ind, vid_ranges, filter_column);
     }
 
     static ReaderPtr GetReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate,
                                ReadBaseLocalTableFunctionState& lstate, idx_t ind, const std::string& filter_column) {
         return ReadFinal::GetReader(context, gstate, lstate, ind, filter_column);
+    }
+
+    static const vector<std::pair<graphar::IdType, graphar::IdType>>& GetVidRanges(const ReadBindData& bind_data) {
+        return bind_data.vid_ranges;
     }
 
     static unique_ptr<GlobalTableFunctionState> Init(ClientContext& context, TableFunctionInitInput& input) {
@@ -323,11 +329,20 @@ public:
         vector<vector<column_t>> local_projected_inds(prop_types_size);
         gstate.global_projected_inds.resize(prop_types_size);
         gstate.base_readers.resize(prop_types_size);
+
+        auto& vid_ranges = bind_data.vid_ranges;
+        const bool has_filter = filter_column != "" && !vid_ranges.empty();
+        const idx_t num_ranges = has_filter ? vid_ranges.size() : 1;
+
         if (gstate.column_ids.empty() ||
             gstate.column_ids.size() == 1 && gstate.column_ids[0] == COLUMN_IDENTIFIER_ROW_ID) {
             DUCKDB_GRAPHAR_LOG_DEBUG("Returning any column");
             local_projected_inds[0].emplace_back(0);
-            gstate.base_readers[0] = GetBaseReader(context, gstate, 0, filter_column);
+            gstate.base_readers[0].resize(num_ranges);
+            auto counter = has_filter ? std::make_shared<graphar::SharedChunkCounter>() : nullptr;
+            for (idx_t r = 0; r < num_ranges; ++r) {
+                gstate.base_readers[0][r] = GetBaseReader(context, gstate, 0, filter_column, counter);
+            }
             gstate.global_projected_inds[0].emplace_back(0);
         } else {
             DUCKDB_GRAPHAR_LOG_DEBUG("Returning specific columns");
@@ -347,28 +362,33 @@ public:
                 if (local_projected_inds[i].empty()) {
                     continue;
                 }
-                gstate.base_readers[i] = std::move(GetBaseReader(context, gstate, i, filter_column));
+                gstate.base_readers[i].resize(num_ranges);
+                auto counter = has_filter ? std::make_shared<graphar::SharedChunkCounter>() : nullptr;
+                for (idx_t r = 0; r < num_ranges; ++r) {
+                    gstate.base_readers[i][r] = GetBaseReader(context, gstate, i, filter_column, counter);
+                }
             }
         }
 
         DUCKDB_GRAPHAR_LOG_DEBUG("readers num: " + std::to_string(gstate.base_readers.size()));
 
-        if (filter_column != "") {
+        if (has_filter) {
             DUCKDB_GRAPHAR_LOG_TRACE("Filters found");
-            auto vid_range = bind_data.vid_range;
             const auto vertex_num = GetCountClass::GetCount(gstate.type_info, bind_data.GetGraphInfo()->GetPrefix());
             graphar::IdType zero = 0;
-            vid_range.first = std::max(zero, vid_range.first);
-            vid_range.second = std::min(vertex_num, vid_range.second);
-            if (vid_range.first >= vid_range.second) {
-                throw IOException("Invalid filter range: " + std::to_string(vid_range.first) + " > " +
-                                  std::to_string(vid_range.second));
+            for (idx_t r = 0; r < num_ranges; ++r) {
+                vid_ranges[r].first = std::max(zero, vid_ranges[r].first);
+                vid_ranges[r].second = std::min(vertex_num, vid_ranges[r].second);
+                if (vid_ranges[r].first >= vid_ranges[r].second) {
+                    throw IOException("Invalid filter range: " + std::to_string(vid_ranges[r].first) + " > " +
+                                      std::to_string(vid_ranges[r].second));
+                }
             }
             for (idx_t ind = 0; ind < prop_types_size; ++ind) {
-                if (IsNullPtr(gstate.base_readers[ind])) {
+                if (gstate.base_readers[ind].empty() || IsNullPtr(gstate.base_readers[ind][0])) {
                     continue;
                 }
-                SetFilter(context, gstate, ind, vid_range, filter_column);
+                SetFilter(context, gstate, ind, vid_ranges, filter_column);
             }
         }
         if (time_logging) {
@@ -461,8 +481,8 @@ public:
     static void Register(ExtensionLoader& loader) { loader.RegisterFunction(ReadFinal::GetFunction()); }
     static TableFunction GetFunction() { return ReadFinal::GetFunction(); }
     static TableFunction GetScanFunction() { return ReadFinal::GetScanFunction(); }
-    static OperatorPartitionData GetPartitionData(ClientContext &context, TableFunctionGetPartitionInput &input) {
-        auto &lstate = input.local_state->Cast<ReadBaseLocalTableFunctionState>();
+    static OperatorPartitionData GetPartitionData(ClientContext& context, TableFunctionGetPartitionInput& input) {
+        auto& lstate = input.local_state->Cast<ReadBaseLocalTableFunctionState>();
         return OperatorPartitionData(lstate.cur_chunk_id);
     }
 };

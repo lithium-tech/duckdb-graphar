@@ -18,28 +18,40 @@ requires(std::is_same_v<BaseArrowChunkReader, graphar::TSVertexPropertyArrowChun
          std::is_same_v<BaseArrowChunkReader, graphar::TSAdjListPropertyArrowChunkReader>)
 class DuckArrowChunkReader {
 public:
-    DuckArrowChunkReader(std::shared_ptr<BaseArrowChunkReader> init_base, ClientContext& init_context)
-        : base(std::move(init_base)), context(init_context) {}
+    DuckArrowChunkReader(std::vector<std::shared_ptr<BaseArrowChunkReader>> init_bases, ClientContext& init_context)
+        : base(std::move(init_bases)), context(init_context) {}
 
-    static graphar::Result<std::shared_ptr<DuckArrowChunkReader>> Make(ClientContext& context,
-                                                                       std::shared_ptr<BaseArrowChunkReader> base_ptr) {
-        if (!base_ptr) {
-            return graphar::Status::Invalid("base_ptr can't be null!");
+    static graphar::Result<std::shared_ptr<DuckArrowChunkReader>> Make(
+        ClientContext& context, std::vector<std::shared_ptr<BaseArrowChunkReader>> base_ptrs) {
+        if (base_ptrs.empty()) {
+            return graphar::Status::Invalid("base_ptrs can't be empty!");
         }
-        return std::make_shared<DuckArrowChunkReader>(std::move(base_ptr), context);
+        return std::make_shared<DuckArrowChunkReader>(std::move(base_ptrs), context);
     }
 
     template <typename... Args>
     static graphar::Result<std::shared_ptr<DuckArrowChunkReader>> Make(ClientContext& context, Args&&... args) {
         GAR_ASSIGN_OR_RAISE(auto base_ptr, BaseArrowChunkReader::Make(std::forward<Args>(args)...));
-        return std::make_shared<DuckArrowChunkReader>(std::move(base_ptr), context);
+        std::vector<std::shared_ptr<BaseArrowChunkReader>> base_ptrs;
+        base_ptrs.push_back(std::move(base_ptr));
+        return std::make_shared<DuckArrowChunkReader>(std::move(base_ptrs), context);
     }
 
     idx_t ReserveRowsToRead() {
         if (!cur_chunk || read_rows == cur_chunk->size()) {
-            auto gc_result = base->GetChunk();
-            if (gc_result.no_more_chunks) {
+            if (current_base_idx >= base.size()) {
                 return 0;
+            }
+            auto gc_result = base[current_base_idx]->GetChunk();
+            if (gc_result.no_more_chunks) {
+                current_base_idx++;
+                if (current_base_idx >= base.size()) {
+                    return 0;
+                }
+                gc_result = base[current_base_idx]->GetChunk();
+                if (gc_result.no_more_chunks) {
+                    return 0;
+                }
             }
             auto maybe_arrow_table = gc_result.chunk;
             if (maybe_arrow_table.has_error()) {
@@ -84,7 +96,8 @@ public:
 private:
     std::vector<column_t> proj_columns;
     ClientContext& context;
-    std::shared_ptr<BaseArrowChunkReader> base;
+    std::vector<std::shared_ptr<BaseArrowChunkReader>> base;
+    size_t current_base_idx = 0;
     idx_t read_rows = 0;
     unique_ptr<DataChunk> cur_chunk = nullptr;
     duckdb::idx_t cur_read_idx = 0;
