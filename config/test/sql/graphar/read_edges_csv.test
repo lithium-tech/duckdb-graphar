@@ -43,3 +43,26 @@ query I
 SELECT COUNT(*) FROM 'Person_knows_Person';
 ----
 289003
+
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArSrcIndex IN [0, 1, 2, 3];
+----
+15
+
+query II
+SELECT _graphArSrcIndex, _graphArDstIndex FROM 'Person_knows_Person' WHERE _graphArSrcIndex IN [0, 1] ORDER BY _graphArSrcIndex, _graphArDstIndex;
+----
+0	23977
+1	2370
+1	14683
+1	20363
+1	21142
+1	23830
+1	29982
+1	34035
+1	34526
+
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArSrcIndex IN [100, 11];
+----
+2
