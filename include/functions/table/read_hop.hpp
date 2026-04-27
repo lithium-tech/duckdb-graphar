@@ -73,6 +73,8 @@ private:
     std::unordered_set<graphar::IdType> _vertexes;
     size_t cur_ind;
     size_t next_hop_ind;
+    bool found_dst_column;
+    std::pair<size_t, size_t> special_dst = {-1, -1};
 
     std::mutex mtx;
     bool storage_state = true;

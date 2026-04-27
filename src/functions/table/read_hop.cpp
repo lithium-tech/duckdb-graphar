@@ -252,16 +252,19 @@ unique_ptr<GlobalTableFunctionState> ReadHop::Init(ClientContext& context, Table
             break;
         }
     }
-    bool found_dst_column = false;
+    DUCKDB_GRAPHAR_LOG_DEBUG("ReadHop::GlobalState::propNamesDstColumn " + std::to_string(gstate.dstColumn));
+    gstate.found_dst_column = false;
     for (size_t i = 0; i < input.column_ids.size(); i++) {
         if (input.column_ids[i] == gstate.dstColumn) {
             gstate.dstColumn = i;
-            found_dst_column = true;
+            gstate.found_dst_column = true;
             break;
         }
     }
-    if (!found_dst_column) {
-        throw IOException("Not found dst column (" + DST_GID_COLUMN + ") in query");
+    if (!gstate.found_dst_column) {
+        gstate.dstColumn = gstate.column_ids.size();
+        gstate.column_ids.push_back(gstate.dstColumn);
+        // throw IOException("Not found dst column (" + DST_GID_COLUMN + ") in query");
     }
 
     DUCKDB_GRAPHAR_LOG_DEBUG("ReadHop::GlobalState::function_name " + bind_data.function_name);
@@ -326,6 +329,9 @@ unique_ptr<GlobalTableFunctionState> ReadHop::Init(ClientContext& context, Table
             }
             local_projected_inds[i].emplace_back(projected_ind);
             gstate.global_projected_inds[i].emplace_back(column_i);
+            if (!gstate.found_dst_column && column_i == gstate.dstColumn) {
+                gstate.special_dst = {i, gstate.global_projected_inds[i].size() - 1};
+            }
         }
 
         for (idx_t i = 0; i < prop_types_size; ++i) {
@@ -340,7 +346,7 @@ unique_ptr<GlobalTableFunctionState> ReadHop::Init(ClientContext& context, Table
             }, gstate.base_readers[i]);
         }
     }
-
+    DUCKDB_GRAPHAR_LOG_DEBUG("ReadHop::GlobalState::special_dst {" + std::to_string(gstate.special_dst.first) + ", " + std::to_string(gstate.special_dst.second) + "}");
     DUCKDB_GRAPHAR_LOG_DEBUG("ReadHop::Init dstColumn " + std::to_string(gstate.dstColumn));
 
     DUCKDB_GRAPHAR_LOG_DEBUG("ReadHop::Init global_projected_inds");
@@ -354,6 +360,7 @@ unique_ptr<GlobalTableFunctionState> ReadHop::Init(ClientContext& context, Table
     }
 
     DUCKDB_GRAPHAR_LOG_DEBUG("readers num: " + std::to_string(gstate.base_readers.size()));
+    
 
     if (filter_column != "") {
         DUCKDB_GRAPHAR_LOG_TRACE("Filters found");
@@ -487,21 +494,27 @@ void ReadHop::Execute(ClientContext& context, TableFunctionInput& input, DataChu
             }
             lstate.cur_chunks[i] = std::move(GetChunk(lstate.readers[i], num_rows));
             for (idx_t j = 0; j < lstate.cur_chunks[i]->ColumnCount(); j++) {
-                output.data[gstate.global_projected_inds[i][j]].Reference(lstate.cur_chunks[i]->data[j]);
+                if (gstate.found_dst_column || gstate.special_dst.first != i || gstate.special_dst.second != j) {
+                    output.data[gstate.global_projected_inds[i][j]].Reference(lstate.cur_chunks[i]->data[j]);
+                }
             }
         }
         if (lstate.storage_state) {
-            if (gstate.dstColumn != -1) {
-                const auto proj = gstate.dstColumn;
+            const auto proj = gstate.dstColumn;
 
-                for (idx_t i = 0; i < num_rows; i++) {
-                    auto v = output.data[proj].GetValue(i).GetValue<int64_t>();
-                    // Need check uniq vertexes for 2 hop roots
-                    if (!gstate._vertexes.contains(v)) {
-                        // Need use iters with '<' operator for no double move of base_reader
-                        gstate.vertexes.push_back(v);
-                        gstate._vertexes.insert(v);
-                    }
+            for (idx_t i = 0; i < num_rows; i++) {
+                size_t v;
+                if (gstate.found_dst_column) {
+                    v = output.data[proj].GetValue(i).GetValue<int64_t>();
+                } else {
+                    v = lstate.cur_chunks[gstate.special_dst.first]->data[gstate.special_dst.second].GetValue(i).GetValue<int64_t>();
+                }
+                
+                // Need check uniq vertexes for 2 hop roots
+                if (!gstate._vertexes.contains(v)) {
+                    // Need use iters with '<' operator for no double move of base_reader
+                    gstate.vertexes.push_back(v);
+                    gstate._vertexes.insert(v);
                 }
             }
         }
