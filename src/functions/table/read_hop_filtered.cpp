@@ -263,28 +263,35 @@ unique_ptr<GlobalTableFunctionState> ReadHopFiltered::Init(ClientContext& contex
     gstate.graph_info_path = bind_data.graph_info_path;
 
 
-    // std::string _temp = "";
-    bool found_dst_column = false;
+    std::string _temp = "";
+    gstate.found_dst_column = false;
     for (size_t i = 0; i < gstate.column_ids.size(); i++) {
         if (bind_data.flatten_prop_names[gstate.column_ids[i]] == DST_GID_COLUMN) {
             gstate.dstColumn = i;
-            found_dst_column = true;
+            gstate.found_dst_column = true;
             break;
         }
         // _temp += bind_data.flatten_prop_names[gstate.column_ids[i]] + "<" + std::to_string(gstate.column_ids[i])+ "> ";
     }
-    if (!found_dst_column) {
-        throw IOException("Not found dst column (" + DST_GID_COLUMN + ") in query");
+    // DUCKDB_GRAPHAR_LOG_DEBUG("ReadHopFiltered::GlobalState::check dst " + _temp);
+
+    if (!gstate.found_dst_column ) {
+        for (size_t i = 0; i < bind_data.flatten_prop_names.size(); i++) {
+            if (bind_data.flatten_prop_names[i] == DST_GID_COLUMN) {
+                gstate.dstColumn = gstate.column_ids.size();
+                gstate.column_ids.push_back(i);
+                break;
+            }
+        }
+        if (gstate.dstColumn == -1) {
+            throw IOException("Failed to find dst (" + DST_GID_COLUMN + ") column in flatten names");
+        }
+        // throw IOException("Not found distanation column (" + DST_GID_COLUMN + ") in query");
     }
-    // DUCKDB_GRAPHAR_LOG_DEBUG("ReadHopFiltered::GlobalState::test " + _temp);
-
-    // DUCKDB_GRAPHAR_LOG_DEBUG("ReadHopFiltered::GlobalState::dstColumn " + std::to_string(gstate.dstColumn));
-
-    gstate.GenerateQuery();
 
     DUCKDB_GRAPHAR_LOG_DEBUG("ReadHopFiltered::GlobalState::function_name " + bind_data.function_name);
     DUCKDB_GRAPHAR_LOG_DEBUG("ReadHopFiltered::GlobalState::id_columns_num " + std::to_string(bind_data.id_columns_num));
-    std::string _temp = "";
+    _temp = "";
     for (idx_t j = 0; j < gstate.column_ids.size(); j++) {
         _temp += std::to_string(gstate.column_ids[j]) + " ";
     }
@@ -304,6 +311,7 @@ unique_ptr<GlobalTableFunctionState> ReadHopFiltered::Init(ClientContext& contex
     DUCKDB_GRAPHAR_LOG_DEBUG("ReadHopFiltered::GlobalState::graph_info_path " + bind_data.graph_info_path);
     DUCKDB_GRAPHAR_LOG_DEBUG("ReadHopFiltered::GlobalState::dstColumn " + std::to_string(gstate.dstColumn));
 
+    gstate.GenerateQuery();
 
     auto offset_pair =
         graphar::util::GetAdjListOffsetOfVertex(*std::get_if<std::shared_ptr<graphar::EdgeInfo>>(&bind_data.type_info),
@@ -497,19 +505,27 @@ void ReadHopFiltered::Execute(ClientContext& context, TableFunctionInput& input,
     DUCKDB_GRAPHAR_LOG_DEBUG("num rows final: " + std::to_string(num_rows));
 
     if (num_rows > 0) {
-        for (idx_t i = 0; i < lstate.readers.size(); i++) {
+        for (idx_t i = 0; i < lstate.readers.size(); ++i) {
             if (IsNullPtr(lstate.readers[i])) {
                 continue;
             }
             lstate.cur_chunks[i] = std::move(GetChunk(lstate.readers[i], num_rows));
-            // for (idx_t j = 0; j < lstate.cur_chunks[i]->ColumnCount(); j++) {
-            //     output.data[j].Reference(lstate.cur_chunks[i]->data[j]);
-            // }
-            output.Reference(*lstate.cur_chunks[i]);
+            if (gstate.found_dst_column) {
+                output.Reference(*lstate.cur_chunks[i]);
+            } else {
+                for (idx_t j = 0; j + 1 < lstate.cur_chunks[i]->ColumnCount(); ++j) {
+                    output.data[j].Reference(lstate.cur_chunks[i]->data[j]);
+                }
+            }
         }
         if (lstate.storage_state) {
             for (idx_t i = 0; i < num_rows; i++) {
-                auto v = output.data[gstate.dstColumn].GetValue(i).GetValue<graphar::IdType>();
+                graphar::IdType v; 
+                if (gstate.found_dst_column) {
+                    v = output.data[gstate.dstColumn].GetValue(i).GetValue<graphar::IdType>();
+                } else {
+                    v = lstate.cur_chunks[0]->data[gstate.dstColumn].GetValue(i).GetValue<graphar::IdType>();
+                }
                 // Need check uniq vertexes for 2 hop roots
                 if (!gstate._vertexes.contains(v)) {
                     // Need use iters with '<' operator for no double move of base_reader

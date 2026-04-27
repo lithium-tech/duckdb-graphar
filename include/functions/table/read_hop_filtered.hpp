@@ -92,6 +92,7 @@ private:
     std::unordered_set<graphar::IdType> _vertexes;
     size_t cur_ind = 0;
     size_t next_hop_ind = vertexes.size();
+    bool found_dst_column;
 
     std::mutex mtx;
     bool storage_state = true;
