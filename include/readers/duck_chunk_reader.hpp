@@ -55,41 +55,68 @@ public:
     BaseDuckChunkReader(ClientContext& init_context, std::vector<std::shared_ptr<BaseArrowChunkReader>> init_bases,
                         std::shared_ptr<DuckParquetFileReader> init_file_reader)
         : context(init_context), bases(std::move(init_bases)), file_reader(std::move(init_file_reader)) {
-        if (bases.empty()) {
-            throw std::runtime_error("Bases vector cannot be empty");
-        }
     }
 
-    idx_t ReserveRowsToRead() {
+    bool CheckIfNewFileNeeded() {
         if (cur_chunk && read_rows < cur_chunk->size()) {
-            return cur_chunk->size() - read_rows;
+            return false;
         }
         read_rows = 0;
-        if (cur_result && (cur_chunk = cur_result->Fetch())) {
-            return cur_chunk->size();
+        if (cur_result) {
+            cur_chunk = cur_result->Fetch();
+            if (cur_chunk && cur_chunk->size() > 0) {
+                return false;
+            }
+            cur_result = nullptr;
+        }
+        return true;
+    }
+
+    void AcquirePathUnderLock() {
+        next_path = "";
+        path_acquired = true;
+        if (base_idx >= bases.size()) {
+            return;
         }
         auto gc_result = bases[base_idx]->GetChunk();
         while (gc_result.no_more_chunks) {
             base_idx++;
             if (base_idx >= bases.size()) {
-                return 0;
+                return;
             }
             gc_result = bases[base_idx]->GetChunk();
         }
         auto maybe_path = gc_result.chunk;
         if (maybe_path.has_error()) {
-            throw maybe_path.error();
+            throw std::runtime_error(maybe_path.error().message());
         }
-        auto path = maybe_path.value();
-        cur_result_idx = gc_result.chunk_idx;
-        cur_read_idx = 0;
-        cur_result = file_reader->ReadFileToTable(path, proj_columns, gc_result.rows_range);
-        cur_chunk = cur_result->Fetch();
-        return cur_chunk->size();
+        next_path = maybe_path.value();
+        next_rows_range = gc_result.rows_range;
+        next_chunk_idx = gc_result.chunk_idx;
+        path_acquired = true;
+    }
+
+    idx_t GetRowsNum() {
+        if (path_acquired) {
+            if (!next_path.empty()) {
+                cur_result = file_reader->ReadFileToTable(next_path, proj_columns, next_rows_range);
+                cur_chunk = cur_result->Fetch();
+                cur_result_idx = next_chunk_idx;
+            } else {
+                cur_chunk = nullptr;
+            }
+            path_acquired = false;
+            read_rows = 0;
+            cur_read_idx = 0;
+        }
+        if (cur_chunk && read_rows < cur_chunk->size()) {
+            return cur_chunk->size() - read_rows;
+        }
+        return 0;
     }
 
     graphar::Result<graphar::GetChunkFinalResult> GetChunk(duckdb::idx_t num_rows) {
-        if (ReserveRowsToRead() == 0) {
+        if (GetRowsNum() == 0) {
             throw graphar::Status::IndexError("No more chunks to read!");
         }
         if (num_rows > cur_chunk->size() - read_rows) {
@@ -121,9 +148,12 @@ protected:
     duckdb::idx_t cur_read_idx = 0;
     duckdb::unique_ptr<duckdb::QueryResult> cur_result = nullptr;
     duckdb::idx_t cur_result_idx = 0;
-
     std::shared_ptr<DuckParquetFileReader> file_reader;
     ClientContext& context;
+    std::string next_path = "";
+    std::pair<int64_t, int64_t> next_rows_range = {-1, -1};
+    duckdb::idx_t next_chunk_idx = 0;
+    bool path_acquired = false;
 };
 
 class DuckVertexChunkReader : public BaseDuckChunkReader<graphar::TSVertexPropertyChunkInfoReader> {
@@ -139,13 +169,7 @@ public:
         const std::shared_ptr<graphar::PropertyGroup>& property_group, const std::string& prefix,
         const std::vector<std::shared_ptr<graphar::TSVertexPropertyChunkInfoReader>>& init_baseptrs = {}) {
         std::vector<std::shared_ptr<graphar::TSVertexPropertyChunkInfoReader>> bases;
-        if (init_baseptrs.empty()) {
-            GAR_ASSIGN_OR_RAISE(auto init_baseptr,
-                                graphar::TSVertexPropertyChunkInfoReader::Make(vertex_info, property_group, prefix));
-            bases.push_back(std::move(init_baseptr));
-        } else {
-            bases = init_baseptrs;
-        }
+        bases = init_baseptrs;
         return std::make_shared<DuckVertexChunkReader>(vertex_info, context, std::move(bases), file_reader);
     }
 
@@ -170,12 +194,7 @@ public:
         const std::shared_ptr<graphar::EdgeInfo>& edge_info, graphar::AdjListType adj_list_type,
         const std::string& prefix, const std::vector<std::shared_ptr<BaseArrowChunkReader>>& init_baseptrs = {}) {
         std::vector<std::shared_ptr<BaseArrowChunkReader>> bases;
-        if (init_baseptrs.empty()) {
-            GAR_ASSIGN_OR_RAISE(auto init_baseptr, BaseArrowChunkReader::Make(edge_info, adj_list_type, prefix));
-            bases.push_back(std::move(init_baseptr));
-        } else {
-            bases = init_baseptrs;
-        }
+        bases = init_baseptrs;
         return std::make_shared<DuckEdgeChunkReader>(bases, file_reader, context, edge_info, adj_list_type, prefix);
     }
 

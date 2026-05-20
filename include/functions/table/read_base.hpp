@@ -14,6 +14,12 @@
 #include <duckdb/function/table/arrow.hpp>
 #include <duckdb/function/table_function.hpp>
 #include <duckdb/main/extension/extension_loader.hpp>
+#include <duckdb/planner/expression.hpp>
+#include <duckdb/planner/expression/bound_comparison_expression.hpp>
+#include <duckdb/planner/expression/bound_constant_expression.hpp>
+#include <duckdb/planner/expression/bound_function_expression.hpp>
+#include <duckdb/planner/expression/bound_operator_expression.hpp>
+#include <duckdb/planner/expression/bound_conjunction_expression.hpp>
 
 #include <graphar/api/arrow_reader.h>
 #include <graphar/api/high_level_reader.h>
@@ -107,8 +113,14 @@ static bool IsNullPtr(ReaderPtr& reader) {
     return std::visit([&](auto& r) { return (r == nullptr); }, reader);
 }
 
-static idx_t ReserveRowsToRead(ReaderPtr& reader) {
-    return std::visit([&](auto& r) { return r->ReserveRowsToRead(); }, reader);
+static bool CheckIfNewFileNeeded(ReaderPtr& reader) {
+    return std::visit([&](auto& r) { return r->CheckIfNewFileNeeded(); }, reader);
+}
+static void AcquirePathUnderLock(ReaderPtr& reader) {
+    std::visit([&](auto& r) { r->AcquirePathUnderLock(); }, reader);
+}
+static idx_t GetRowsNum(ReaderPtr& reader) {
+    return std::visit([&](auto& r) { return r->GetRowsNum(); }, reader);
 }
 
 static void SelectColumns(ReaderPtr& reader, std::vector<column_t> proj_columns) {
@@ -155,6 +167,7 @@ private:
 class ReadBaseGlobalTableFunctionState : public GlobalTableFunctionState {
 public:
     idx_t MaxThreads() const override { return MAX_THREADS; }
+    std::mutex lock;
 
 private:
     vector<std::string> params;
@@ -331,7 +344,7 @@ public:
         gstate.base_readers.resize(prop_types_size);
 
         auto& vid_ranges = bind_data.vid_ranges;
-        const bool has_filter = filter_column != "" && !vid_ranges.empty();
+        const bool has_filter = filter_column != "";
         const idx_t num_ranges = has_filter ? vid_ranges.size() : 1;
 
         if (gstate.column_ids.empty() ||
@@ -444,12 +457,26 @@ public:
 
         DUCKDB_GRAPHAR_LOG_DEBUG("Chunk " + std::to_string(gstate.chunk_count) + ": Begin iteration");
 
+        bool needs_new_file = false;
+        for (auto& reader : lstate.readers) {
+            if (IsNullPtr(reader)) continue;
+            if (CheckIfNewFileNeeded(reader)) {
+                needs_new_file = true;
+            }
+        }
+
+        if (needs_new_file) {
+            std::lock_guard<std::mutex> guard(gstate.lock);
+            for (auto& reader : lstate.readers) {
+                if (IsNullPtr(reader)) continue;
+                AcquirePathUnderLock(reader);
+            }
+        }
+
         idx_t num_rows = STANDARD_VECTOR_SIZE;
         for (auto& reader : lstate.readers) {
-            if (IsNullPtr(reader) || !num_rows) {
-                continue;
-            }
-            num_rows = std::min(num_rows, ReserveRowsToRead(reader));
+            if (IsNullPtr(reader)) continue;
+            num_rows = std::min(num_rows, GetRowsNum(reader));
         }
         DUCKDB_GRAPHAR_LOG_DEBUG("num rows final: " + std::to_string(num_rows));
 
@@ -476,6 +503,159 @@ public:
             t.print();
         }
         gstate.chunk_count++;
+    }
+
+    template <typename ValidateFunc>
+    static void PushdownComplexFilterImpl(ClientContext& context, ReadBindData& read_bind_data,
+                                          vector<unique_ptr<Expression>>& filters, ValidateFunc validate_and_extract,
+                                          int64_t vertex_num) {
+        std::set<int64_t> vids;
+        vector<unique_ptr<Expression>> filters_new;
+        bool already_pushed = false;
+
+        // Wrapper lambda that captures vids by reference
+        auto validate_wrapper = [&](const std::string& col, const Value& val) -> bool {
+            if (!val.IsNull()) {
+                vids.insert(val.GetValue<int64_t>());
+            }
+            return validate_and_extract(col, val);
+        };
+
+        for (auto& filter : filters) {
+            if (already_pushed) {
+                filters_new.push_back(std::move(filter));
+                continue;
+            }
+
+            bool can_pushdown = false;
+
+            // Case 0: equality comparison (col = value)
+            if (filter->GetExpressionClass() == ExpressionClass::BOUND_COMPARISON) {
+                auto& comparison = filter->Cast<BoundComparisonExpression>();
+                if (comparison.GetExpressionType() == ExpressionType::COMPARE_EQUAL) {
+                    bool left_is_scalar = comparison.left->IsFoldable();
+                    bool right_is_scalar = comparison.right->IsFoldable();
+                    if (left_is_scalar || right_is_scalar) {
+                        auto column_name = comparison.left->ToString();
+                        Value val;
+                        if (comparison.left->GetExpressionClass() == ExpressionClass::BOUND_COLUMN_REF) {
+                            val = comparison.right->Cast<BoundConstantExpression>().value;
+                        } else {
+                            val = comparison.left->Cast<BoundConstantExpression>().value;
+                        }
+                        if (validate_wrapper(column_name, val)) {
+                            can_pushdown = true;
+                            read_bind_data.filter_column = column_name;
+                        }
+                    }
+                }
+            }
+
+            // Case 1: list_contains([1, 2, 3], col) -- list literal
+            if (!can_pushdown && filter->GetExpressionClass() == ExpressionClass::BOUND_FUNCTION) {
+                auto& op_expr = filter->Cast<BoundFunctionExpression>();
+                const auto& fname = op_expr.function.name;
+                if (fname == "contains" || fname == "list_contains" || fname == "array_contains" || fname == "list_has" || fname == "array_has") {
+                    if (op_expr.children.size() == 2 &&
+                        op_expr.children[0]->GetExpressionClass() == ExpressionClass::BOUND_CONSTANT) {
+                        auto& const_expr = op_expr.children[0]->Cast<BoundConstantExpression>();
+                        auto column_name = op_expr.children[1]->ToString();
+                        auto& list_value = const_expr.value;
+
+                        if (list_value.type().id() == LogicalTypeId::LIST) {
+                            auto list_children = ListValue::GetChildren(list_value);
+                            bool any = false;
+                            for (const auto& child : list_children) {
+                                if (validate_wrapper(column_name, child)) any = true;
+                            }
+                            if (any) {
+                                read_bind_data.filter_column = column_name;
+                                can_pushdown = true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Case 2: col IN (1, 2, 3) -- SQL IN operator
+            if (!can_pushdown && filter->GetExpressionClass() == ExpressionClass::BOUND_OPERATOR &&
+                filter->GetExpressionType() == ExpressionType::COMPARE_IN) {
+                auto& op_expr = filter->Cast<BoundOperatorExpression>();
+                if (op_expr.children[0]->GetExpressionClass() == ExpressionClass::BOUND_COLUMN_REF) {
+                    auto column_name = op_expr.children[0]->ToString();
+                    bool any = false;
+                    for (idx_t i = 1; i < op_expr.children.size(); i++) {
+                        if (op_expr.children[i]->GetExpressionClass() == ExpressionClass::BOUND_CONSTANT) {
+                            auto& cv = op_expr.children[i]->Cast<BoundConstantExpression>().value;
+                            if (validate_wrapper(column_name, cv)) any = true;
+                        }
+                    }
+                    if (any) {
+                        read_bind_data.filter_column = column_name;
+                        can_pushdown = true;
+                    }
+                }
+            }
+
+            // Case 3: col IN (1, 2, 3) after InClauseRewriter
+            // Small lists get rewritten to: col=1 OR col=2 OR col=3
+            if (!can_pushdown && filter->GetExpressionClass() == ExpressionClass::BOUND_CONJUNCTION &&
+                filter->GetExpressionType() == ExpressionType::CONJUNCTION_OR) {
+                auto& conj = filter->Cast<BoundConjunctionExpression>();
+                std::string column_name;
+                std::vector<Value> local_vals;
+                bool valid = true;
+
+                for (auto& child : conj.children) {
+                    if (child->GetExpressionClass() != ExpressionClass::BOUND_COMPARISON ||
+                        child->GetExpressionType() != ExpressionType::COMPARE_EQUAL) {
+                        valid = false; break;
+                    }
+                    auto& cmp = child->Cast<BoundComparisonExpression>();
+                    std::string col;
+                    Value val;
+                    if (cmp.left->GetExpressionClass()  == ExpressionClass::BOUND_COLUMN_REF &&
+                        cmp.right->GetExpressionClass() == ExpressionClass::BOUND_CONSTANT) {
+                        col = cmp.left->ToString();
+                        val = cmp.right->Cast<BoundConstantExpression>().value;
+                    } else if (cmp.right->GetExpressionClass() == ExpressionClass::BOUND_COLUMN_REF &&
+                               cmp.left->GetExpressionClass()  == ExpressionClass::BOUND_CONSTANT) {
+                        col = cmp.right->ToString();
+                        val = cmp.left->Cast<BoundConstantExpression>().value;
+                    } else { valid = false; break; }
+
+                    if (column_name.empty()) column_name = col;
+                    else if (column_name != col) { valid = false; break; }
+                    local_vals.push_back(val);
+                }
+
+                if (valid && !column_name.empty()) {
+                    bool any = false;
+                    for (auto& v : local_vals)
+                        if (validate_wrapper(column_name, v)) any = true;
+                    if (any) {
+                        read_bind_data.filter_column = column_name;
+                        can_pushdown = true;
+                    }
+                }
+            }
+
+            if (!can_pushdown) {
+                filters_new.push_back(std::move(filter));
+            } else {
+                already_pushed = true;
+            }
+        }
+
+        if (already_pushed) {
+            for (const auto& vid : vids) {
+                if (0 <= vid && vid < vertex_num) {
+                    read_bind_data.vid_ranges.push_back({vid, vid + 1});
+                }
+            }
+        }
+
+        filters = std::move(filters_new);
     }
 
     static void Register(ExtensionLoader& loader) { loader.RegisterFunction(ReadFinal::GetFunction()); }

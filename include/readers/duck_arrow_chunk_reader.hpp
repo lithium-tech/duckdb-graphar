@@ -37,42 +37,61 @@ public:
         return std::make_shared<DuckArrowChunkReader>(std::move(base_ptrs), context);
     }
 
-    idx_t ReserveRowsToRead() {
-        if (!cur_chunk || read_rows == cur_chunk->size()) {
-            if (current_base_idx >= base.size()) {
-                return 0;
-            }
-            auto gc_result = base[current_base_idx]->GetChunk();
-            if (gc_result.no_more_chunks) {
-                current_base_idx++;
-                if (current_base_idx >= base.size()) {
-                    return 0;
-                }
-                gc_result = base[current_base_idx]->GetChunk();
-                if (gc_result.no_more_chunks) {
-                    return 0;
-                }
-            }
-            auto maybe_arrow_table = gc_result.chunk;
-            if (maybe_arrow_table.has_error()) {
-                DUCKDB_GRAPHAR_LOG_DEBUG("Error while getting chunk from base reader: " +
-                                         maybe_arrow_table.error().message());
-                throw maybe_arrow_table.error();
-            }
-            auto arrow_table = maybe_arrow_table.value();
-            if (!cur_chunk) {
-                cur_chunk = make_uniq<DataChunk>();
-            }
-            read_rows = 0;
-            cur_result_idx = gc_result.chunk_idx;
-            cur_read_idx = 0;
-            ConvertArrowTableToDataChunk(*arrow_table, *cur_chunk, proj_columns, context);
+    bool CheckIfNewFileNeeded() {
+        if (cur_chunk && read_rows < cur_chunk->size()) {
+            return false;
         }
-        return cur_chunk->size() - read_rows;
+        read_rows = 0;
+        return true;
+    }
+
+    void AcquirePathUnderLock() {
+        auto gc_result = base[current_base_idx]->GetChunk();
+        while (gc_result.no_more_chunks) {
+            current_base_idx++;
+            if (current_base_idx >= base.size()) {
+                next_arrow_table = nullptr;
+                path_acquired = true;
+                return;
+            }
+            gc_result = base[current_base_idx]->GetChunk();
+        }
+        
+        auto maybe_arrow_table = gc_result.chunk;
+        if (maybe_arrow_table.has_error()) {
+            DUCKDB_GRAPHAR_LOG_DEBUG("Error while getting chunk from base reader: " +
+                                     maybe_arrow_table.error().message());
+            throw std::runtime_error(maybe_arrow_table.error().message());
+        }
+        next_arrow_table = maybe_arrow_table.value();
+        next_chunk_idx = gc_result.chunk_idx;
+        path_acquired = true;
+    }
+
+    idx_t GetRowsNum() {
+        if (path_acquired) {
+            if (next_arrow_table) {
+                if (!cur_chunk) {
+                    cur_chunk = make_uniq<DataChunk>();
+                }
+                ConvertArrowTableToDataChunk(*next_arrow_table, *cur_chunk, proj_columns, context);
+                cur_result_idx = next_chunk_idx;
+                read_rows = 0;
+                cur_read_idx = 0;
+            } else {
+                cur_chunk = nullptr;
+            }
+            path_acquired = false;
+        }
+        
+        if (cur_chunk && read_rows < cur_chunk->size()) {
+            return cur_chunk->size() - read_rows;
+        }
+        return 0;
     }
 
     graphar::Result<graphar::GetChunkFinalResult> GetChunk(idx_t num_rows) {
-        if (ReserveRowsToRead() == 0) {
+        if (GetRowsNum() == 0) {
             throw graphar::Status::IndexError("No more chunks to read!");
         }
         if (num_rows > cur_chunk->size() - read_rows) {
@@ -102,6 +121,11 @@ private:
     unique_ptr<DataChunk> cur_chunk = nullptr;
     duckdb::idx_t cur_read_idx = 0;
     duckdb::idx_t cur_result_idx = 0;
+
+    // Added for thread-safe lock separation
+    std::shared_ptr<arrow::Table> next_arrow_table = nullptr;
+    duckdb::idx_t next_chunk_idx = 0;
+    bool path_acquired = false;
 };
 
 }  // namespace duckdb

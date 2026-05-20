@@ -3,6 +3,8 @@
 #include "utils/benchmark.hpp"
 #include "utils/func.hpp"
 
+#include <set>
+
 #include <arrow/c/bridge.h>
 
 #include <duckdb/common/named_parameter_map.hpp>
@@ -177,67 +179,17 @@ void ReadVertices::PushdownComplexFilter(ClientContext& context, LogicalGet& get
             return;
         }
     }
-    vector<unique_ptr<Expression>> filters_new;
-    bool already_pushed = false;
-    for (auto& filter : filters) {
-        if (already_pushed) {
-            filters_new.push_back(std::move(filter));
-            continue;
-        }
-        bool can_pushdown = false;
-        if (filter->GetExpressionClass() == ExpressionClass::BOUND_COMPARISON) {
-            auto& comparison = filter->Cast<BoundComparisonExpression>();
-            if (comparison.GetExpressionType() == ExpressionType::COMPARE_EQUAL) {
-                bool left_is_scalar = comparison.left->IsFoldable();
-                bool right_is_scalar = comparison.right->IsFoldable();
-                if (left_is_scalar || right_is_scalar) {
-                    auto column_name = comparison.left->ToString();
-                    if (column_name == GID_COLUMN_INTERNAL) {
-                        can_pushdown = true;
-                        const auto vid = std::stoll(comparison.right->ToString());
-                        read_bind_data->vid_ranges.push_back(std::make_pair(vid, vid + 1));
-                        read_bind_data->filter_column = column_name;
-                    }
-                }
-            }
-        }
-        if (filter->GetExpressionClass() == ExpressionClass::BOUND_FUNCTION) {
-            auto& op_expr = filter->Cast<BoundFunctionExpression>();
-            if (op_expr.GetExpressionType() == ExpressionType::BOUND_FUNCTION) {
-                if (op_expr.children.size() != 2) {
-                    continue;
-                }
-                if (op_expr.children[0]->GetExpressionClass() == ExpressionClass::BOUND_CONSTANT) {
-                    auto& const_expr = op_expr.children[0]->Cast<BoundConstantExpression>();
-                    auto column_name = op_expr.children[1]->ToString();
-                    if (column_name == GID_COLUMN_INTERNAL) {
-                        std::vector<int64_t> vids;
-                        auto& list_value = const_expr.value;
-                        if (list_value.type().id() == LogicalTypeId::LIST) {
-                            auto children = ListValue::GetChildren(list_value);
-                            for (const auto& child : children) {
-                                if (!child.IsNull()) {
-                                    vids.push_back(child.GetValue<int64_t>());
-                                }
-                            }
-                        }
-                        if (!vids.empty()) {
-                            can_pushdown = true;
-                            for (const auto vid : vids) {
-                                read_bind_data->vid_ranges.push_back(std::make_pair(vid, vid + 1));
-                            }
-                            read_bind_data->filter_column = column_name;
-                        }
-                    }
-                }
-            }
-        }
-        if (!can_pushdown) {
-            already_pushed = true;
-            filters_new.push_back(std::move(filter));
-        }
-    }
-    filters = std::move(filters_new);
+    
+    auto vertex_info = *std::get_if<std::shared_ptr<graphar::VertexInfo>>(&read_bind_data->type_info);
+    const auto vertex_num = GetCountClass::GetCount(read_bind_data->type_info, read_bind_data->GetGraphInfo()->GetPrefix());
+    
+    // Validation lambda for vertices
+    auto validate = [&](const std::string& col, const Value& val) -> bool {
+        if (col != GID_COLUMN_INTERNAL) return false;
+        return true;
+    };
+    
+    ReadBase<ReadVertices>::PushdownComplexFilterImpl(context, *read_bind_data, filters, validate, vertex_num);
 }
 //-------------------------------------------------------------------
 // InitFunction
