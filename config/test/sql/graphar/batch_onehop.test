@@ -297,3 +297,8 @@ query I
 SELECT COUNT(*) FROM 'Person' WHERE _graphArVertexIndex IN [37698, 37699, 37700];
 ----
 2
+
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArSrcIndex IN (0, 1) AND _graphArDstIndex IN (23977, 34526);
+----
+2
