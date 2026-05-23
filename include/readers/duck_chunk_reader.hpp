@@ -54,8 +54,7 @@ class BaseDuckChunkReader {
 public:
     BaseDuckChunkReader(ClientContext& init_context, std::vector<std::shared_ptr<BaseArrowChunkReader>> init_bases,
                         std::shared_ptr<DuckParquetFileReader> init_file_reader)
-        : context(init_context), bases(std::move(init_bases)), file_reader(std::move(init_file_reader)) {
-    }
+        : context(init_context), bases(std::move(init_bases)), file_reader(std::move(init_file_reader)) {}
 
     bool CheckIfNewFileNeeded() {
         if (cur_chunk && read_rows < cur_chunk->size()) {

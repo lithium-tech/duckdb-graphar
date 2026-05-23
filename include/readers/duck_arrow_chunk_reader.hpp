@@ -56,7 +56,7 @@ public:
             }
             gc_result = base[current_base_idx]->GetChunk();
         }
-        
+
         auto maybe_arrow_table = gc_result.chunk;
         if (maybe_arrow_table.has_error()) {
             DUCKDB_GRAPHAR_LOG_DEBUG("Error while getting chunk from base reader: " +
@@ -83,7 +83,7 @@ public:
             }
             path_acquired = false;
         }
-        
+
         if (cur_chunk && read_rows < cur_chunk->size()) {
             return cur_chunk->size() - read_rows;
         }

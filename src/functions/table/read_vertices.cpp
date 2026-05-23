@@ -3,8 +3,6 @@
 #include "utils/benchmark.hpp"
 #include "utils/func.hpp"
 
-#include <set>
-
 #include <arrow/c/bridge.h>
 
 #include <duckdb/common/named_parameter_map.hpp>
@@ -21,6 +19,8 @@
 #include <graphar/expression.h>
 #include <graphar/filesystem.h>
 #include <graphar/fwd.h>
+
+#include <set>
 
 namespace duckdb {
 //-------------------------------------------------------------------
@@ -179,17 +179,14 @@ void ReadVertices::PushdownComplexFilter(ClientContext& context, LogicalGet& get
             return;
         }
     }
-    
-    auto vertex_info = *std::get_if<std::shared_ptr<graphar::VertexInfo>>(&read_bind_data->type_info);
-    const auto vertex_num = GetCountClass::GetCount(read_bind_data->type_info, read_bind_data->GetGraphInfo()->GetPrefix());
-    
+
     // Validation lambda for vertices
     auto validate = [&](const std::string& col, const Value& val) -> bool {
         if (col != GID_COLUMN_INTERNAL) return false;
         return true;
     };
-    
-    ReadBase<ReadVertices>::PushdownComplexFilterImpl(context, *read_bind_data, filters, validate, vertex_num);
+
+    ReadBase<ReadVertices>::PushdownComplexFilterImpl(context, *read_bind_data, filters, validate);
 }
 //-------------------------------------------------------------------
 // InitFunction

@@ -16,10 +16,10 @@
 #include <duckdb/main/extension/extension_loader.hpp>
 #include <duckdb/planner/expression.hpp>
 #include <duckdb/planner/expression/bound_comparison_expression.hpp>
+#include <duckdb/planner/expression/bound_conjunction_expression.hpp>
 #include <duckdb/planner/expression/bound_constant_expression.hpp>
 #include <duckdb/planner/expression/bound_function_expression.hpp>
 #include <duckdb/planner/expression/bound_operator_expression.hpp>
-#include <duckdb/planner/expression/bound_conjunction_expression.hpp>
 
 #include <graphar/api/arrow_reader.h>
 #include <graphar/api/high_level_reader.h>
@@ -507,8 +507,10 @@ public:
 
     template <typename ValidateFunc>
     static void PushdownComplexFilterImpl(ClientContext& context, ReadBindData& read_bind_data,
-                                          vector<unique_ptr<Expression>>& filters, ValidateFunc validate_and_extract,
-                                          int64_t vertex_num) {
+                                          vector<unique_ptr<Expression>>& filters, ValidateFunc validate_and_extract) {
+        if (!read_bind_data.vid_ranges.empty()) {
+            return;
+        }
         std::set<int64_t> vids;
         vector<unique_ptr<Expression>> filters_new;
         bool already_pushed = false;
@@ -555,7 +557,8 @@ public:
             if (!can_pushdown && filter->GetExpressionClass() == ExpressionClass::BOUND_FUNCTION) {
                 auto& op_expr = filter->Cast<BoundFunctionExpression>();
                 const auto& fname = op_expr.function.name;
-                if (fname == "contains" || fname == "list_contains" || fname == "array_contains" || fname == "list_has" || fname == "array_has") {
+                if (fname == "contains" || fname == "list_contains" || fname == "array_contains" ||
+                    fname == "list_has" || fname == "array_has") {
                     if (op_expr.children.size() == 2 &&
                         op_expr.children[0]->GetExpressionClass() == ExpressionClass::BOUND_CONSTANT) {
                         auto& const_expr = op_expr.children[0]->Cast<BoundConstantExpression>();
@@ -609,23 +612,31 @@ public:
                 for (auto& child : conj.children) {
                     if (child->GetExpressionClass() != ExpressionClass::BOUND_COMPARISON ||
                         child->GetExpressionType() != ExpressionType::COMPARE_EQUAL) {
-                        valid = false; break;
+                        valid = false;
+                        break;
                     }
                     auto& cmp = child->Cast<BoundComparisonExpression>();
                     std::string col;
                     Value val;
-                    if (cmp.left->GetExpressionClass()  == ExpressionClass::BOUND_COLUMN_REF &&
+                    if (cmp.left->GetExpressionClass() == ExpressionClass::BOUND_COLUMN_REF &&
                         cmp.right->GetExpressionClass() == ExpressionClass::BOUND_CONSTANT) {
                         col = cmp.left->ToString();
                         val = cmp.right->Cast<BoundConstantExpression>().value;
                     } else if (cmp.right->GetExpressionClass() == ExpressionClass::BOUND_COLUMN_REF &&
-                               cmp.left->GetExpressionClass()  == ExpressionClass::BOUND_CONSTANT) {
+                               cmp.left->GetExpressionClass() == ExpressionClass::BOUND_CONSTANT) {
                         col = cmp.right->ToString();
                         val = cmp.left->Cast<BoundConstantExpression>().value;
-                    } else { valid = false; break; }
+                    } else {
+                        valid = false;
+                        break;
+                    }
 
-                    if (column_name.empty()) column_name = col;
-                    else if (column_name != col) { valid = false; break; }
+                    if (column_name.empty())
+                        column_name = col;
+                    else if (column_name != col) {
+                        valid = false;
+                        break;
+                    }
                     local_vals.push_back(val);
                 }
 
@@ -648,6 +659,19 @@ public:
         }
 
         if (already_pushed) {
+            int64_t vertex_num = 0;
+            const auto& graph_info = read_bind_data.GetGraphInfo();
+            if (read_bind_data.filter_column == GID_COLUMN_INTERNAL) {
+                auto vertex_info = *std::get_if<std::shared_ptr<graphar::VertexInfo>>(&read_bind_data.type_info);
+                vertex_num = GetCountClass::GetCount(read_bind_data.type_info, graph_info->GetPrefix());
+            } else {
+                auto edge_info = *std::get_if<std::shared_ptr<graphar::EdgeInfo>>(&read_bind_data.type_info);
+                vertex_num = (read_bind_data.filter_column == SRC_GID_COLUMN)
+                                 ? GetCountClass::GetCount(graph_info->GetVertexInfo(edge_info->GetSrcType()),
+                                                           graph_info->GetPrefix())
+                                 : GetCountClass::GetCount(graph_info->GetVertexInfo(edge_info->GetDstType()),
+                                                           graph_info->GetPrefix());
+            }
             for (const auto& vid : vids) {
                 if (0 <= vid && vid < vertex_num) {
                     read_bind_data.vid_ranges.push_back({vid, vid + 1});

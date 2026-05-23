@@ -3,8 +3,6 @@
 #include "utils/benchmark.hpp"
 #include "utils/func.hpp"
 
-#include <set>
-
 #include <arrow/c/bridge.h>
 
 #include <duckdb/common/named_parameter_map.hpp>
@@ -20,6 +18,8 @@
 #include <graphar/arrow/chunk_reader.h>
 #include <graphar/expression.h>
 #include <graphar/fwd.h>
+
+#include <set>
 
 namespace duckdb {
 //-------------------------------------------------------------------
@@ -235,25 +235,26 @@ void ReadEdges::PushdownComplexFilter(ClientContext& context, LogicalGet& get, F
             return;
         }
     }
-    
+
     auto edge_info = *std::get_if<std::shared_ptr<graphar::EdgeInfo>>(&read_bind_data->type_info);
-    const auto vertex_num = GetCountClass::GetCount(read_bind_data->type_info, read_bind_data->GetGraphInfo()->GetPrefix());
-    
+
     // Validation lambda for edges
     auto validate = [&](const std::string& col, const Value& val) -> bool {
         if (col != SRC_GID_COLUMN && col != DST_GID_COLUMN) return false;
         if (col == SRC_GID_COLUMN &&
             (!edge_info->HasAdjacentListType(graphar::AdjListType::ordered_by_source) ||
-             edge_info->GetAdjacentList(graphar::AdjListType::ordered_by_source)->GetFileType()
-                 != graphar::FileType::PARQUET)) return false;
+             edge_info->GetAdjacentList(graphar::AdjListType::ordered_by_source)->GetFileType() !=
+                 graphar::FileType::PARQUET))
+            return false;
         if (col == DST_GID_COLUMN &&
             (!edge_info->HasAdjacentListType(graphar::AdjListType::ordered_by_dest) ||
-             edge_info->GetAdjacentList(graphar::AdjListType::ordered_by_dest)->GetFileType()
-                 != graphar::FileType::PARQUET)) return false;
+             edge_info->GetAdjacentList(graphar::AdjListType::ordered_by_dest)->GetFileType() !=
+                 graphar::FileType::PARQUET))
+            return false;
         return true;
     };
-    
-    ReadBase<ReadEdges>::PushdownComplexFilterImpl(context, *read_bind_data, filters, validate, vertex_num);
+
+    ReadBase<ReadEdges>::PushdownComplexFilterImpl(context, *read_bind_data, filters, validate);
 }
 //-------------------------------------------------------------------
 // InitFunction

@@ -1,0 +1,299 @@
+require duckdb_graphar
+
+statement ok
+SET autoinstall_known_extensions=1;
+
+statement ok
+SET autoload_known_extensions=1;
+
+# ============================================================================
+# Batch One-Hop Functionality Tests
+# Tests for filtering over _graphArVertexIndex, _graphArSrcIndex, _graphArDstIndex
+# with multiple filters in one query
+# ============================================================================
+
+# Attach the test database
+statement ok
+ATTACH '__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml' as test_db (type duckdb_graphar);
+
+# ============================================================================
+# VERTEX TESTS (_graphArVertexIndex)
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Bug 1: Duplicate values in IN clause
+# ----------------------------------------------------------------------------
+# Test: SELECT id FROM Person WHERE _graphArVertexIndex IN [5, 5]
+# Expected: Should return only one row with id=5 (duplicates should be handled)
+query I
+SELECT id FROM 'Person' WHERE _graphArVertexIndex IN [5, 5];
+----
+5
+
+# Test with multiple duplicates
+query I
+SELECT COUNT(*) FROM 'Person' WHERE _graphArVertexIndex IN [10, 10, 10, 10];
+----
+1
+
+# ----------------------------------------------------------------------------
+# Bug 2: Negative values in IN clause
+# ----------------------------------------------------------------------------
+# Test: SELECT COUNT(*) FROM Person WHERE _graphArVertexIndex IN [-1, 5]
+# Expected: Should handle negative values gracefully (filter them out)
+query I
+SELECT COUNT(*) FROM 'Person' WHERE _graphArVertexIndex IN [-1, 5];
+----
+1
+
+# Test with only negative values
+query I
+SELECT COUNT(*) FROM 'Person' WHERE _graphArVertexIndex IN [-10, -5, -1];
+----
+0
+
+# Test with mix of negative and positive
+query I
+SELECT id FROM 'Person' WHERE _graphArVertexIndex IN [-3, 0, 3] ORDER BY id;
+----
+0
+3
+
+# ----------------------------------------------------------------------------
+# Bug 2: Out-of-range values in IN clause
+# ----------------------------------------------------------------------------
+# Test: SELECT COUNT(*) FROM Person WHERE _graphArVertexIndex IN [37700, 5]
+# Expected: 37700 is out of range (valid range is 0-37699), should return only id=5
+query I
+SELECT COUNT(*) FROM 'Person' WHERE _graphArVertexIndex IN [37700, 5];
+----
+1
+
+# Test with only out-of-range values
+query I
+SELECT COUNT(*) FROM 'Person' WHERE _graphArVertexIndex IN [37700, 37701, 37702];
+----
+0
+
+# Test with multiple out-of-range and valid values
+query I
+SELECT COUNT(*) FROM 'Person' WHERE _graphArVertexIndex IN [37699, 37700, 0, 50000];
+----
+2
+
+# ----------------------------------------------------------------------------
+# Multiple filters with AND operator (intersection)
+# ----------------------------------------------------------------------------
+# Test: SELECT id FROM Person WHERE _graphArVertexIndex IN [1, 2] AND _graphArVertexIndex IN [2, 3]
+# Expected: Should return only id=2 (intersection of both conditions)
+query I
+SELECT id FROM 'Person' WHERE _graphArVertexIndex IN [1, 2] AND _graphArVertexIndex IN [2, 3];
+----
+2
+
+# Test with no intersection
+query I
+SELECT COUNT(*) FROM 'Person' WHERE _graphArVertexIndex IN [1, 2] AND _graphArVertexIndex IN [5, 6];
+----
+0
+
+# Test with multiple AND conditions
+query I
+SELECT id FROM 'Person' WHERE _graphArVertexIndex IN [0, 1, 2] AND _graphArVertexIndex IN [1, 2, 3] AND _graphArVertexIndex IN [2, 3, 4];
+----
+2
+
+# ----------------------------------------------------------------------------
+# Edge cases: Empty result sets
+# ----------------------------------------------------------------------------
+query I
+SELECT COUNT(*) FROM 'Person' WHERE _graphArVertexIndex IN [999999];
+----
+0
+
+# ----------------------------------------------------------------------------
+# Edge cases: Large number of values in IN clause
+# ----------------------------------------------------------------------------
+query I
+SELECT COUNT(*) FROM 'Person' WHERE _graphArVertexIndex IN [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
+----
+20
+
+# ============================================================================
+# EDGE TESTS (_graphArSrcIndex)
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Bug 1: Duplicate values in IN clause for edges
+# ----------------------------------------------------------------------------
+# src_index=1 has 8 edges (verified earlier)
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArSrcIndex IN [1, 1];
+----
+8
+
+# Test with multiple duplicates - src_index=5 has 1 edge
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArSrcIndex IN [5, 5, 5, 5];
+----
+1
+
+# ----------------------------------------------------------------------------
+# Bug 2: Negative values in IN clause for edges
+# ----------------------------------------------------------------------------
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArSrcIndex IN [-1, 5];
+----
+1
+
+# Test with only negative values
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArSrcIndex IN [-10, -5, -1];
+----
+0
+
+# Test with mix of negative and positive - src_index=0 has 1 edge, src_index=3 has 5 edges
+query II
+SELECT _graphArSrcIndex, _graphArDstIndex FROM 'Person_knows_Person' WHERE _graphArSrcIndex IN [-3, 0, 3] ORDER BY _graphArSrcIndex, _graphArDstIndex;
+----
+0	23977
+3	3358
+3	4950
+3	5916
+3	18029
+3	34935
+
+# ----------------------------------------------------------------------------
+# Bug 2: Out-of-range values in IN clause for edges
+# ----------------------------------------------------------------------------
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArSrcIndex IN [37700, 5];
+----
+1
+
+# Test with only out-of-range values
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArSrcIndex IN [37700, 37701, 37702];
+----
+0
+
+# ----------------------------------------------------------------------------
+# Multiple filters with AND operator for edges (intersection)
+# ----------------------------------------------------------------------------
+# src_index=1 has 8 edges, src_index=2 has 1 edge, src_index=3 has 5 edges
+# Intersection of [1,2] AND [2,3] should give only src_index=2 (1 edge)
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArSrcIndex IN [1, 2] AND _graphArSrcIndex IN [2, 3];
+----
+1
+
+# Test with no intersection
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArSrcIndex IN [1, 2] AND _graphArSrcIndex IN [100, 101];
+----
+0
+
+# ============================================================================
+# EDGE TESTS (_graphArDstIndex)
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Bug 1: Duplicate values in IN clause for dst index
+# ----------------------------------------------------------------------------
+# dst_index=23977 appears 23 times (verified earlier)
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArDstIndex IN [23977, 23977];
+----
+23
+
+# Test with multiple duplicates - dst_index=3358 appears 4 times
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArDstIndex IN [3358, 3358, 3358];
+----
+4
+
+# ----------------------------------------------------------------------------
+# Bug 2: Negative values in IN clause for dst index
+# ----------------------------------------------------------------------------
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArDstIndex IN [-1, 23977];
+----
+23
+
+# Test with only negative values
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArDstIndex IN [-10, -5, -1];
+----
+0
+
+# ----------------------------------------------------------------------------
+# Bug 2: Out-of-range values in IN clause for dst index
+# ----------------------------------------------------------------------------
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArDstIndex IN [999999, 23977];
+----
+23
+
+# Test with only out-of-range values
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArDstIndex IN [999999, 999998];
+----
+0
+
+# ----------------------------------------------------------------------------
+# Multiple filters with AND operator for dst index (intersection)
+# ----------------------------------------------------------------------------
+# dst_index=23977 appears 23 times, dst_index=3358 appears 4 times
+# Intersection of [23977, 3358] AND [3358, 4950] should give only dst_index=3358 (4 edges)
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArDstIndex IN [23977, 3358] AND _graphArDstIndex IN [3358, 4950];
+----
+4
+
+# ============================================================================
+# COMBINED FILTER TESTS
+# ============================================================================
+
+# Test filtering by both src and dst (should use only one filter pushdown)
+# src_index=0 has 1 edge (to 23977), src_index=1 has 8 edges
+# After filtering by src IN [0,1], we apply dst IN [23977, 34526]
+# dst=23977 from src=0 matches, dst=34526 from src=1 matches
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArSrcIndex IN [0, 1] AND _graphArDstIndex IN [23977, 34526];
+----
+2
+
+# Test vertex filter with property filter
+# vertex 0: ml_target=false, vertex 1: ml_target=false, vertex 2: ml_target=true
+query I
+SELECT COUNT(*) FROM 'Person' WHERE _graphArVertexIndex IN [0, 1, 2] AND ml_target = true;
+----
+1
+
+# Test edge filter - src_index=0 has 1 edge, src_index=1 has 8 edges
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArSrcIndex IN [0, 1];
+----
+9
+
+# ============================================================================
+# EDGE CASES: Boundary values
+# ============================================================================
+
+# Test boundary: first valid index
+query I
+SELECT id FROM 'Person' WHERE _graphArVertexIndex IN [0];
+----
+0
+
+# Test boundary: last valid index (37699 based on COUNT(*) = 37700)
+query I
+SELECT COUNT(*) FROM 'Person' WHERE _graphArVertexIndex IN [37699];
+----
+1
+
+# Test boundary: just before invalid range
+query I
+SELECT COUNT(*) FROM 'Person' WHERE _graphArVertexIndex IN [37698, 37699, 37700];
+----
+2
