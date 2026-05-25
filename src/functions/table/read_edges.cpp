@@ -238,7 +238,6 @@ void ReadEdges::PushdownComplexFilter(ClientContext& context, LogicalGet& get, F
 
     auto edge_info = *std::get_if<std::shared_ptr<graphar::EdgeInfo>>(&read_bind_data->type_info);
 
-    // Validation lambda for edges
     auto validate = [&](const std::string& col, const Value& val) -> bool {
         if (col != SRC_GID_COLUMN && col != DST_GID_COLUMN) return false;
         if (col == SRC_GID_COLUMN &&
