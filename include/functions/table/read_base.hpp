@@ -481,13 +481,21 @@ public:
         DUCKDB_GRAPHAR_LOG_DEBUG("num rows final: " + std::to_string(num_rows));
 
         if (num_rows > 0) {
+            bool chunk_id_set = false;
             for (idx_t i = 0; i < lstate.readers.size(); i++) {
                 if (IsNullPtr(lstate.readers[i])) {
                     continue;
                 }
                 auto gc_result_final = GetChunk(lstate.readers[i], num_rows);
                 lstate.cur_chunks[i] = std::move(gc_result_final.first);
-                lstate.cur_chunk_id = gc_result_final.second;
+                
+                if (!chunk_id_set) {
+                    lstate.cur_chunk_id = gc_result_final.second;
+                    chunk_id_set = true;
+                } else if (lstate.cur_chunk_id != gc_result_final.second) {
+                    throw InternalException("Desynchronization error: Property Groups returned different chunk IDs!");
+                }
+
                 for (idx_t j = 0; j < lstate.cur_chunks[i]->ColumnCount(); j++) {
                     output.data[gstate.global_projected_inds[i][j]].Reference(lstate.cur_chunks[i]->data[j]);
                 }
@@ -517,10 +525,13 @@ public:
 
         // Wrapper lambda that captures vids by reference
         auto validate_wrapper = [&](const std::string& col, const Value& val) -> bool {
-            if (!val.IsNull()) {
-                vids.insert(val.GetValue<int64_t>());
+            if (validate_and_extract(col, val)) {
+                if (!val.IsNull()) {
+                    vids.insert(val.GetValue<int64_t>());
+                }
+                return true;
             }
-            return validate_and_extract(col, val);
+            return false;
         };
 
         for (auto& filter : filters) {
@@ -531,26 +542,30 @@ public:
 
             bool can_pushdown = false;
 
-            // Case 0: equality comparison (col = value)
-            if (filter->GetExpressionClass() == ExpressionClass::BOUND_COMPARISON) {
-                auto& comparison = filter->Cast<BoundComparisonExpression>();
-                if (comparison.GetExpressionType() == ExpressionType::COMPARE_EQUAL) {
-                    bool left_is_scalar = comparison.left->IsFoldable();
-                    bool right_is_scalar = comparison.right->IsFoldable();
-                    if (left_is_scalar || right_is_scalar) {
-                        auto column_name = comparison.left->ToString();
-                        Value val;
-                        if (comparison.left->GetExpressionClass() == ExpressionClass::BOUND_COLUMN_REF) {
-                            val = comparison.right->Cast<BoundConstantExpression>().value;
-                        } else {
-                            val = comparison.left->Cast<BoundConstantExpression>().value;
-                        }
-                        if (validate_wrapper(column_name, val)) {
-                            can_pushdown = true;
-                            read_bind_data.filter_column = column_name;
-                        }
-                    }
-                }
+            // Case 0: equality comparison (col = value)  
+            if (filter->GetExpressionClass() == ExpressionClass::BOUND_COMPARISON) {  
+                auto& comparison = filter->Cast<BoundComparisonExpression>();  
+                if (comparison.GetExpressionType() == ExpressionType::COMPARE_EQUAL) {  
+                    bool left_is_scalar = comparison.left->IsFoldable();  
+                    bool right_is_scalar = comparison.right->IsFoldable();  
+                    if (left_is_scalar || right_is_scalar) {  
+                        auto column_name = comparison.left->ToString();  
+                        Value val;  
+                        
+                        auto& scalar_expr = (comparison.left->GetExpressionClass() == ExpressionClass::BOUND_COLUMN_REF)   
+                                        ? *comparison.right   
+                                        : *comparison.left;  
+                        
+                        if (!ExpressionExecutor::TryEvaluateScalar(context, scalar_expr, val)) {
+                            continue;
+                        }  
+                        
+                        if (validate_wrapper(column_name, val)) {  
+                            can_pushdown = true;  
+                            read_bind_data.filter_column = column_name;  
+                        }  
+                    }  
+                }  
             }
 
             // Case 1: list_contains([1, 2, 3], col) -- list literal
