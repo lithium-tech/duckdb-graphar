@@ -50,7 +50,6 @@ std::string QueryStringConstructor::GetMainQueryString(const std::vector<column_
                     // No WHERE clause needed
                     break;
             }
-            ss << " " << SQL_ORDER_BY_CLAUSE;
             break;
         default:
             throw NotImplementedException("Unsupported file format");
