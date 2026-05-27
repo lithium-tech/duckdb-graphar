@@ -488,7 +488,7 @@ public:
                 }
                 auto gc_result_final = GetChunk(lstate.readers[i], num_rows);
                 lstate.cur_chunks[i] = std::move(gc_result_final.first);
-                
+
                 if (!chunk_id_set) {
                     lstate.cur_chunk_id = gc_result_final.second;
                     chunk_id_set = true;
@@ -542,30 +542,30 @@ public:
 
             bool can_pushdown = false;
 
-            // Case 0: equality comparison (col = value)  
-            if (filter->GetExpressionClass() == ExpressionClass::BOUND_COMPARISON) {  
-                auto& comparison = filter->Cast<BoundComparisonExpression>();  
-                if (comparison.GetExpressionType() == ExpressionType::COMPARE_EQUAL) {  
-                    bool left_is_scalar = comparison.left->IsFoldable();  
-                    bool right_is_scalar = comparison.right->IsFoldable();  
-                    if (left_is_scalar || right_is_scalar) {  
-                        auto column_name = comparison.left->ToString();  
-                        Value val;  
-                        
-                        auto& scalar_expr = (comparison.left->GetExpressionClass() == ExpressionClass::BOUND_COLUMN_REF)   
-                                        ? *comparison.right   
-                                        : *comparison.left;  
-                        
+            // Case 0: equality comparison (col = value)
+            if (filter->GetExpressionClass() == ExpressionClass::BOUND_COMPARISON) {
+                auto& comparison = filter->Cast<BoundComparisonExpression>();
+                if (comparison.GetExpressionType() == ExpressionType::COMPARE_EQUAL) {
+                    bool left_is_scalar = comparison.left->IsFoldable();
+                    bool right_is_scalar = comparison.right->IsFoldable();
+                    if (left_is_scalar || right_is_scalar) {
+                        auto column_name = comparison.left->ToString();
+                        Value val;
+
+                        auto& scalar_expr = (comparison.left->GetExpressionClass() == ExpressionClass::BOUND_COLUMN_REF)
+                                                ? *comparison.right
+                                                : *comparison.left;
+
                         if (!ExpressionExecutor::TryEvaluateScalar(context, scalar_expr, val)) {
                             continue;
-                        }  
-                        
-                        if (validate_wrapper(column_name, val)) {  
-                            can_pushdown = true;  
-                            read_bind_data.filter_column = column_name;  
-                        }  
-                    }  
-                }  
+                        }
+
+                        if (validate_wrapper(column_name, val)) {
+                            can_pushdown = true;
+                            read_bind_data.filter_column = column_name;
+                        }
+                    }
+                }
             }
 
             // Case 1: list_contains([1, 2, 3], col) -- list literal
