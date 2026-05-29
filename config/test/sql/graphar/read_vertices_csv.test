@@ -41,3 +41,19 @@ query I
 SELECT COUNT(*) FROM 'Person';
 ----
 37700
+
+query I
+SELECT COUNT(*) FROM 'Person' WHERE _graphArVertexIndex IN [0, 1, 2, 3];
+----
+4
+
+query II
+SELECT id, _graphArVertexIndex FROM 'Person' WHERE _graphArVertexIndex IN [0, 1] ORDER BY _graphArVertexIndex;
+----
+0	0
+1	1
+
+query I
+SELECT COUNT(*) FROM 'Person' WHERE _graphArVertexIndex IN [100, 11, 5];
+----
+3

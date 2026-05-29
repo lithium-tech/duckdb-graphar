@@ -24,7 +24,10 @@ struct GetChunkResult {
     ChunkType chunk;
     std::pair<int64_t, int64_t> rows_range = {-1, -1};
     bool no_more_chunks = false;
+    duckdb::idx_t chunk_idx = -1;
 };
+
+using GetChunkFinalResult = std::pair<duckdb::unique_ptr<duckdb::DataChunk>, duckdb::idx_t>;
 
 template <typename T>
 concept IsVertexReader =
@@ -35,12 +38,18 @@ concept IsEdgeReader =
     std::is_same_v<T, AdjListArrowChunkReader> || std::is_same_v<T, AdjListPropertyArrowChunkReader> ||
     std::is_same_v<T, AdjListChunkInfoReader> || std::is_same_v<T, AdjListPropertyChunkInfoReader>;
 
+struct SharedChunkCounter {
+    std::atomic<duckdb::idx_t> global_chunk_count{0};
+};
+
 template <typename StoredReader>
 class ThreadSafeReader {
 public:
     using ChunkType = decltype(std::declval<StoredReader>().GetChunk());
 
-    explicit ThreadSafeReader(std::shared_ptr<StoredReader> reader) : reader(std::move(reader)) {}
+    explicit ThreadSafeReader(std::shared_ptr<StoredReader> reader,
+                              std::shared_ptr<SharedChunkCounter> counter = nullptr)
+        : reader(std::move(reader)), shared_counter(counter ? counter : std::make_shared<SharedChunkCounter>()) {}
 
     template <typename... Args>
     static graphar::Result<std::shared_ptr<ThreadSafeReader>> Make(Args&&... args) {
@@ -49,13 +58,13 @@ public:
     }
 
     GetChunkResult<ChunkType> GetChunk() {
-        std::lock_guard<std::mutex> lock(mtx);
+        std::lock_guard<std::mutex> lock(chunk_mutex);
         GetChunkResult<ChunkType> cur_result;
-        if (filter_info && chunk_count == filter_info->total_chunks) {
+        if (filter_info && local_chunk_count == filter_info->total_chunks) {
             cur_result.no_more_chunks = true;
             return cur_result;
         }
-        if (chunk_count > 0) {
+        if (local_chunk_count > 0) {
             const auto next_chunk_result = reader->next_chunk();
             if (!next_chunk_result.ok() && next_chunk_result.IsIndexError()) {
                 cur_result.no_more_chunks = true;
@@ -67,15 +76,16 @@ public:
         cur_result.chunk = reader->GetChunk();
 
         if (filter_info) {
-            if (chunk_count == 0) {
+            if (local_chunk_count == 0) {
                 cur_result.rows_range.first = filter_info->offset_rows;
             }
-            if (chunk_count == filter_info->total_chunks - 1) {
+            if (local_chunk_count == filter_info->total_chunks - 1) {
                 cur_result.rows_range.second = filter_info->last_chunk_rows;
             }
         }
 
-        chunk_count++;
+        cur_result.chunk_idx = shared_counter->global_chunk_count.fetch_add(1);
+        local_chunk_count++;
         return cur_result;
     }
 
@@ -133,8 +143,9 @@ public:
 
 private:
     std::shared_ptr<StoredReader> reader;
-    std::mutex mtx;
-    duckdb::idx_t chunk_count = 0;
+    std::shared_ptr<SharedChunkCounter> shared_counter;
+    duckdb::idx_t local_chunk_count = 0;
+    std::mutex chunk_mutex;
 
     std::unique_ptr<FilterInfo> filter_info;
 };
