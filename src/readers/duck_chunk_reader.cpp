@@ -9,6 +9,7 @@ constexpr std::string_view SQL_LIMIT_CLAUSE = "LIMIT";
 constexpr std::string_view SQL_OFFSET_CLAUSE = "OFFSET";
 constexpr std::string_view READ_PARQUET_FUNCTION = "read_parquet";
 constexpr std::string_view FILE_ROW_NUMBER_CLAUSE = "file_row_number";
+constexpr std::string_view SQL_ORDER_BY_CLAUSE = "ORDER BY file_row_number";
 }  // namespace
 
 namespace duckdb {

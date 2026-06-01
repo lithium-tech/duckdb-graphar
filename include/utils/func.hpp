@@ -37,6 +37,8 @@ struct GraphArFunctions {
 
     static std::shared_ptr<arrow::DataType> graphArT2arrowT(const std::string& name);
 
+    static unique_ptr<ArrowTypeInfo> graphArT2ArrowTypeInfo(const std::string& name);
+
     static Value ArrowScalar2DuckValue(const std::shared_ptr<arrow::Scalar>& scalar);
 
     template <typename Info>
@@ -135,5 +137,13 @@ public:
         }
     }
 };
+
+static idx_t GetChunkIdx(duckdb::idx_t result_idx, duckdb::idx_t read_idx) {
+    if (result_idx > NumericLimits<uint32_t>::Maximum() || read_idx > NumericLimits<uint32_t>::Maximum()) {
+        throw OutOfRangeException("Overflow encountered in GetChunkIdx with result_idx = %llu and read_idx = %llu",
+                                  result_idx, read_idx);
+    }
+    return (result_idx) << 32 | read_idx;
+}
 
 }  // namespace duckdb

@@ -46,6 +46,14 @@ std::shared_ptr<arrow::DataType> GraphArFunctions::graphArT2arrowT(const std::st
     throw NotImplementedException("Unsupported type for conversion to arrow: " + name);
 }
 
+unique_ptr<ArrowTypeInfo> GraphArFunctions::graphArT2ArrowTypeInfo(const std::string& name) {
+    if (name == "string") {
+        return make_uniq<ArrowTypeInfo>(ArrowTypeInfoType::STRING);
+    } else {
+        return nullptr;
+    }
+}
+
 Value GraphArFunctions::ArrowScalar2DuckValue(const std::shared_ptr<arrow::Scalar>& scalar) {
     DUCKDB_GRAPHAR_LOG_WARN("ArrowScalar2DuckValue");
     if (!scalar->is_valid) {
@@ -66,6 +74,8 @@ Value GraphArFunctions::ArrowScalar2DuckValue(const std::shared_ptr<arrow::Scala
         case arrow::Type::STRING:
         case arrow::Type::LARGE_STRING:
             return Value(static_cast<const arrow::StringScalar&>(*scalar).value->ToString());
+        case arrow::Type::DATE64:
+            return Value::DATE(date_t(static_cast<const arrow::Date64Scalar&>(*scalar).value));
         case arrow::Type::TIMESTAMP: {
             return Value::TIMESTAMP(timestamp_t(static_cast<const arrow::TimestampScalar&>(*scalar).value));
         }

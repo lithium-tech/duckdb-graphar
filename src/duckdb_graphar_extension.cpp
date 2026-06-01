@@ -4,6 +4,7 @@
 
 #include "functions/scalar/bfs.hpp"
 #include "functions/table/edges_vertex.hpp"
+#include "functions/table/graphar_info.hpp"
 #include "functions/table/hop.hpp"
 #include "functions/table/hop_thread.hpp"
 #include "functions/table/read_edges.hpp"
@@ -48,6 +49,7 @@ static void LoadInternal(ExtensionLoader& loader) {
     TwoHop::Register(loader);
     OneMoreHop::Register(loader);
     TwoHopThreads::Register(loader);
+    GraphArInfo::Register(loader);
 
     StorageExtension::Register(config, "duckdb_graphar", make_shared_ptr<GraphArStorageExtension>());
 
