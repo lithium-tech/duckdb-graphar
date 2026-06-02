@@ -29,6 +29,7 @@ LogicalTypeId GraphArFunctions::graphArT2duckT(const std::string& name) {
     if (name == "string") return LogicalTypeId::VARCHAR;
     if (name == "date") return LogicalTypeId::DATE;
     if (name == "timestamp") return LogicalTypeId::TIMESTAMP;
+    if (name == "timestamp_tz") return LogicalTypeId::TIMESTAMP_TZ;
 
     throw NotImplementedException("Unsupported type for conversion to duck: " + name);
 }
