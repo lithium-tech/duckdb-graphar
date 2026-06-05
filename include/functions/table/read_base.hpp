@@ -139,8 +139,8 @@ class ReadEdges;
 
 struct ColumnStats {
     bool has_min_max = false;
-    std::string min_val;
-    std::string max_val;
+    Value min_val;
+    Value max_val;
     bool is_nullable = true;
 };
 
@@ -148,10 +148,10 @@ class ReadBindData : public TableFunctionData {
 public:
     ReadBindData() = default;
     vector<std::string> GetParams() { return params; }
-    vector<std::string>& GetFlattenPropNames() { return flatten_prop_names; }
-    vector<std::string>& GetFlattenPropTypes() { return flatten_prop_types; }
+    const vector<std::string>& GetFlattenPropNames() const { return flatten_prop_names; }
+    const vector<std::string>& GetFlattenPropTypes() const { return flatten_prop_types; }
     const std::shared_ptr<graphar::GraphInfo>& GetGraphInfo() const { return graph_info; }
-    std::unordered_map<std::string, ColumnStats>& GetStatsMap() { return stats_map; }
+    const std::unordered_map<std::string, ColumnStats>& GetStatsMap() const { return stats_map; }
 
 private:
     vector<vector<std::string>> prop_names;
@@ -224,6 +224,110 @@ private:
 
 template <typename ReadFinal>
 class ReadBase {
+private:
+    static bool ValidateAndConvertStats(const std::string& min_str, const std::string& max_str,
+                                        const LogicalType& duck_type, Value& out_min, Value& out_max) {
+        if (min_str.empty() || max_str.empty()) {
+            return false;
+        }
+
+        auto is_valid_integer = [](const std::string& s) -> bool {
+            if (s.empty()) return false;
+            size_t start = 0;
+            if (s[0] == '-' || s[0] == '+') start = 1;
+            if (start >= s.size()) return false;
+            for (size_t i = start; i < s.size(); i++) {
+                if (!isdigit(s[i])) return false;
+            }
+            return true;
+        };
+
+        auto is_valid_float = [](const std::string& s) -> bool {
+            if (s.empty()) return false;
+            bool has_dot = false;
+            bool has_digit = false;
+            size_t start = 0;
+            if (s[0] == '-' || s[0] == '+') start = 1;
+            if (start >= s.size()) return false;
+            for (size_t i = start; i < s.size(); i++) {
+                if (s[i] == '.') {
+                    if (has_dot) return false;
+                    has_dot = true;
+                } else if (isdigit(s[i])) {
+                    has_digit = true;
+                } else {
+                    return false;
+                }
+            }
+            return has_digit;
+        };
+
+        switch (duck_type.id()) {
+            case LogicalTypeId::TINYINT: {
+                if (!is_valid_integer(min_str) || !is_valid_integer(max_str)) return false;
+                int64_t min_val = std::stoll(min_str);
+                int64_t max_val = std::stoll(max_str);
+                if (min_val < std::numeric_limits<int8_t>::min() || min_val > std::numeric_limits<int8_t>::max())
+                    return false;
+                if (max_val < std::numeric_limits<int8_t>::min() || max_val > std::numeric_limits<int8_t>::max())
+                    return false;
+                out_min = Value::TINYINT(static_cast<int8_t>(min_val));
+                out_max = Value::TINYINT(static_cast<int8_t>(max_val));
+                return true;
+            }
+            case LogicalTypeId::SMALLINT: {
+                if (!is_valid_integer(min_str) || !is_valid_integer(max_str)) return false;
+                int64_t min_val = std::stoll(min_str);
+                int64_t max_val = std::stoll(max_str);
+                if (min_val < std::numeric_limits<int16_t>::min() || min_val > std::numeric_limits<int16_t>::max())
+                    return false;
+                if (max_val < std::numeric_limits<int16_t>::min() || max_val > std::numeric_limits<int16_t>::max())
+                    return false;
+                out_min = Value::SMALLINT(static_cast<int16_t>(min_val));
+                out_max = Value::SMALLINT(static_cast<int16_t>(max_val));
+                return true;
+            }
+            case LogicalTypeId::INTEGER: {
+                if (!is_valid_integer(min_str) || !is_valid_integer(max_str)) return false;
+                int64_t min_val = std::stoll(min_str);
+                int64_t max_val = std::stoll(max_str);
+                if (min_val < std::numeric_limits<int32_t>::min() || min_val > std::numeric_limits<int32_t>::max())
+                    return false;
+                if (max_val < std::numeric_limits<int32_t>::min() || max_val > std::numeric_limits<int32_t>::max())
+                    return false;
+                out_min = Value::INTEGER(static_cast<int32_t>(min_val));
+                out_max = Value::INTEGER(static_cast<int32_t>(max_val));
+                return true;
+            }
+            case LogicalTypeId::BIGINT: {
+                if (!is_valid_integer(min_str) || !is_valid_integer(max_str)) return false;
+                int64_t min_val = std::stoll(min_str);
+                int64_t max_val = std::stoll(max_str);
+                out_min = Value::BIGINT(min_val);
+                out_max = Value::BIGINT(max_val);
+                return true;
+            }
+            case LogicalTypeId::FLOAT: {
+                if (!is_valid_float(min_str) || !is_valid_float(max_str)) return false;
+                float min_val = std::stof(min_str);
+                float max_val = std::stof(max_str);
+                out_min = Value::FLOAT(min_val);
+                out_max = Value::FLOAT(max_val);
+                return true;
+            }
+            case LogicalTypeId::DOUBLE: {
+                if (!is_valid_float(min_str) || !is_valid_float(max_str)) return false;
+                double min_val = std::stod(min_str);
+                double max_val = std::stod(max_str);
+                out_min = Value::DOUBLE(min_val);
+                out_max = Value::DOUBLE(max_val);
+                return true;
+            }
+            default:
+                return false;
+        }
+    }
+
 public:
     static void SetBindData(std::shared_ptr<graphar::GraphInfo> graph_info, TypeInfoPtr type_info,
                             unique_ptr<ReadBindData>& bind_data, string function_name, idx_t id_columns_num = 0,
@@ -346,9 +450,20 @@ public:
                                     }
 
                                     if (has_min && has_max) {
-                                        bind_data->stats_map[column_name].has_min_max = true;
-                                        bind_data->stats_map[column_name].min_val = min_val;
-                                        bind_data->stats_map[column_name].max_val = max_val;
+                                        auto it = std::find(bind_data->flatten_prop_names.begin(),
+                                                            bind_data->flatten_prop_names.end(), column_name);
+                                        if (it != bind_data->flatten_prop_names.end()) {
+                                            idx_t col_idx = it - bind_data->flatten_prop_names.begin();
+                                            auto duck_type = GraphArFunctions::graphArT2duckT(
+                                                bind_data->flatten_prop_types[col_idx]);
+                                            Value typed_min, typed_max;
+                                            if (ValidateAndConvertStats(min_val, max_val, duck_type, typed_min,
+                                                                        typed_max)) {
+                                                bind_data->stats_map[column_name].has_min_max = true;
+                                                bind_data->stats_map[column_name].min_val = typed_min;
+                                                bind_data->stats_map[column_name].max_val = typed_max;
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -391,7 +506,7 @@ public:
     static unique_ptr<BaseStatistics> GetStatistics(ClientContext& context, const FunctionData* bind_data,
                                                     column_t column_index) {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadBase::GetStatistics");
-        auto read_bind_data = bind_data->Cast<ReadBindData>();
+        auto& read_bind_data = bind_data->Cast<ReadBindData>();
         if (column_index < 0 || column_index >= read_bind_data.GetFlattenPropTypes().size()) {
             return nullptr;
         }
@@ -404,41 +519,13 @@ public:
             return BaseStatistics::CreateUnknown(duck_type).ToUnique();
         }
 
-        auto& c_stats = stats_map[column_name];
+        auto& c_stats = stats_map.at(column_name);
         auto stats = BaseStatistics::CreateUnknown(duck_type);
 
-        // 1. Initialize stats object and apply Min/Max values if available
         if (c_stats.has_min_max && LogicalType::IsNumeric(duck_type)) {
             stats = NumericStats::CreateEmpty(duck_type);
-            switch (duck_type) {
-                case LogicalTypeId::TINYINT:
-                    NumericStats::SetMin<int8_t>(stats, static_cast<int8_t>(std::stoi(c_stats.min_val)));
-                    NumericStats::SetMax<int8_t>(stats, static_cast<int8_t>(std::stoi(c_stats.max_val)));
-                    break;
-                case LogicalTypeId::SMALLINT:
-                    NumericStats::SetMin<int16_t>(stats, static_cast<int16_t>(std::stoi(c_stats.min_val)));
-                    NumericStats::SetMax<int16_t>(stats, static_cast<int16_t>(std::stoi(c_stats.max_val)));
-                    break;
-                case LogicalTypeId::INTEGER:
-                    NumericStats::SetMin<int32_t>(stats, static_cast<int32_t>(std::stoll(c_stats.min_val)));
-                    NumericStats::SetMax<int32_t>(stats, static_cast<int32_t>(std::stoll(c_stats.max_val)));
-                    break;
-                case LogicalTypeId::BIGINT:
-                    NumericStats::SetMin<int64_t>(stats, static_cast<int64_t>(std::stoll(c_stats.min_val)));
-                    NumericStats::SetMax<int64_t>(stats, static_cast<int64_t>(std::stoll(c_stats.max_val)));
-                    break;
-                case LogicalTypeId::FLOAT:
-                    NumericStats::SetMin<float>(stats, std::stof(c_stats.min_val));
-                    NumericStats::SetMax<float>(stats, std::stof(c_stats.max_val));
-                    break;
-                case LogicalTypeId::DOUBLE:
-                    NumericStats::SetMin<double>(stats, std::stod(c_stats.min_val));
-                    NumericStats::SetMax<double>(stats, std::stod(c_stats.max_val));
-                    break;
-                default:
-                    stats = BaseStatistics::CreateUnknown(duck_type);
-                    break;
-            }
+            NumericStats::SetMin(stats, c_stats.min_val);
+            NumericStats::SetMax(stats, c_stats.max_val);
         }
 
         // 2. Apply explicit nullability marker
