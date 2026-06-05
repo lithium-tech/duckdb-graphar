@@ -387,7 +387,7 @@ public:
     static const vector<std::pair<graphar::IdType, graphar::IdType>>& GetVidRanges(const ReadBindData& bind_data) {
         return bind_data.vid_ranges;
     }
-    
+
     static unique_ptr<BaseStatistics> GetStatistics(ClientContext& context, const FunctionData* bind_data,
                                                     column_t column_index) {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadBase::GetStatistics");
