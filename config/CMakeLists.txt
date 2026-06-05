@@ -19,12 +19,12 @@ set(DEPS_INSTALL_DIR ${CMAKE_BINARY_DIR}/_deps)
 set(ARROW_INSTALL_DIR ${DEPS_INSTALL_DIR}/arrow-install)
 set(GRAPHAR_INSTALL_DIR ${DEPS_INSTALL_DIR}/graphar-install)
 
-set(GRAPHAR_SOURCE_DIR ${DEPS_INSTALL_DIR}/graphar-src)
+set(GRAPHAR_SOURCE_DIR ${DEPS_INSTALL_DIR}/graphar-prefix/src)
 
 set(EXTENSION_INCLUDES
     $<BUILD_INTERFACE:${EXTENSION_ROOT_DIR}/include>
     $<BUILD_INTERFACE:${GRAPHAR_INSTALL_DIR}/include>
-    $<BUILD_INTERFACE:${GRAPHAR_SOURCE_DIR}/cpp/thirdparty>
+    $<BUILD_INTERFACE:${GRAPHAR_SOURCE_DIR}/graphar/cpp/thirdparty>
     $<BUILD_INTERFACE:${duckdb_SOURCE_DIR}/src/include>
     $<BUILD_INTERFACE:${arrow_SOURCE_DIR}/cpp/src>
     $<BUILD_INTERFACE:${ARROW_INSTALL_DIR}/include>

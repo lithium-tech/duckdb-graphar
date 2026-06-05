@@ -20,6 +20,7 @@
 #include <duckdb/planner/expression/bound_constant_expression.hpp>
 #include <duckdb/planner/expression/bound_function_expression.hpp>
 #include <duckdb/planner/expression/bound_operator_expression.hpp>
+#include <duckdb/storage/statistics/numeric_stats.hpp>
 
 #include <graphar/api/arrow_reader.h>
 #include <graphar/api/high_level_reader.h>
@@ -29,9 +30,12 @@
 #include <graphar/graph_info.h>
 #include <graphar/reader_util.h>
 
+#include <algorithm>
 #include <filesystem>
 #include <iostream>
+#include <mini-yaml/yaml/Yaml.hpp>
 #include <sstream>
+#include <unordered_map>
 #include <variant>
 
 namespace duckdb {
@@ -133,6 +137,13 @@ class ReadBase;
 class ReadVertices;
 class ReadEdges;
 
+struct ColumnStats {
+    bool has_min_max = false;
+    std::string min_val;
+    std::string max_val;
+    bool is_nullable = true;
+};
+
 class ReadBindData : public TableFunctionData {
 public:
     ReadBindData() = default;
@@ -140,6 +151,7 @@ public:
     vector<std::string>& GetFlattenPropNames() { return flatten_prop_names; }
     vector<std::string>& GetFlattenPropTypes() { return flatten_prop_types; }
     const std::shared_ptr<graphar::GraphInfo>& GetGraphInfo() const { return graph_info; }
+    std::unordered_map<std::string, ColumnStats>& GetStatsMap() { return stats_map; }
 
 private:
     vector<vector<std::string>> prop_names;
@@ -157,6 +169,7 @@ private:
     std::string filter_column;
 
     TypeInfoPtr type_info;
+    std::unordered_map<std::string, ColumnStats> stats_map;
 
     template <typename ReadFinal>
     friend class ReadBase;
@@ -272,6 +285,81 @@ public:
         }
 
         bind_data->graph_info = graph_info;
+
+        // 1. Evaluate Nullability for all collected columns
+        for (const auto& col_name : bind_data->flatten_prop_names) {
+            ColumnStats c_stats;
+            // ID columns are never null
+            if (std::find(id_columns.begin(), id_columns.end(), col_name) != id_columns.end()) {
+                c_stats.is_nullable = false;
+            } else {
+                if (std::holds_alternative<std::shared_ptr<graphar::VertexInfo>>(type_info)) {
+                    auto v_info = std::get<std::shared_ptr<graphar::VertexInfo>>(type_info);
+                    c_stats.is_nullable = v_info->IsNullableKey(col_name);
+                } else if (std::holds_alternative<std::shared_ptr<graphar::EdgeInfo>>(type_info)) {
+                    auto e_info = std::get<std::shared_ptr<graphar::EdgeInfo>>(type_info);
+                    c_stats.is_nullable = e_info->IsNullableKey(col_name);
+                }
+            }
+            bind_data->stats_map[col_name] = c_stats;
+        }
+
+        // 2. Parse YAML from Extra Info for statistics (Min/Max values)
+        const auto& extra_info = graph_info->GetExtraInfo();
+        if (extra_info.find("statistics") != extra_info.end()) {
+            std::string table_name_key;
+            if (bind_data->params.size() == 1) {
+                table_name_key = bind_data->params[0];  // Vertex: Label
+            } else if (bind_data->params.size() == 3) {
+                table_name_key = bind_data->params[0] + "_" + bind_data->params[1] + "_" +
+                                 bind_data->params[2];  // Edge: src_edge_dst
+            }
+
+            try {
+                Yaml::Node root;
+                Yaml::Parse(root, extra_info.at("statistics"));
+
+                for (auto table_it = root.Begin(); table_it != root.End(); table_it++) {
+                    auto& table_node = (*table_it).second;
+
+                    for (auto map_it = table_node.Begin(); map_it != table_node.End(); map_it++) {
+                        std::string table_name = (*map_it).first;
+
+                        if (table_name == table_name_key) {
+                            auto& columns_node = (*map_it).second;
+                            for (auto column_it = columns_node.Begin(); column_it != columns_node.End(); column_it++) {
+                                std::string column_name = (*column_it).first;
+
+                                if (bind_data->stats_map.find(column_name) != bind_data->stats_map.end()) {
+                                    auto& column_node = (*column_it).second;
+                                    bool has_min = false, has_max = false;
+                                    std::string min_val, max_val;
+
+                                    for (auto stat_it = column_node.Begin(); stat_it != column_node.End(); stat_it++) {
+                                        if ((*stat_it).first == "min") {
+                                            min_val = (*stat_it).second.As<std::string>();
+                                            has_min = true;
+                                        } else if ((*stat_it).first == "max") {
+                                            max_val = (*stat_it).second.As<std::string>();
+                                            has_max = true;
+                                        }
+                                    }
+
+                                    if (has_min && has_max) {
+                                        bind_data->stats_map[column_name].has_min_max = true;
+                                        bind_data->stats_map[column_name].min_val = min_val;
+                                        bind_data->stats_map[column_name].max_val = max_val;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (const std::exception& e) {
+                DUCKDB_GRAPHAR_LOG_DEBUG("Failed to parse YAML statistics: " + std::string(e.what()));
+            }
+        }
+
         DUCKDB_GRAPHAR_LOG_TRACE("ReadBase::SetBindData finished");
     }
 
@@ -298,6 +386,67 @@ public:
 
     static const vector<std::pair<graphar::IdType, graphar::IdType>>& GetVidRanges(const ReadBindData& bind_data) {
         return bind_data.vid_ranges;
+    }
+    
+    static unique_ptr<BaseStatistics> GetStatistics(ClientContext& context, const FunctionData* bind_data,
+                                                    column_t column_index) {
+        DUCKDB_GRAPHAR_LOG_TRACE("ReadBase::GetStatistics");
+        auto read_bind_data = bind_data->Cast<ReadBindData>();
+        if (column_index < 0 || column_index >= read_bind_data.GetFlattenPropTypes().size()) {
+            return nullptr;
+        }
+
+        auto duck_type = GraphArFunctions::graphArT2duckT(read_bind_data.GetFlattenPropTypes()[column_index]);
+        auto column_name = read_bind_data.GetFlattenPropNames()[column_index];
+
+        auto& stats_map = read_bind_data.GetStatsMap();
+        if (stats_map.find(column_name) == stats_map.end()) {
+            return BaseStatistics::CreateUnknown(duck_type).ToUnique();
+        }
+
+        auto& c_stats = stats_map[column_name];
+        auto stats = BaseStatistics::CreateUnknown(duck_type);
+
+        // 1. Initialize stats object and apply Min/Max values if available
+        if (c_stats.has_min_max && LogicalType::IsNumeric(duck_type)) {
+            stats = NumericStats::CreateEmpty(duck_type);
+            switch (duck_type) {
+                case LogicalTypeId::TINYINT:
+                    NumericStats::SetMin<int8_t>(stats, static_cast<int8_t>(std::stoi(c_stats.min_val)));
+                    NumericStats::SetMax<int8_t>(stats, static_cast<int8_t>(std::stoi(c_stats.max_val)));
+                    break;
+                case LogicalTypeId::SMALLINT:
+                    NumericStats::SetMin<int16_t>(stats, static_cast<int16_t>(std::stoi(c_stats.min_val)));
+                    NumericStats::SetMax<int16_t>(stats, static_cast<int16_t>(std::stoi(c_stats.max_val)));
+                    break;
+                case LogicalTypeId::INTEGER:
+                    NumericStats::SetMin<int32_t>(stats, static_cast<int32_t>(std::stoll(c_stats.min_val)));
+                    NumericStats::SetMax<int32_t>(stats, static_cast<int32_t>(std::stoll(c_stats.max_val)));
+                    break;
+                case LogicalTypeId::BIGINT:
+                    NumericStats::SetMin<int64_t>(stats, static_cast<int64_t>(std::stoll(c_stats.min_val)));
+                    NumericStats::SetMax<int64_t>(stats, static_cast<int64_t>(std::stoll(c_stats.max_val)));
+                    break;
+                case LogicalTypeId::FLOAT:
+                    NumericStats::SetMin<float>(stats, std::stof(c_stats.min_val));
+                    NumericStats::SetMax<float>(stats, std::stof(c_stats.max_val));
+                    break;
+                case LogicalTypeId::DOUBLE:
+                    NumericStats::SetMin<double>(stats, std::stod(c_stats.min_val));
+                    NumericStats::SetMax<double>(stats, std::stod(c_stats.max_val));
+                    break;
+                default:
+                    stats = BaseStatistics::CreateUnknown(duck_type);
+                    break;
+            }
+        }
+
+        // 2. Apply explicit nullability marker
+        if (!c_stats.is_nullable) {
+            stats.Set(StatsInfo::CANNOT_HAVE_NULL_VALUES);
+        }
+
+        return stats.ToUnique();
     }
 
     static unique_ptr<GlobalTableFunctionState> Init(ClientContext& context, TableFunctionInitInput& input) {
