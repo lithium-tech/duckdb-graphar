@@ -31,8 +31,10 @@
 #include <graphar/reader_util.h>
 
 #include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <iostream>
+#include <limits>
 #include <mini-yaml/yaml/Yaml.hpp>
 #include <sstream>
 #include <unordered_map>
@@ -237,7 +239,7 @@ private:
             if (s[0] == '-' || s[0] == '+') start = 1;
             if (start >= s.size()) return false;
             for (size_t i = start; i < s.size(); i++) {
-                if (!isdigit(s[i])) return false;
+                if (!std::isdigit(static_cast<unsigned char>(s[i]))) return false;
             }
             return true;
         };
@@ -253,7 +255,7 @@ private:
                 if (s[i] == '.') {
                     if (has_dot) return false;
                     has_dot = true;
-                } else if (isdigit(s[i])) {
+                } else if (std::isdigit(static_cast<unsigned char>(s[i]))) {
                     has_digit = true;
                 } else {
                     return false;

@@ -99,6 +99,45 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadVertices Bind function inv
     REQUIRE_THROWS_AS(read_vertices.bind(*TestFixture::conn.context, input, return_types, names), BinderException);
 }
 
+TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadVertices GetStatistics test", "[read_vertices]", FILE_TYPES_FOR_TEST) {
+    INFO("Start mocking");
+    vector<Value> inputs({Value(TestFixture::path_trial_graph)});
+    named_parameter_map_t named_parameters({{"type", Value("Person")}});
+    vector<LogicalType> input_table_types({});
+    auto input = TestFixture::CreateMockBindInput(inputs, named_parameters, input_table_types);
+
+    vector<LogicalType> return_types;
+    vector<std::string> names;
+    INFO("Finish mocking");
+    
+    TableFunction read_vertices = ReadVertices::GetFunction();
+
+    INFO("Bind test");
+    unique_ptr<FunctionData> bind_data;
+    REQUIRE_NOTHROW(bind_data = read_vertices.bind(*TestFixture::conn.context, input, return_types, names));
+    REQUIRE(bind_data != nullptr);
+    INFO("Finish bind test");
+
+    INFO("GetStatistics test");
+    // Test that GetStatistics returns valid statistics for each column
+    for (column_t col_idx = 0; col_idx < return_types.size(); col_idx++) {
+        unique_ptr<BaseStatistics> stats;
+        REQUIRE_NOTHROW(stats = read_vertices.statistics(*TestFixture::conn.context, bind_data.get(), col_idx));
+        REQUIRE(stats != nullptr);
+        
+        // Check that the statistics type matches the column type
+        REQUIRE(stats->GetType() == return_types[col_idx]);
+        
+        // For numeric columns, verify we have appropriate statistics
+        if (return_types[col_idx].id() == LogicalTypeId::BIGINT || 
+            return_types[col_idx].id() == LogicalTypeId::INTEGER) {
+            // Statistics should be created even without extra_info
+            REQUIRE(stats->GetType().id() == return_types[col_idx].id());
+        }
+    }
+    INFO("Finish GetStatistics test");
+}
+
 /* // Uncomment after fixing SIGSEGV
 TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture,"ReadVertices Bind and Execute functions vertex with properties", "[read_vertices]", FILE_TYPES_FOR_TEST) {
     INFO("Start mocking");
