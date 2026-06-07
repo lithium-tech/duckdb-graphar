@@ -119,20 +119,27 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadVertices GetStatistics tes
     INFO("Finish bind test");
 
     INFO("GetStatistics test");
-    // Test that GetStatistics returns valid statistics for each column
+    auto& read_bind_data = bind_data->Cast<ReadBindData>();
+    
     for (column_t col_idx = 0; col_idx < return_types.size(); col_idx++) {
         unique_ptr<BaseStatistics> stats;
         REQUIRE_NOTHROW(stats = read_vertices.statistics(*TestFixture::conn.context, bind_data.get(), col_idx));
         REQUIRE(stats != nullptr);
         
-        // Check that the statistics type matches the column type
         REQUIRE(stats->GetType() == return_types[col_idx]);
         
-        // For numeric columns, verify we have appropriate statistics
         if (return_types[col_idx].id() == LogicalTypeId::BIGINT || 
             return_types[col_idx].id() == LogicalTypeId::INTEGER) {
-            // Statistics should be created even without extra_info
             REQUIRE(stats->GetType().id() == return_types[col_idx].id());
+        }
+        
+        auto column_name = read_bind_data.GetFlattenPropNames()[col_idx];
+        auto& stats_map = read_bind_data.GetStatsMap();
+        REQUIRE(stats_map.find(column_name) != stats_map.end());
+        
+        auto& col_stats = stats_map.at(column_name);
+        if (column_name == GID_COLUMN_INTERNAL) {
+            REQUIRE(!col_stats.is_nullable);
         }
     }
     INFO("Finish GetStatistics test");

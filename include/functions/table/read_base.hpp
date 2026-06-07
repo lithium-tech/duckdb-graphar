@@ -264,69 +264,73 @@ private:
             return has_digit;
         };
 
-        switch (duck_type.id()) {
-            case LogicalTypeId::TINYINT: {
-                if (!is_valid_integer(min_str) || !is_valid_integer(max_str)) return false;
-                int64_t min_val = std::stoll(min_str);
-                int64_t max_val = std::stoll(max_str);
-                if (min_val < std::numeric_limits<int8_t>::min() || min_val > std::numeric_limits<int8_t>::max())
+        try {
+            switch (duck_type.id()) {
+                case LogicalTypeId::TINYINT: {
+                    if (!is_valid_integer(min_str) || !is_valid_integer(max_str)) return false;
+                    int64_t min_val = std::stoll(min_str);
+                    int64_t max_val = std::stoll(max_str);
+                    if (min_val < std::numeric_limits<int8_t>::min() || min_val > std::numeric_limits<int8_t>::max())
+                        return false;
+                    if (max_val < std::numeric_limits<int8_t>::min() || max_val > std::numeric_limits<int8_t>::max())
+                        return false;
+                    out_min = Value::TINYINT(static_cast<int8_t>(min_val));
+                    out_max = Value::TINYINT(static_cast<int8_t>(max_val));
+                    return true;
+                }
+                case LogicalTypeId::SMALLINT: {
+                    if (!is_valid_integer(min_str) || !is_valid_integer(max_str)) return false;
+                    int64_t min_val = std::stoll(min_str);
+                    int64_t max_val = std::stoll(max_str);
+                    if (min_val < std::numeric_limits<int16_t>::min() || min_val > std::numeric_limits<int16_t>::max())
+                        return false;
+                    if (max_val < std::numeric_limits<int16_t>::min() || max_val > std::numeric_limits<int16_t>::max())
+                        return false;
+                    out_min = Value::SMALLINT(static_cast<int16_t>(min_val));
+                    out_max = Value::SMALLINT(static_cast<int16_t>(max_val));
+                    return true;
+                }
+                case LogicalTypeId::INTEGER: {
+                    if (!is_valid_integer(min_str) || !is_valid_integer(max_str)) return false;
+                    int64_t min_val = std::stoll(min_str);
+                    int64_t max_val = std::stoll(max_str);
+                    if (min_val < std::numeric_limits<int32_t>::min() || min_val > std::numeric_limits<int32_t>::max())
+                        return false;
+                    if (max_val < std::numeric_limits<int32_t>::min() || max_val > std::numeric_limits<int32_t>::max())
+                        return false;
+                    out_min = Value::INTEGER(static_cast<int32_t>(min_val));
+                    out_max = Value::INTEGER(static_cast<int32_t>(max_val));
+                    return true;
+                }
+                case LogicalTypeId::BIGINT: {
+                    if (!is_valid_integer(min_str) || !is_valid_integer(max_str)) return false;
+                    int64_t min_val = std::stoll(min_str);
+                    int64_t max_val = std::stoll(max_str);
+                    out_min = Value::BIGINT(min_val);
+                    out_max = Value::BIGINT(max_val);
+                    return true;
+                }
+                case LogicalTypeId::FLOAT: {
+                    if (!is_valid_float(min_str) || !is_valid_float(max_str)) return false;
+                    float min_val = std::stof(min_str);
+                    float max_val = std::stof(max_str);
+                    out_min = Value::FLOAT(min_val);
+                    out_max = Value::FLOAT(max_val);
+                    return true;
+                }
+                case LogicalTypeId::DOUBLE: {
+                    if (!is_valid_float(min_str) || !is_valid_float(max_str)) return false;
+                    double min_val = std::stod(min_str);
+                    double max_val = std::stod(max_str);
+                    out_min = Value::DOUBLE(min_val);
+                    out_max = Value::DOUBLE(max_val);
+                    return true;
+                }
+                default:
                     return false;
-                if (max_val < std::numeric_limits<int8_t>::min() || max_val > std::numeric_limits<int8_t>::max())
-                    return false;
-                out_min = Value::TINYINT(static_cast<int8_t>(min_val));
-                out_max = Value::TINYINT(static_cast<int8_t>(max_val));
-                return true;
             }
-            case LogicalTypeId::SMALLINT: {
-                if (!is_valid_integer(min_str) || !is_valid_integer(max_str)) return false;
-                int64_t min_val = std::stoll(min_str);
-                int64_t max_val = std::stoll(max_str);
-                if (min_val < std::numeric_limits<int16_t>::min() || min_val > std::numeric_limits<int16_t>::max())
-                    return false;
-                if (max_val < std::numeric_limits<int16_t>::min() || max_val > std::numeric_limits<int16_t>::max())
-                    return false;
-                out_min = Value::SMALLINT(static_cast<int16_t>(min_val));
-                out_max = Value::SMALLINT(static_cast<int16_t>(max_val));
-                return true;
-            }
-            case LogicalTypeId::INTEGER: {
-                if (!is_valid_integer(min_str) || !is_valid_integer(max_str)) return false;
-                int64_t min_val = std::stoll(min_str);
-                int64_t max_val = std::stoll(max_str);
-                if (min_val < std::numeric_limits<int32_t>::min() || min_val > std::numeric_limits<int32_t>::max())
-                    return false;
-                if (max_val < std::numeric_limits<int32_t>::min() || max_val > std::numeric_limits<int32_t>::max())
-                    return false;
-                out_min = Value::INTEGER(static_cast<int32_t>(min_val));
-                out_max = Value::INTEGER(static_cast<int32_t>(max_val));
-                return true;
-            }
-            case LogicalTypeId::BIGINT: {
-                if (!is_valid_integer(min_str) || !is_valid_integer(max_str)) return false;
-                int64_t min_val = std::stoll(min_str);
-                int64_t max_val = std::stoll(max_str);
-                out_min = Value::BIGINT(min_val);
-                out_max = Value::BIGINT(max_val);
-                return true;
-            }
-            case LogicalTypeId::FLOAT: {
-                if (!is_valid_float(min_str) || !is_valid_float(max_str)) return false;
-                float min_val = std::stof(min_str);
-                float max_val = std::stof(max_str);
-                out_min = Value::FLOAT(min_val);
-                out_max = Value::FLOAT(max_val);
-                return true;
-            }
-            case LogicalTypeId::DOUBLE: {
-                if (!is_valid_float(min_str) || !is_valid_float(max_str)) return false;
-                double min_val = std::stod(min_str);
-                double max_val = std::stod(max_str);
-                out_min = Value::DOUBLE(min_val);
-                out_max = Value::DOUBLE(max_val);
-                return true;
-            }
-            default:
-                return false;
+        } catch (const std::exception&) {
+            return false;
         }
     }
 
