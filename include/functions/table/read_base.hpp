@@ -247,8 +247,8 @@ private:
     }
 
     template <typename T>
-    static bool ValidateAndConvertIntegerStats(const std::string& min_str, const std::string& max_str,
-                                               Value& out_min, Value& out_max, Value (*creator)(T)) {
+    static bool ValidateAndConvertIntegerStats(const std::string& min_str, const std::string& max_str, Value& out_min,
+                                               Value& out_max, Value (*creator)(T)) {
         if (!IsValidInteger(min_str) || !IsValidInteger(max_str)) return false;
         int64_t min_val = std::stoll(min_str);
         int64_t max_val = std::stoll(max_str);
@@ -261,8 +261,8 @@ private:
     }
 
     template <typename T>
-    static bool ValidateAndConvertFloatStats(const std::string& min_str, const std::string& max_str,
-                                             Value& out_min, Value& out_max, Value (*creator)(T)) {
+    static bool ValidateAndConvertFloatStats(const std::string& min_str, const std::string& max_str, Value& out_min,
+                                             Value& out_max, Value (*creator)(T)) {
         if (!IsValidFloat(min_str) || !IsValidFloat(max_str)) return false;
         T min_val = static_cast<T>(std::stod(min_str));
         T max_val = static_cast<T>(std::stod(max_str));
