@@ -238,12 +238,22 @@ private:
         return true;
     }
 
-    static bool IsValidFloat(const std::string& s) {
+    template <typename T>
+    static bool TryParseFiniteFloatingPoint(const std::string& s, T& out) {
         if (s.empty()) return false;
+
         const char* start = s.c_str();
         char* end = nullptr;
-        double val = std::strtod(start, &end);
-        return (end != start && *end == '\0' && std::isfinite(val));
+
+        if constexpr (std::is_same_v<T, float>) {
+            out = std::strtof(start, &end);
+        } else if constexpr (std::is_same_v<T, double>) {
+            out = std::strtod(start, &end);
+        } else {
+            static_assert(std::is_same_v<T, float> || std::is_same_v<T, double>);
+        }
+
+        return end != start && *end == '\0' && std::isfinite(out);
     }
 
     template <typename T>
@@ -263,10 +273,15 @@ private:
     template <typename T>
     static bool ValidateAndConvertFloatStats(const std::string& min_str, const std::string& max_str, Value& out_min,
                                              Value& out_max, Value (*creator)(T)) {
-        if (!IsValidFloat(min_str) || !IsValidFloat(max_str)) return false;
-        T min_val = static_cast<T>(std::stod(min_str));
-        T max_val = static_cast<T>(std::stod(max_str));
+        T min_val;
+        T max_val;
+
+        if (!TryParseFiniteFloatingPoint(min_str, min_val) || !TryParseFiniteFloatingPoint(max_str, max_val)) {
+            return false;
+        }
+
         if (min_val > max_val) return false;
+
         out_min = creator(min_val);
         out_max = creator(max_val);
         return true;
