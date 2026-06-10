@@ -20,6 +20,7 @@
 #include <duckdb/planner/expression/bound_constant_expression.hpp>
 #include <duckdb/planner/expression/bound_function_expression.hpp>
 #include <duckdb/planner/expression/bound_operator_expression.hpp>
+#include <duckdb/storage/statistics/numeric_stats.hpp>
 
 #include <graphar/api/arrow_reader.h>
 #include <graphar/api/high_level_reader.h>
@@ -29,9 +30,14 @@
 #include <graphar/graph_info.h>
 #include <graphar/reader_util.h>
 
+#include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <iostream>
+#include <limits>
+#include <mini-yaml/yaml/Yaml.hpp>
 #include <sstream>
+#include <unordered_map>
 #include <variant>
 
 namespace duckdb {
@@ -133,13 +139,21 @@ class ReadBase;
 class ReadVertices;
 class ReadEdges;
 
+struct ColumnStats {
+    bool has_min_max = false;
+    Value min_val;
+    Value max_val;
+    bool is_nullable = true;
+};
+
 class ReadBindData : public TableFunctionData {
 public:
     ReadBindData() = default;
     vector<std::string> GetParams() { return params; }
-    vector<std::string>& GetFlattenPropNames() { return flatten_prop_names; }
-    vector<std::string>& GetFlattenPropTypes() { return flatten_prop_types; }
+    const vector<std::string>& GetFlattenPropNames() const { return flatten_prop_names; }
+    const vector<std::string>& GetFlattenPropTypes() const { return flatten_prop_types; }
     const std::shared_ptr<graphar::GraphInfo>& GetGraphInfo() const { return graph_info; }
+    const std::unordered_map<std::string, ColumnStats>& GetStatsMap() const { return stats_map; }
 
 private:
     vector<vector<std::string>> prop_names;
@@ -157,6 +171,7 @@ private:
     std::string filter_column;
 
     TypeInfoPtr type_info;
+    std::unordered_map<std::string, ColumnStats> stats_map;
 
     template <typename ReadFinal>
     friend class ReadBase;
@@ -211,6 +226,95 @@ private:
 
 template <typename ReadFinal>
 class ReadBase {
+private:
+    static bool IsValidInteger(const std::string& s) {
+        if (s.empty()) return false;
+        size_t start = 0;
+        if (s[0] == '-' || s[0] == '+') start = 1;
+        if (start >= s.size()) return false;
+        for (size_t i = start; i < s.size(); i++) {
+            if (!std::isdigit(static_cast<unsigned char>(s[i]))) return false;
+        }
+        return true;
+    }
+
+    template <typename T>
+    static bool TryParseFiniteFloatingPoint(const std::string& s, T& out) {
+        if (s.empty()) return false;
+
+        const char* start = s.c_str();
+        char* end = nullptr;
+
+        if constexpr (std::is_same_v<T, float>) {
+            out = std::strtof(start, &end);
+        } else if constexpr (std::is_same_v<T, double>) {
+            out = std::strtod(start, &end);
+        } else {
+            static_assert(std::is_same_v<T, float> || std::is_same_v<T, double>);
+        }
+
+        return end != start && *end == '\0' && std::isfinite(out);
+    }
+
+    template <typename T>
+    static bool ValidateAndConvertIntegerStats(const std::string& min_str, const std::string& max_str, Value& out_min,
+                                               Value& out_max, Value (*creator)(T)) {
+        if (!IsValidInteger(min_str) || !IsValidInteger(max_str)) return false;
+        int64_t min_val = std::stoll(min_str);
+        int64_t max_val = std::stoll(max_str);
+        if (min_val > max_val) return false;
+        if (min_val < std::numeric_limits<T>::min() || min_val > std::numeric_limits<T>::max()) return false;
+        if (max_val < std::numeric_limits<T>::min() || max_val > std::numeric_limits<T>::max()) return false;
+        out_min = creator(static_cast<T>(min_val));
+        out_max = creator(static_cast<T>(max_val));
+        return true;
+    }
+
+    template <typename T>
+    static bool ValidateAndConvertFloatStats(const std::string& min_str, const std::string& max_str, Value& out_min,
+                                             Value& out_max, Value (*creator)(T)) {
+        T min_val;
+        T max_val;
+
+        if (!TryParseFiniteFloatingPoint(min_str, min_val) || !TryParseFiniteFloatingPoint(max_str, max_val)) {
+            return false;
+        }
+
+        if (min_val > max_val) return false;
+
+        out_min = creator(min_val);
+        out_max = creator(max_val);
+        return true;
+    }
+
+    static bool ValidateAndConvertStats(const std::string& min_str, const std::string& max_str,
+                                        const LogicalType& duck_type, Value& out_min, Value& out_max) {
+        if (min_str.empty() || max_str.empty()) {
+            return false;
+        }
+
+        try {
+            switch (duck_type.id()) {
+                case LogicalTypeId::TINYINT:
+                    return ValidateAndConvertIntegerStats<int8_t>(min_str, max_str, out_min, out_max, Value::TINYINT);
+                case LogicalTypeId::SMALLINT:
+                    return ValidateAndConvertIntegerStats<int16_t>(min_str, max_str, out_min, out_max, Value::SMALLINT);
+                case LogicalTypeId::INTEGER:
+                    return ValidateAndConvertIntegerStats<int32_t>(min_str, max_str, out_min, out_max, Value::INTEGER);
+                case LogicalTypeId::BIGINT:
+                    return ValidateAndConvertIntegerStats<int64_t>(min_str, max_str, out_min, out_max, Value::BIGINT);
+                case LogicalTypeId::FLOAT:
+                    return ValidateAndConvertFloatStats<float>(min_str, max_str, out_min, out_max, Value::FLOAT);
+                case LogicalTypeId::DOUBLE:
+                    return ValidateAndConvertFloatStats<double>(min_str, max_str, out_min, out_max, Value::DOUBLE);
+                default:
+                    return false;
+            }
+        } catch (const std::exception&) {
+            return false;
+        }
+    }
+
 public:
     static void SetBindData(std::shared_ptr<graphar::GraphInfo> graph_info, TypeInfoPtr type_info,
                             unique_ptr<ReadBindData>& bind_data, string function_name, idx_t id_columns_num = 0,
@@ -272,6 +376,92 @@ public:
         }
 
         bind_data->graph_info = graph_info;
+
+        // 1. Evaluate Nullability for all collected columns
+        for (const auto& col_name : bind_data->flatten_prop_names) {
+            ColumnStats c_stats;
+            // ID columns are never null
+            if (std::find(id_columns.begin(), id_columns.end(), col_name) != id_columns.end()) {
+                c_stats.is_nullable = false;
+            } else {
+                if (std::holds_alternative<std::shared_ptr<graphar::VertexInfo>>(type_info)) {
+                    auto v_info = std::get<std::shared_ptr<graphar::VertexInfo>>(type_info);
+                    c_stats.is_nullable = v_info->IsNullableKey(col_name);
+                } else if (std::holds_alternative<std::shared_ptr<graphar::EdgeInfo>>(type_info)) {
+                    auto e_info = std::get<std::shared_ptr<graphar::EdgeInfo>>(type_info);
+                    c_stats.is_nullable = e_info->IsNullableKey(col_name);
+                }
+            }
+            bind_data->stats_map[col_name] = c_stats;
+        }
+
+        // 2. Parse YAML from Extra Info for statistics (Min/Max values)
+        const auto& extra_info = graph_info->GetExtraInfo();
+        if (extra_info.find("statistics") != extra_info.end()) {
+            std::string table_name_key;
+            if (bind_data->params.size() == 1) {
+                table_name_key = bind_data->params[0];  // Vertex: Label
+            } else if (bind_data->params.size() == 3) {
+                table_name_key = bind_data->params[0] + "_" + bind_data->params[1] + "_" +
+                                 bind_data->params[2];  // Edge: src_edge_dst
+            }
+
+            try {
+                Yaml::Node root;
+                Yaml::Parse(root, extra_info.at("statistics"));
+
+                for (auto table_it = root.Begin(); table_it != root.End(); table_it++) {
+                    auto& table_node = (*table_it).second;
+
+                    for (auto map_it = table_node.Begin(); map_it != table_node.End(); map_it++) {
+                        std::string table_name = (*map_it).first;
+
+                        if (table_name == table_name_key) {
+                            auto& columns_node = (*map_it).second;
+                            for (auto column_it = columns_node.Begin(); column_it != columns_node.End(); column_it++) {
+                                std::string column_name = (*column_it).first;
+
+                                if (bind_data->stats_map.find(column_name) != bind_data->stats_map.end()) {
+                                    auto& column_node = (*column_it).second;
+                                    bool has_min = false, has_max = false;
+                                    std::string min_val, max_val;
+
+                                    for (auto stat_it = column_node.Begin(); stat_it != column_node.End(); stat_it++) {
+                                        if ((*stat_it).first == "min") {
+                                            min_val = (*stat_it).second.As<std::string>();
+                                            has_min = true;
+                                        } else if ((*stat_it).first == "max") {
+                                            max_val = (*stat_it).second.As<std::string>();
+                                            has_max = true;
+                                        }
+                                    }
+
+                                    if (has_min && has_max) {
+                                        auto it = std::find(bind_data->flatten_prop_names.begin(),
+                                                            bind_data->flatten_prop_names.end(), column_name);
+                                        if (it != bind_data->flatten_prop_names.end()) {
+                                            idx_t col_idx = it - bind_data->flatten_prop_names.begin();
+                                            auto duck_type = GraphArFunctions::graphArT2duckT(
+                                                bind_data->flatten_prop_types[col_idx]);
+                                            Value typed_min, typed_max;
+                                            if (ValidateAndConvertStats(min_val, max_val, duck_type, typed_min,
+                                                                        typed_max)) {
+                                                bind_data->stats_map[column_name].has_min_max = true;
+                                                bind_data->stats_map[column_name].min_val = typed_min;
+                                                bind_data->stats_map[column_name].max_val = typed_max;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (const std::exception& e) {
+                DUCKDB_GRAPHAR_LOG_DEBUG("Failed to parse YAML statistics: " + std::string(e.what()));
+            }
+        }
+
         DUCKDB_GRAPHAR_LOG_TRACE("ReadBase::SetBindData finished");
     }
 
@@ -298,6 +488,39 @@ public:
 
     static const vector<std::pair<graphar::IdType, graphar::IdType>>& GetVidRanges(const ReadBindData& bind_data) {
         return bind_data.vid_ranges;
+    }
+
+    static unique_ptr<BaseStatistics> GetStatistics(ClientContext& context, const FunctionData* bind_data,
+                                                    column_t column_index) {
+        DUCKDB_GRAPHAR_LOG_TRACE("ReadBase::GetStatistics");
+        auto& read_bind_data = bind_data->Cast<ReadBindData>();
+        if (column_index < 0 || column_index >= read_bind_data.GetFlattenPropTypes().size()) {
+            return nullptr;
+        }
+
+        auto duck_type = GraphArFunctions::graphArT2duckT(read_bind_data.GetFlattenPropTypes()[column_index]);
+        auto column_name = read_bind_data.GetFlattenPropNames()[column_index];
+
+        auto& stats_map = read_bind_data.GetStatsMap();
+        if (stats_map.find(column_name) == stats_map.end()) {
+            return BaseStatistics::CreateUnknown(duck_type).ToUnique();
+        }
+
+        auto& c_stats = stats_map.at(column_name);
+        auto stats = BaseStatistics::CreateUnknown(duck_type);
+
+        if (c_stats.has_min_max && LogicalType::IsNumeric(duck_type)) {
+            stats = NumericStats::CreateEmpty(duck_type);
+            NumericStats::SetMin(stats, c_stats.min_val);
+            NumericStats::SetMax(stats, c_stats.max_val);
+        }
+
+        // 2. Apply explicit nullability marker
+        if (!c_stats.is_nullable) {
+            stats.Set(StatsInfo::CANNOT_HAVE_NULL_VALUES);
+        }
+
+        return stats.ToUnique();
     }
 
     static unique_ptr<GlobalTableFunctionState> Init(ClientContext& context, TableFunctionInitInput& input) {

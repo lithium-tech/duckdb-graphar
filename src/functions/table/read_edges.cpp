@@ -210,15 +210,7 @@ ReaderPtr ReadEdges::GetReader(ClientContext& context, ReadBaseGlobalTableFuncti
 //-------------------------------------------------------------------
 unique_ptr<BaseStatistics> ReadEdges::GetStatistics(ClientContext& context, const FunctionData* bind_data,
                                                     column_t column_index) {
-    DUCKDB_GRAPHAR_LOG_TRACE("ReadEdges::GetStatistics");
-    auto read_bind_data = bind_data->Cast<ReadBindData>();
-    if (column_index < 0 || column_index >= read_bind_data.GetFlattenPropTypes().size()) {
-        return nullptr;
-    }
-    auto duck_type = GraphArFunctions::graphArT2duckT(read_bind_data.GetFlattenPropTypes()[column_index]);
-    auto column_name = read_bind_data.GetFlattenPropNames()[column_index];
-    auto stats = BaseStatistics::CreateUnknown(duck_type);
-    return stats.ToUnique();
+    return ReadBase<ReadEdges>::GetStatistics(context, bind_data, column_index);
 }
 //-------------------------------------------------------------------
 // PushdownComplexFilter

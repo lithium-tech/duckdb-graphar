@@ -3,6 +3,7 @@ add_library_unity(test_table_functions OBJECT test_read_vertices.cpp test_read_e
 add_dependencies(test_table_functions graphar)
 target_include_directories(test_table_functions PRIVATE
     ${GRAPHAR_INSTALL_DIR}/include
+    ${GRAPHAR_SOURCE_DIR}/graphar/cpp/thirdparty
     ${ARROW_INSTALL_DIR}/include
     ${EXTENSION_ROOT_DIR}/include
     ${CATCH2_INCLUDE_DIRS}
