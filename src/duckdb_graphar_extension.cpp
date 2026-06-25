@@ -41,8 +41,7 @@ static void LoadInternal(ExtensionLoader& loader) {
         ScalarFunction("duckdb_graphar", {LogicalType::VARCHAR}, LogicalType::VARCHAR, QuackScalarFun);
     loader.RegisterFunction(duckdb_graphar_scalar_function);
 
-    auto finalize_s3_function =
-        ScalarFunction("duckdb_graphar_finalize_s3", {}, LogicalType::VARCHAR, FinalizeS3);
+    auto finalize_s3_function = ScalarFunction("duckdb_graphar_finalize_s3", {}, LogicalType::VARCHAR, FinalizeS3);
     loader.RegisterFunction(finalize_s3_function);
 
     auto& config = DBConfig::GetConfig(loader.GetDatabaseInstance());

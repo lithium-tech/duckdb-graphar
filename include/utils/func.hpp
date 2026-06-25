@@ -122,7 +122,6 @@ std::string GetYamlContent(const std::string& path);
 void ConvertArrowTableToDataChunk(const arrow::Table& table, DataChunk& output, const std::vector<column_t>& column_ids,
                                   ClientContext& context);
 
-
 static idx_t GetChunkIdx(duckdb::idx_t result_idx, duckdb::idx_t read_idx) {
     if (result_idx > NumericLimits<uint32_t>::Maximum() || read_idx > NumericLimits<uint32_t>::Maximum()) {
         throw OutOfRangeException("Overflow encountered in GetChunkIdx with result_idx = %llu and read_idx = %llu",
