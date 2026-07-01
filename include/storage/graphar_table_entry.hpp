@@ -25,6 +25,8 @@ public:
                                ClientContext& context) override;
 
     void SetTableInfo(shared_ptr<GraphArTableInformation> table_info_) { table_info = table_info_; }
+    
+    shared_ptr<GraphArTableInformation> GetTableInfo() const { return table_info.lock(); }
 
 private:
     unique_ptr<SchemaCatalogEntry> schema;

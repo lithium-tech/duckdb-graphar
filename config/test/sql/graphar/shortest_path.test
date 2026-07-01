@@ -1,0 +1,117 @@
+require duckdb_graphar
+
+statement ok
+SET autoinstall_known_extensions=1;
+
+statement ok
+SET autoload_known_extensions=1;
+
+statement ok
+ATTACH '__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml' as test_db (type duckdb_graphar);
+
+################################################################################
+# Test 1: Direct edge (1-hop path)
+# Verified edge: 0 -> 23977 exists in Person_knows_Person
+################################################################################
+query II
+SELECT * FROM shortest_path(0, 23977, 'Person_knows_Person');
+----
+0	0
+1	23977
+
+################################################################################
+# Test 2: 2-hop path
+# Path: 0 -> 23977 -> 29188
+# Verified edges: (0,23977) and (23977,29188) exist
+################################################################################
+query II
+SELECT * FROM shortest_path(0, 29188, 'Person_knows_Person');
+----
+0	0
+1	23977
+2	29188
+
+################################################################################
+# Test 3: 3-hop path
+# Path: 0 -> 23977 -> 29188 -> 27173
+# Verified edges: (0,23977), (23977,29188), and (29188,27173) exist
+################################################################################
+query II
+SELECT * FROM shortest_path(0, 27173, 'Person_knows_Person');
+----
+0	0
+1	23977
+2	29188
+3	27173
+
+################################################################################
+# Test 4: Same vertex (start == end)
+# Expected: single row with step 0
+################################################################################
+query II
+SELECT * FROM shortest_path(5, 5, 'Person_knows_Person');
+----
+0	5
+
+################################################################################
+# Test 5: No path - source vertex has no outgoing edges
+# Vertex 37699 confirmed to have 0 outgoing edges
+################################################################################
+query II
+SELECT * FROM shortest_path(37699, 0, 'Person_knows_Person');
+----
+
+################################################################################
+# Test 6: No path - invalid IDs (out of range)
+# Vertex count is 37700, so 999999 and 888888 are invalid
+################################################################################
+query II
+SELECT * FROM shortest_path(999999, 888888, 'Person_knows_Person');
+----
+
+################################################################################
+# Test 7: No path - valid start, invalid end
+# Vertex 0 is valid, but 999999 is out of range
+################################################################################
+query II
+SELECT * FROM shortest_path(0, 999999, 'Person_knows_Person');
+----
+
+################################################################################
+# Test 8: Path verification - verify each consecutive pair in 3-hop path has edge
+# This validates that the shortest_path result corresponds to actual edges
+################################################################################
+# Verify edge 0 -> 23977 exists
+query II
+SELECT _graphArSrcIndex, _graphArDstIndex FROM Person_knows_Person WHERE _graphArSrcIndex = 0 AND _graphArDstIndex = 23977;
+----
+0	23977
+
+# Verify edge 23977 -> 29188 exists
+query II
+SELECT _graphArSrcIndex, _graphArDstIndex FROM Person_knows_Person WHERE _graphArSrcIndex = 23977 AND _graphArDstIndex = 29188;
+----
+23977	29188
+
+# Verify edge 29188 -> 27173 exists
+query II
+SELECT _graphArSrcIndex, _graphArDstIndex FROM Person_knows_Person WHERE _graphArSrcIndex = 29188 AND _graphArDstIndex = 27173;
+----
+29188	27173
+
+################################################################################
+# Test 9: Another direct edge (different vertex pair)
+# Verified edge: 1 -> 2370 exists in Person_knows_Person
+################################################################################
+query II
+SELECT * FROM shortest_path(1, 2370, 'Person_knows_Person');
+----
+0	1
+1	2370
+
+################################################################################
+# Test 10: No path - invalid start ID (out of range), valid end ID
+################################################################################
+query II
+SELECT * FROM shortest_path(999999, 0, 'Person_knows_Person');
+----

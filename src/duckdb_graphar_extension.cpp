@@ -9,6 +9,7 @@
 #include "functions/table/hop_thread.hpp"
 #include "functions/table/read_edges.hpp"
 #include "functions/table/read_vertices.hpp"
+#include "functions/table/shortest_path.hpp"
 #include "storage/graphar_storage.hpp"
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
@@ -59,6 +60,7 @@ static void LoadInternal(ExtensionLoader& loader) {
     OneMoreHop::Register(loader);
     TwoHopThreads::Register(loader);
     GraphArInfo::Register(loader);
+    ShortestPath::Register(loader);
 
     StorageExtension::Register(config, "duckdb_graphar", make_shared_ptr<GraphArStorageExtension>());
 }
