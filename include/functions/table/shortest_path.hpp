@@ -14,7 +14,7 @@ namespace duckdb {
 
 struct ShortestPathBindData : public ReadBindData {
     ShortestPathBindData() : ReadBindData() {}
-    
+
     graphar::IdType start_id;
     graphar::IdType end_id;
     std::shared_ptr<graphar::EdgeInfo> edge_info;
@@ -24,7 +24,7 @@ struct ShortestPathBindData : public ReadBindData {
 
 struct ShortestPathGlobalState : public GlobalTableFunctionState {
     ShortestPathGlobalState() : GlobalTableFunctionState() {}
-    
+
     std::shared_ptr<graphar::EdgesCollection> forward_edges;
     std::shared_ptr<graphar::EdgesCollection> backward_edges;
     graphar::IdType start_id;
@@ -38,14 +38,13 @@ class ShortestPath {
 public:
     static unique_ptr<FunctionData> Bind(ClientContext& context, TableFunctionBindInput& input,
                                          vector<LogicalType>& return_types, vector<string>& names);
-    
-    static unique_ptr<GlobalTableFunctionState> InitGlobal(ClientContext& context,
-                                                           TableFunctionInitInput& input);
-    
+
+    static unique_ptr<GlobalTableFunctionState> InitGlobal(ClientContext& context, TableFunctionInitInput& input);
+
     static void Function(ClientContext& context, TableFunctionInput& data_p, DataChunk& output);
-    
+
     static TableFunction GetFunction();
-    
+
     static void Register(ExtensionLoader& loader);
 };
 
