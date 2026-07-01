@@ -115,7 +115,8 @@ unique_ptr<GlobalTableFunctionState> ShortestPath::InitGlobal(ClientContext& con
         TypeInfoPtr vertex_type_info = bind_data.vertex_info;
         auto vertex_count = GetCountClass::GetCount(vertex_type_info, bind_data.graph_info->GetPrefix());
         
-        if (bind_data.start_id >= vertex_count || bind_data.end_id >= vertex_count) {
+        if (bind_data.start_id < 0 || bind_data.end_id < 0 ||
+            bind_data.start_id >= vertex_count || bind_data.end_id >= vertex_count) {
             global_state->path_found = false;
             return std::move(global_state);
         }

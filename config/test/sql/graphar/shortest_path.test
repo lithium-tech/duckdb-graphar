@@ -115,3 +115,35 @@ SELECT * FROM shortest_path(1, 2370, 'Person_knows_Person');
 query II
 SELECT * FROM shortest_path(999999, 0, 'Person_knows_Person');
 ----
+
+################################################################################
+# Test 11: Reverse direction test (directed graph)
+# Graph is directed: 0 -> 23977 exists, but 23977 -> 0 has no path
+# This verifies the algorithm respects edge directionality
+################################################################################
+query II
+SELECT * FROM shortest_path(23977, 0, 'Person_knows_Person');
+----
+
+################################################################################
+# Test 12: 4-hop path
+# Path: 0 -> 23977 -> 31890 -> 36788 -> 37180
+# Verified by shortest_path query
+################################################################################
+query II
+SELECT * FROM shortest_path(0, 37180, 'Person_knows_Person');
+----
+0	0
+1	23977
+2	31890
+3	36788
+4	37180
+
+################################################################################
+# Test 13: Error handling - non-existent table name
+# Should throw a catalog error
+################################################################################
+statement error
+SELECT * FROM shortest_path(0, 5, 'NonExistentTable');
+----
+Catalog Error: Table with name NonExistentTable does not exist!
