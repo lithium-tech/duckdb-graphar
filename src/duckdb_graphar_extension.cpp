@@ -2,7 +2,6 @@
 
 #include "duckdb_graphar_extension.hpp"
 
-#include "functions/scalar/bfs.hpp"
 #include "functions/table/edges_vertex.hpp"
 #include "functions/table/graphar_info.hpp"
 #include "functions/table/hop.hpp"
@@ -54,7 +53,6 @@ static void LoadInternal(ExtensionLoader& loader) {
 
     ReadVertices::Register(loader);
     ReadEdges::Register(loader);
-    Bfs::Register(loader);
     EdgesVertex::Register(loader);
     TwoHop::Register(loader);
     OneMoreHop::Register(loader);
