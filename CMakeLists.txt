@@ -72,6 +72,13 @@ find_package(graphar REQUIRED CONFIG)
 
 include_directories(include)
 
+# Add mini-yaml include path from GraphAr source
+if(GRAPHAR_SRC_DIR)
+    include_directories(${GRAPHAR_SRC_DIR}/cpp/thirdparty)
+elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/graphar/src")
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/graphar/src/cpp/thirdparty)
+endif()
+
 file(GLOB_RECURSE EXTENSION_SOURCES CONFIGURE_DEPENDS "${EXTENSION_ROOT_DIR}/src/*.cpp")
 
 message(LOG "Building static extension")

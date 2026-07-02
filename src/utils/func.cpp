@@ -56,7 +56,6 @@ unique_ptr<ArrowTypeInfo> GraphArFunctions::graphArT2ArrowTypeInfo(const std::st
 }
 
 Value GraphArFunctions::ArrowScalar2DuckValue(const std::shared_ptr<arrow::Scalar>& scalar) {
-    DUCKDB_GRAPHAR_LOG_WARN("ArrowScalar2DuckValue");
     if (!scalar->is_valid) {
         return Value();
     }
@@ -98,6 +97,30 @@ std::string GraphArFunctions::GetNameFromInfo(const std::shared_ptr<graphar::Ver
 template <>
 std::string GraphArFunctions::GetNameFromInfo(const std::shared_ptr<graphar::EdgeInfo>& info) {
     return info->GetSrcType() + "_" + info->GetEdgeType() + "_" + info->GetDstType();
+}
+
+graphar::Result<std::shared_ptr<arrow::Schema>> GraphArFunctions::NamesAndTypesToArrowSchema(
+    const vector<std::string>& names, const vector<std::string>& types) {
+    DUCKDB_GRAPHAR_LOG_TRACE("NamesAndTypesToArrowSchema");
+    std::vector<std::shared_ptr<arrow::Field>> fields;
+    for (idx_t i = 0; i < names.size(); ++i) {
+        fields.push_back(std::make_shared<arrow::Field>(names[i], graphArT2arrowT(types[i])));
+    }
+    DUCKDB_GRAPHAR_LOG_TRACE("NamesAndTypesToArrowSchema: returning...");
+    return arrow::schema(fields);
+}
+
+std::shared_ptr<arrow::Table> GraphArFunctions::EmptyTableFromNamesAndTypes(const vector<std::string>& names,
+                                                                            const vector<std::string>& types) {
+    auto maybe_schema = NamesAndTypesToArrowSchema(names, types);
+    if (maybe_schema.has_error()) {
+        throw InternalException(maybe_schema.error().message());
+    }
+    auto maybe_table = arrow::Table::MakeEmpty(maybe_schema.value());
+    if (!maybe_table.ok()) {
+        throw InternalException(maybe_table.status().message());
+    }
+    return maybe_table.ValueUnsafe();
 }
 
 std::shared_ptr<graphar::Expression> GraphArFunctions::GetFilter(const std::string& filter_type,
