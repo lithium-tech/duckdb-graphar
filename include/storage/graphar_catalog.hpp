@@ -21,10 +21,11 @@ public:
                             std::shared_ptr<graphar::GraphInfo>& graph_info_, ClientContext& context,
                             std::string& database_name);
     ~GraphArCatalog();
+    static inline const string TYPE = "graphar";
 
 public:
     void Initialize(bool load_builtin) override;
-    string GetCatalogType() override { return "graphar"; }
+    string GetCatalogType() override { return TYPE; }
 
     optional_ptr<CatalogEntry> CreateSchema(CatalogTransaction transaction, CreateSchemaInfo& info) override;
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "functions/table/read_base.hpp"
+#include "functions/table/hop_base.hpp"
 
 #include <duckdb/common/named_parameter_map.hpp>
 #include <duckdb/function/table/arrow/arrow_duck_schema.hpp>
@@ -16,38 +17,27 @@
 
 namespace duckdb {
 
-class ReadHopFilteredBindData : public ReadBindData {
-private:
+class ReadHopFilteredBindData : public HopBaseBindData {
+public:
     std::string query_filter;
     std::string graph_info_path;
-    std::vector<int64_t> vids;
 
     friend class ReadHopFiltered;
 };
 
-class ReadHopFilteredGlobalTableFunctionState : public ReadBaseGlobalTableFunctionState {
+class ReadHopFilteredGlobalTableFunctionState : public HopBaseGlobalTableFunctionState {
 public:
-    static std::string demangle(const char* name) {
-        int status = -4;
-        std::unique_ptr<char, void (*)(void*)> res{abi::__cxa_demangle(name, NULL, NULL, &status), std::free};
-        return (status == 0) ? res.get() : name;
-    }
-    size_t MoveBaseReaders(size_t state_ind) {
-        if (cur_ind == state_ind) {
-            cur_ind++;
-
-            if (cur_ind >= vertexes.size()) {
-                return cur_ind;
-            }
-
-            if (cur_ind == next_hop_ind) {
+    size_t MoveBaseReaders(size_t state_ind, bool force = false) {
+        if ((cur_idx == state_ind || force) && !vertexes.empty()) {
+            if (cur_idx == next_hop_idx) {
                 storage_state = false;
             }
+            cur_idx++;
 
             const auto prefix = graph_info->GetPrefix();
-            auto edge_info = *std::get_if<std::shared_ptr<graphar::EdgeInfo>>(&type_info);
 
-            DUCKDB_GRAPHAR_LOG_DEBUG("Before move readers");
+            auto vid = vertexes.front();
+            vertexes.pop();
             for (size_t i = 0; i < base_readers.size(); ++i) {
                 if (global_projected_inds[i].empty()) {
                     continue;
@@ -56,8 +46,8 @@ public:
                 auto& base_reader = base_readers[i];
                 std::visit(
                     [&](auto& r) {
-                        if constexpr (requires { r->callQuery(query_string, vertexes[cur_ind]); }) {
-                            r->callQuery(query_string, vertexes[cur_ind]);
+                        if constexpr (requires { r->callQuery(vid); }) {
+                            r->callQuery(vid);
                         } else {
                             throw InternalException("callQuery not implemented for this reader");
                         }
@@ -65,11 +55,10 @@ public:
                     base_reader);
             }
         }
-        return cur_ind;
+        return cur_idx;
     }
 
-    void GenerateQuery() {
-        auto edge_info = *std::get_if<std::shared_ptr<graphar::EdgeInfo>>(&type_info);
+    void GenerateQuery(const ReadHopFilteredBindData& bind_data) {
         std::string columns = "";
         for (auto& col_id : column_ids) {
             if (!columns.empty()) {
@@ -77,9 +66,16 @@ public:
             }
             columns += "#" + std::to_string(col_id + 1);
         }
-        query_string = "SELECT " + columns + " FROM read_edges('" + graph_info_path + "', src='" +
-                       edge_info->GetSrcType() + "', type='" + edge_info->GetEdgeType() + "', dst='" +
-                       edge_info->GetDstType() + "') WHERE _graphArSrcIndex = $1";
+
+        if (!bind_data.graph_info_path.empty()) {
+            query_string = "SELECT " + columns + " FROM read_edges('" + graph_info_path + "', src='" +
+                                edge_info->GetSrcType() + "', type='" + edge_info->GetEdgeType() + "', dst='" +
+                                edge_info->GetDstType() + "') WHERE _graphArSrcIndex = $1";
+        } else if (!bind_data.table_name.empty()) {
+            query_string = "SELECT " + columns + " FROM " + bind_data.full_table_name() + " WHERE _graphArSrcIndex = $1";
+        } else {
+            throw InternalException("Either graph_info_path or table_name must be provided");
+        }
 
         if (!query_filter.empty()) {
             query_string += " AND " + query_filter;
@@ -88,18 +84,11 @@ public:
     }
 
 private:
-    std::vector<graphar::IdType> vertexes;
-    std::unordered_set<graphar::IdType> _vertexes;
-    size_t cur_ind = 0;
-    size_t next_hop_ind = vertexes.size();
-    bool found_dst_column;
-
-    std::mutex mtx;
     bool storage_state = true;
+
     std::string query_string;
     std::string query_filter;
     std::string graph_info_path;
-    column_t dstColumn = -1;
 
     friend class ReadHopFiltered;
 };
@@ -107,15 +96,15 @@ private:
 class ReadHopFilteredLocalTableFunctionState : public ReadBaseLocalTableFunctionState {
 private:
     bool storage_state = true;
-    size_t cur_ind;
+    
+    size_t cur_idx;
+
     friend class ReadHopFiltered;
 };
 
 class ReadHopFiltered : public ReadBase<ReadHopFiltered> {
 public:
-    static void SetBindData(std::shared_ptr<graphar::GraphInfo> graph_info,
-                            std::shared_ptr<graphar::EdgeInfo> edge_info,
-                            unique_ptr<ReadHopFilteredBindData>& bind_data);
+    static void SetBindData(unique_ptr<ReadHopFilteredBindData>& bind_data);
     static unique_ptr<FunctionData> Bind(ClientContext& context, TableFunctionBindInput& input,
                                          vector<LogicalType>& return_types, vector<string>& names);
 
@@ -132,18 +121,27 @@ public:
     static void PushdownComplexFilter(ClientContext& context, LogicalGet& get, FunctionData* bind_data,
                                       vector<unique_ptr<Expression>>& filters);
 
-    static TableFunction GetFunction();
+    static TableFunctionSet GetFunctions();
     static TableFunction GetScanFunction();
     static void Execute(ClientContext& context, TableFunctionInput& input, DataChunk& output);
     static unique_ptr<GlobalTableFunctionState> Init(ClientContext& context, TableFunctionInitInput& input);
     static unique_ptr<LocalTableFunctionState> InitLocal(ExecutionContext& context, TableFunctionInitInput& input,
                                                          GlobalTableFunctionState* gstate_ptr);
+    static void SetTableFuncionParams(TableFunction& fun) {
+        fun.init_global = Init;
+        fun.init_local = InitLocal;
 
-private:
-    static std::string demangle(const char* name) {
-        int status = -4;
-        std::unique_ptr<char, void (*)(void*)> res{abi::__cxa_demangle(name, NULL, NULL, &status), std::free};
-        return (status == 0) ? res.get() : name;
+        HopBase::SetFunctionParams(fun);
+
+        fun.filter_pushdown = false;
+        fun.projection_pushdown = true;
+        // fun.statistics = GetStatistics;
+        fun.pushdown_complex_filter = PushdownComplexFilter;
+    }
+    static void Register(ExtensionLoader& loader) { loader.RegisterFunction(GetFunctions()); }
+
+    static std::string GetFunctionName() {
+        return "read_hop_filtered";
     }
 };
 }  // namespace duckdb

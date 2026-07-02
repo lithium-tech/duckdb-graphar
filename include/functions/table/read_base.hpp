@@ -133,6 +133,8 @@ class ReadBase;
 
 class ReadVertices;
 class ReadEdges;
+
+class HopBase;
 class ReadHop;
 class ReadHopFiltered;
 class ReadHopGlobalTableFunctionState;
@@ -167,6 +169,8 @@ private:
     friend class ReadBase;
     friend class ReadVertices;
     friend class ReadEdges;
+    
+    friend class HopBase;
     friend class ReadHop;
     friend class ReadHopFiltered;
 };
@@ -175,7 +179,7 @@ class ReadBaseGlobalTableFunctionState : public GlobalTableFunctionState {
 public:
     idx_t MaxThreads() const override { return MAX_THREADS; }
 
-private:
+protected:
     vector<std::string> params;
     graphar::PropertyGroupVector pgs;
     vector<vector<std::string>> prop_names;
@@ -200,10 +204,10 @@ private:
     friend class ReadBase;
     friend class ReadVertices;
     friend class ReadEdges;
+
+    friend class HopBase;
     friend class ReadHop;
-    friend class ReadHopGlobalTableFunctionState;
     friend class ReadHopFiltered;
-    friend class ReadHopFilteredGlobalTableFunctionState;
 };
 
 class ReadBaseLocalTableFunctionState : public LocalTableFunctionState {
@@ -484,5 +488,9 @@ public:
     static void Register(ExtensionLoader& loader) { loader.RegisterFunction(ReadFinal::GetFunction()); }
     static TableFunction GetFunction() { return ReadFinal::GetFunction(); }
     static TableFunction GetScanFunction() { return ReadFinal::GetScanFunction(); }
+
+    static std::string GetFunctionName() {
+        return ReadFinal::GetFunctionName();
+    }
 };
 }  // namespace duckdb

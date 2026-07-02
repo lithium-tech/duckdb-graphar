@@ -139,10 +139,10 @@ public:
     }
 
     template <typename... Args>
-    void callQuery(const std::string& query, Args&&... args)
+    void callQuery(Args&&... args)
     requires IsQueryReader<StoredReader>
     {
-        reader->callQuery(query, std::forward<Args>(args)...);
+        reader->callQuery(std::forward<Args>(args)...);
     }
 
     void PrintFilterInfo() {

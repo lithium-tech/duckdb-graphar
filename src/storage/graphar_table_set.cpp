@@ -115,9 +115,18 @@ void GraphArTableSet::LoadEntries(ClientContext& context) {
     DUCKDB_GRAPHAR_LOG_TRACE("Exiting GraphArTableSet::LoadEntries");
 }
 
-unique_ptr<GraphArTableInformation> GraphArTableSet::GetTableInfo(ClientContext& context, GraphArSchemaEntry& schema,
+optional_ptr<GraphArTableInformation> GraphArTableSet::GetTableInfo(ClientContext& context, GraphArSchemaEntry& schema,
                                                                   const string& table_name) {
-    throw NotImplementedException("GraphArTableSet::GetTableInfo");
+    LoadEntries(context);
+    lock_guard<mutex> l(entry_lock);
+    {
+        auto entry = table_entries.find(table_name);
+        if (entry != table_entries.end()) {
+            DUCKDB_GRAPHAR_LOG_DEBUG("Found GraphArTableInformation");
+            return optional_ptr<GraphArTableInformation>(*entry->second);
+        }
+    }
+    return nullptr;
 }
 
 optional_ptr<CatalogEntry> GraphArTableSet::GetEntry(ClientContext& context, const EntryLookupInfo& lookup) {

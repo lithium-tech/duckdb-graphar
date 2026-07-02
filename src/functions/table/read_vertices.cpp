@@ -26,7 +26,7 @@ namespace duckdb {
 void ReadVertices::SetBindData(std::shared_ptr<graphar::GraphInfo> graph_info,
                                std::shared_ptr<graphar::VertexInfo> vertex_info, unique_ptr<ReadBindData>& bind_data) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadVertices::SetBindData");
-    ReadBase::SetBindData(graph_info, vertex_info, bind_data, "read_vertices", 1, 0, {GID_COLUMN_INTERNAL});
+    ReadBase::SetBindData(graph_info, vertex_info, bind_data, GetFunctionName(), 1, 0, {GID_COLUMN_INTERNAL});
 }
 //-------------------------------------------------------------------
 // Bind
@@ -200,7 +200,7 @@ void ReadVertices::PushdownComplexFilter(ClientContext& context, LogicalGet& get
 // GetFunction
 //-------------------------------------------------------------------
 TableFunction ReadVertices::GetFunction() {
-    TableFunction read_vertices("read_vertices", {LogicalType::VARCHAR}, Execute, Bind);
+    TableFunction read_vertices(GetFunctionName(), {LogicalType::VARCHAR}, Execute, Bind);
     read_vertices.init_global = ReadVertices::Init;
     read_vertices.init_local = ReadVertices::InitLocal;
 
