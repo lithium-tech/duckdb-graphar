@@ -32,15 +32,15 @@ public:
         std::unique_ptr<char, void (*)(void*)> res{abi::__cxa_demangle(name, NULL, NULL, &status), std::free};
         return (status == 0) ? res.get() : name;
     }
-    auto MoveBaseReaders(std::vector<graphar::IdType>::iterator state_iter) {
-        if (cur_iter == state_iter) {
-            cur_iter++;
+    size_t MoveBaseReaders(size_t state_ind) {
+        if (cur_ind == state_ind) {
+            cur_ind++;
 
-            if (cur_iter == vertexes.end()) {
-                return cur_iter;
+            if (cur_ind >= vertexes.size()) {
+                return cur_ind;
             }
 
-            if (cur_iter == next_hop_iter) {
+            if (cur_ind == next_hop_ind) {
                 storage_state = false;
             }
 
@@ -56,8 +56,8 @@ public:
                 auto& base_reader = base_readers[i];
                 std::visit(
                     [&](auto& r) {
-                        if constexpr (requires { r->callQuery(query_string, *cur_iter); }) {
-                            r->callQuery(query_string, *cur_iter);
+                        if constexpr (requires { r->callQuery(query_string, vertexes[cur_ind]); }) {
+                            r->callQuery(query_string, vertexes[cur_ind]);
                         } else {
                             throw InternalException("callQuery not implemented for this reader");
                         }
@@ -65,7 +65,7 @@ public:
                     base_reader);
             }
         }
-        return cur_iter;
+        return cur_ind;
     }
 
     void GenerateQuery() {
@@ -90,8 +90,8 @@ public:
 private:
     std::vector<graphar::IdType> vertexes;
     std::unordered_set<graphar::IdType> _vertexes;
-    std::vector<graphar::IdType>::iterator cur_iter = vertexes.begin();
-    std::vector<graphar::IdType>::iterator next_hop_iter = vertexes.end();
+    size_t cur_ind = 0;
+    size_t next_hop_ind = vertexes.size();
 
     std::mutex mtx;
     bool storage_state = true;
@@ -106,7 +106,7 @@ private:
 class ReadHopFilteredLocalTableFunctionState : public ReadBaseLocalTableFunctionState {
 private:
     bool storage_state = true;
-    std::vector<graphar::IdType>::iterator cur_iter;
+    size_t cur_ind;
     friend class ReadHopFiltered;
 };
 

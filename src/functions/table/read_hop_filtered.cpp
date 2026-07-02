@@ -125,7 +125,7 @@ BaseReaderPtr ReadHopFiltered::GetBaseReader(ClientContext& context, ReadHopFilt
                                      const std::string& filter_column) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadHopFiltered::GetBaseReader");
     auto conn = std::make_shared<Connection>(*context.db);
-    auto query_base_reader = QueryChunkReader::Make(std::move(conn), gstate.query_string, *gstate.cur_iter);
+    auto query_base_reader = QueryChunkReader::Make(std::move(conn), gstate.query_string, gstate.vertexes[gstate.cur_ind]);
     BaseReaderPtr base_reader = ConvertBaseReader(query_base_reader);
 
     return base_reader;
@@ -318,8 +318,8 @@ unique_ptr<GlobalTableFunctionState> ReadHopFiltered::Init(ClientContext& contex
         gstate._vertexes.insert(vid);
     }
     
-    gstate.cur_iter = gstate.vertexes.begin();
-    gstate.next_hop_iter = gstate.vertexes.end();
+    gstate.cur_ind = 0;
+    gstate.next_hop_ind = gstate.vertexes.size();
 
     const auto prop_types_size = bind_data.prop_types.size();
     vector<idx_t> columns_pref_num(prop_types_size + 1);
@@ -417,7 +417,7 @@ unique_ptr<LocalTableFunctionState> ReadHopFiltered::InitLocal(ExecutionContext&
     auto& lstate = *lstate_ptr;
     auto& gstate = gstate_ptr->Cast<ReadHopFilteredGlobalTableFunctionState>();
 
-    lstate.cur_iter = gstate.cur_iter;
+    lstate.cur_ind = gstate.cur_ind;
     const auto prop_types_size = gstate.prop_types.size();
     lstate.cur_chunks.resize(prop_types_size);
     lstate.readers.resize(prop_types_size);
@@ -475,10 +475,10 @@ void ReadHopFiltered::Execute(ClientContext& context, TableFunctionInput& input,
 
     if (num_rows == 0) {
         std::lock_guard<std::mutex> lock(gstate.mtx);
-        while (lstate.cur_iter != gstate.vertexes.end() && num_rows == 0) {
-            lstate.cur_iter = gstate.MoveBaseReaders(lstate.cur_iter);
+        while (lstate.cur_ind < gstate.vertexes.size() && num_rows == 0) {
+            lstate.cur_ind = gstate.MoveBaseReaders(lstate.cur_ind);
             
-            DUCKDB_GRAPHAR_LOG_DEBUG("cur vertex: " + std::to_string(*lstate.cur_iter)); 
+            DUCKDB_GRAPHAR_LOG_DEBUG("cur vertex: " + std::to_string(gstate.vertexes[lstate.cur_ind])); 
             num_rows = STANDARD_VECTOR_SIZE;
             for (auto& reader : lstate.readers) {
                 if (IsNullPtr(reader) || !num_rows) {

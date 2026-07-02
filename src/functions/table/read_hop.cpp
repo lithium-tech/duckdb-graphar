@@ -291,8 +291,8 @@ unique_ptr<GlobalTableFunctionState> ReadHop::Init(ClientContext& context, Table
         gstate._vertexes.insert(vid);
     }
     
-    gstate.cur_iter = gstate.vertexes.begin();
-    gstate.next_hop_iter = gstate.vertexes.end();
+    gstate.cur_ind = 0;
+    gstate.next_hop_ind = gstate.vertexes.size();
 
     const auto prop_types_size = bind_data.prop_types.size();
     vector<idx_t> columns_pref_num(prop_types_size + 1);
@@ -398,7 +398,7 @@ unique_ptr<LocalTableFunctionState> ReadHop::InitLocal(ExecutionContext& context
     auto& lstate = *lstate_ptr;
     auto& gstate = gstate_ptr->Cast<ReadHopGlobalTableFunctionState>();
 
-    lstate.cur_iter = gstate.cur_iter;
+    lstate.cur_ind = gstate.cur_ind;
     lstate.file_reader = std::make_shared<DuckParquetFileReader>(std::make_shared<Connection>(*context.client.db));
     const auto prop_types_size = gstate.prop_types.size();
     lstate.cur_chunks.resize(prop_types_size);
@@ -459,10 +459,10 @@ void ReadHop::Execute(ClientContext& context, TableFunctionInput& input, DataChu
 
     if (num_rows == 0) {
         std::lock_guard<std::mutex> lock(gstate.mtx);
-        while (lstate.cur_iter != gstate.vertexes.end() && num_rows == 0) {
-            lstate.cur_iter = gstate.MoveBaseReaders(lstate.cur_iter);
+        while (lstate.cur_ind < gstate.vertexes.size() && num_rows == 0) {
+            lstate.cur_ind = gstate.MoveBaseReaders(lstate.cur_ind);
             
-            DUCKDB_GRAPHAR_LOG_DEBUG("cur vertex: " + std::to_string(*lstate.cur_iter)); 
+            DUCKDB_GRAPHAR_LOG_DEBUG("cur vertex: " + std::to_string(gstate.vertexes[lstate.cur_ind])); 
             num_rows = STANDARD_VECTOR_SIZE;
             for (auto& reader : lstate.readers) {
                 if (IsNullPtr(reader) || !num_rows) {

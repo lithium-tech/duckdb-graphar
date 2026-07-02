@@ -30,15 +30,15 @@ public:
         std::unique_ptr<char, void (*)(void*)> res{abi::__cxa_demangle(name, NULL, NULL, &status), std::free};
         return (status == 0) ? res.get() : name;
     }
-    auto MoveBaseReaders(std::vector<graphar::IdType>::iterator state_iter) {
-        if (cur_iter == state_iter) {
-            cur_iter++;
+    size_t MoveBaseReaders(size_t state_ind) {
+        if (cur_ind == state_ind) {
+            cur_ind++;
 
-            if (cur_iter == vertexes.end()) {
-                return cur_iter;
+            if (cur_ind >= vertexes.size()) {
+                return cur_ind;
             }
 
-            if (cur_iter == next_hop_iter) {
+            if (cur_ind == next_hop_ind) {
                 storage_state = false;
             }
 
@@ -52,18 +52,18 @@ public:
                 }
 
                 auto& base_reader = base_readers[i];
-                FilterByRangeEdge(base_reader, {*cur_iter, *cur_iter + 1}, SRC_GID_COLUMN, edge_info, prefix);
+                FilterByRangeEdge(base_reader, {vertexes[cur_ind], vertexes[cur_ind] + 1}, SRC_GID_COLUMN, edge_info, prefix);
                 std::visit(
                     [&](const auto& ptr) {
                         DUCKDB_GRAPHAR_LOG_DEBUG("Base reader " + demangle(typeid(ptr).name()) + " for vertex " +
-                                                 std::to_string(*cur_iter));
+                                                 std::to_string(vertexes[cur_ind]));
                     },
                     base_reader);
 
                 PrintFilterInfo(base_reader);
             }
         }
-        return cur_iter;
+        return cur_ind;
     }
 
     column_t dstColumn = -1;
@@ -71,8 +71,8 @@ public:
 private:
     std::vector<graphar::IdType> vertexes;
     std::unordered_set<graphar::IdType> _vertexes;
-    std::vector<graphar::IdType>::iterator cur_iter = vertexes.begin();
-    std::vector<graphar::IdType>::iterator next_hop_iter = vertexes.end();
+    size_t cur_ind;
+    size_t next_hop_ind;
 
     std::mutex mtx;
     bool storage_state = true;
@@ -83,7 +83,7 @@ private:
 class ReadHopLocalTableFunctionState : public ReadBaseLocalTableFunctionState {
 private:
     bool storage_state = true;
-    std::vector<graphar::IdType>::iterator cur_iter;
+    size_t cur_ind;
     friend class ReadHop;
 };
 
