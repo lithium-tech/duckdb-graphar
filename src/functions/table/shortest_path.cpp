@@ -23,34 +23,73 @@ unique_ptr<FunctionData> ShortestPath::Bind(ClientContext& context, TableFunctio
 
     bind_data->start_id = input.inputs[0].GetValue<int64_t>();
     bind_data->end_id = input.inputs[1].GetValue<int64_t>();
-    auto table_name = input.inputs[2].GetValue<string>();
 
-    DUCKDB_GRAPHAR_LOG_DEBUG("ShortestPath parameters: start=" + std::to_string(bind_data->start_id) +
-                             ", end=" + std::to_string(bind_data->end_id) + ", table=" + table_name);
+    // Check if named parameters exist (new signature) or not (old signature)
+    bool use_yaml_path = !input.named_parameters.empty();
 
-    auto qname = QualifiedName::Parse(table_name);
-    Binder::BindSchemaOrCatalog(context, qname.catalog, qname.schema);
+    if (use_yaml_path) {
+        // New signature: file_path + named params (src, type, dst)
+        const auto file_path = StringValue::Get(input.inputs[2]);
+        const auto src_type = StringValue::Get(input.named_parameters.at("src"));
+        const auto e_type = StringValue::Get(input.named_parameters.at("type"));
+        const auto dst_type = StringValue::Get(input.named_parameters.at("dst"));
 
-    auto& entry = Catalog::GetEntry(context, CatalogType::TABLE_ENTRY, qname.catalog, qname.schema, qname.name);
+        DUCKDB_GRAPHAR_LOG_DEBUG("ShortestPath parameters: start=" + std::to_string(bind_data->start_id) +
+                                 ", end=" + std::to_string(bind_data->end_id) +
+                                 ", file=" + file_path +
+                                 ", edge=" + src_type + "_" + e_type + "_" + dst_type);
 
-    auto& table_entry = entry.Cast<GraphArTableEntry>();
-    auto table_info = table_entry.GetTableInfo();
-    if (table_info == nullptr) {
-        throw InvalidInputException("Table info for '" + table_name + "' is expired.");
-    }
-    auto type_info = table_info->GetTypeInfo();
+        // Load graph info from YAML path directly (no catalog lookup)
+        auto maybe_graph_info = graphar::GraphInfo::Load(file_path);
+        if (maybe_graph_info.has_error()) {
+            throw IOException("Failed to load graph info from path: %s", file_path);
+        }
+        bind_data->graph_info = maybe_graph_info.value();
 
-    if (!std::holds_alternative<std::shared_ptr<graphar::EdgeInfo>>(type_info)) {
-        throw InvalidInputException("Table '" + table_name + "' is not an edge table.");
-    }
+        // Get edge info by type names
+        auto edge_info = bind_data->graph_info->GetEdgeInfo(src_type, e_type, dst_type);
+        if (!edge_info) {
+            throw BinderException("Edges of this type are not found: " + src_type + "_" + e_type + "_" + dst_type);
+        }
+        bind_data->edge_info = edge_info;
 
-    bind_data->edge_info = std::get<std::shared_ptr<graphar::EdgeInfo>>(type_info);
-    bind_data->graph_info = table_info->GetCatalog().GetGraphInfo();
+        // Get vertex info for the source type
+        auto src_vtype = edge_info->GetSrcType();
+        bind_data->vertex_info = bind_data->graph_info->GetVertexInfo(src_vtype);
+        if (!bind_data->vertex_info) {
+            throw InvalidInputException("Failed to get vertex info for type: " + src_vtype);
+        }
+    } else {
+        // Old signature: table_name - use catalog lookup
+        auto table_name = input.inputs[2].GetValue<string>();
 
-    auto src_type = bind_data->edge_info->GetSrcType();
-    bind_data->vertex_info = bind_data->graph_info->GetVertexInfo(src_type);
-    if (bind_data->vertex_info == nullptr) {
-        throw InvalidInputException("Failed to get vertex info for type: " + src_type);
+        DUCKDB_GRAPHAR_LOG_DEBUG("ShortestPath parameters: start=" + std::to_string(bind_data->start_id) +
+                                 ", end=" + std::to_string(bind_data->end_id) + ", table=" + table_name);
+
+        auto qname = QualifiedName::Parse(table_name);
+        Binder::BindSchemaOrCatalog(context, qname.catalog, qname.schema);
+
+        auto& entry = Catalog::GetEntry(context, CatalogType::TABLE_ENTRY, qname.catalog, qname.schema, qname.name);
+
+        auto& table_entry = entry.Cast<GraphArTableEntry>();
+        auto table_info = table_entry.GetTableInfo();
+        if (table_info == nullptr) {
+            throw InvalidInputException("Table info for '" + table_name + "' is expired.");
+        }
+        auto type_info = table_info->GetTypeInfo();
+
+        if (!std::holds_alternative<std::shared_ptr<graphar::EdgeInfo>>(type_info)) {
+            throw InvalidInputException("Table '" + table_name + "' is not an edge table.");
+        }
+
+        bind_data->edge_info = std::get<std::shared_ptr<graphar::EdgeInfo>>(type_info);
+        bind_data->graph_info = table_info->GetCatalog().GetGraphInfo();
+
+        auto src_type = bind_data->edge_info->GetSrcType();
+        bind_data->vertex_info = bind_data->graph_info->GetVertexInfo(src_type);
+        if (bind_data->vertex_info == nullptr) {
+            throw InvalidInputException("Failed to get vertex info for type: " + src_type);
+        }
     }
 
     return_types = {LogicalType::BIGINT, LogicalType::BIGINT};
@@ -246,9 +285,15 @@ void ShortestPath::Function(ClientContext& context, TableFunctionInput& data_p, 
 }
 
 TableFunction ShortestPath::GetFunction() {
-    TableFunction function("shortest_path", {LogicalType::BIGINT, LogicalType::BIGINT, LogicalType::VARCHAR}, Function,
-                           Bind, InitGlobal);
-    return function;
+    // Single signature with optional named parameters
+    // shortest_path(start_id, end_id, path_or_table)
+    // If named params (src, type, dst) are provided, path_or_table is treated as YAML path
+    // Otherwise, it's treated as table name
+    TableFunction func("shortest_path", {LogicalType::BIGINT, LogicalType::BIGINT, LogicalType::VARCHAR}, Function, Bind, InitGlobal);
+    func.named_parameters["src"] = LogicalType::VARCHAR;
+    func.named_parameters["type"] = LogicalType::VARCHAR;
+    func.named_parameters["dst"] = LogicalType::VARCHAR;
+    return func;
 }
 
 void ShortestPath::Register(ExtensionLoader& loader) { loader.RegisterFunction(GetFunction()); }

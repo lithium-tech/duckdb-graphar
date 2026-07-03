@@ -14,7 +14,7 @@ ATTACH '__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml' 
 # Verified edge: 0 -> 23977 exists in Person_knows_Person
 ################################################################################
 query II
-SELECT * FROM shortest_path(0, 23977, 'Person_knows_Person');
+SELECT * FROM shortest_path(0, 23977, Person_knows_Person);
 ----
 0	0
 1	23977
@@ -147,3 +147,44 @@ statement error
 SELECT * FROM shortest_path(0, 5, 'NonExistentTable');
 ----
 Catalog Error: Table with name NonExistentTable does not exist!
+
+################################################################################
+# Test 14: New signature - Direct edge with YAML path
+# Using file path instead of table name
+################################################################################
+query II
+SELECT * FROM shortest_path(0, 23977,
+    '__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml',
+    src='Person', type='knows', dst='Person');
+----
+0	0
+1	23977
+
+################################################################################
+# Test 15: New signature - Same vertex with YAML path
+################################################################################
+query II
+SELECT * FROM shortest_path(5, 5,
+    '__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml',
+    src='Person', type='knows', dst='Person');
+----
+0	5
+
+################################################################################
+# Test 16: New signature - No path with YAML path
+################################################################################
+query II
+SELECT * FROM shortest_path(37699, 0,
+    '__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml',
+    src='Person', type='knows', dst='Person');
+----
+
+################################################################################
+# Test 17: New signature - Error handling for non-existent edge type
+################################################################################
+statement error
+SELECT * FROM shortest_path(0, 5,
+    '__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml',
+    src='Person', type='nonexistent', dst='Person');
+----
+Binder Error: Edges of this type are not found: Person_nonexistent_Person
