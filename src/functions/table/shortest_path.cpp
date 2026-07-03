@@ -35,8 +35,7 @@ unique_ptr<FunctionData> ShortestPath::Bind(ClientContext& context, TableFunctio
         const auto dst_type = StringValue::Get(input.named_parameters.at("dst"));
 
         DUCKDB_GRAPHAR_LOG_DEBUG("ShortestPath parameters: start=" + std::to_string(bind_data->start_id) +
-                                 ", end=" + std::to_string(bind_data->end_id) +
-                                 ", file=" + file_path +
+                                 ", end=" + std::to_string(bind_data->end_id) + ", file=" + file_path +
                                  ", edge=" + src_type + "_" + e_type + "_" + dst_type);
 
         // Load graph info from YAML path directly (no catalog lookup)
@@ -289,7 +288,8 @@ TableFunction ShortestPath::GetFunction() {
     // shortest_path(start_id, end_id, path_or_table)
     // If named params (src, type, dst) are provided, path_or_table is treated as YAML path
     // Otherwise, it's treated as table name
-    TableFunction func("shortest_path", {LogicalType::BIGINT, LogicalType::BIGINT, LogicalType::VARCHAR}, Function, Bind, InitGlobal);
+    TableFunction func("shortest_path", {LogicalType::BIGINT, LogicalType::BIGINT, LogicalType::VARCHAR}, Function,
+                       Bind, InitGlobal);
     func.named_parameters["src"] = LogicalType::VARCHAR;
     func.named_parameters["type"] = LogicalType::VARCHAR;
     func.named_parameters["dst"] = LogicalType::VARCHAR;
