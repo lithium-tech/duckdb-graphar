@@ -57,7 +57,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
     REQUIRE_NOTHROW(bind_data = shortest_path_func.bind(*TestFixture::conn.context, bind_input, return_types, names));
 
     REQUIRE(bind_data != nullptr);
-    REQUIRE(names == vector<std::string>({"step_number", "vertex_id"}));
+    REQUIRE(names == vector<std::string>({"step_number", "_graphArVertexIndex"}));
     REQUIRE(return_types == vector<LogicalType>({LogicalType::BIGINT, LogicalType::BIGINT}));
     INFO("Finish bind test");
 
@@ -126,7 +126,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
     REQUIRE_NOTHROW(bind_data = shortest_path_func.bind(*TestFixture::conn.context, bind_input, return_types, names));
 
     REQUIRE(bind_data != nullptr);
-    REQUIRE(names == vector<std::string>({"step_number", "vertex_id"}));
+    REQUIRE(names == vector<std::string>({"step_number", "_graphArVertexIndex"}));
     REQUIRE(return_types == vector<LogicalType>({LogicalType::BIGINT, LogicalType::BIGINT}));
     INFO("Finish bind test");
 
@@ -197,7 +197,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
     REQUIRE_NOTHROW(bind_data = shortest_path_func.bind(*TestFixture::conn.context, bind_input, return_types, names));
 
     REQUIRE(bind_data != nullptr);
-    REQUIRE(names == vector<std::string>({"step_number", "vertex_id"}));
+    REQUIRE(names == vector<std::string>({"step_number", "_graphArVertexIndex"}));
     REQUIRE(return_types == vector<LogicalType>({LogicalType::BIGINT, LogicalType::BIGINT}));
     INFO("Finish bind test");
 
@@ -264,7 +264,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
     REQUIRE_NOTHROW(bind_data = shortest_path_func.bind(*TestFixture::conn.context, bind_input, return_types, names));
 
     REQUIRE(bind_data != nullptr);
-    REQUIRE(names == vector<std::string>({"step_number", "vertex_id"}));
+    REQUIRE(names == vector<std::string>({"step_number", "_graphArVertexIndex"}));
     REQUIRE(return_types == vector<LogicalType>({LogicalType::BIGINT, LogicalType::BIGINT}));
     INFO("Finish bind test");
 
@@ -325,7 +325,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
     REQUIRE_NOTHROW(bind_data = shortest_path_func.bind(*TestFixture::conn.context, bind_input, return_types, names));
 
     REQUIRE(bind_data != nullptr);
-    REQUIRE(names == vector<std::string>({"step_number", "vertex_id"}));
+    REQUIRE(names == vector<std::string>({"step_number", "_graphArVertexIndex"}));
     REQUIRE(return_types == vector<LogicalType>({LogicalType::BIGINT, LogicalType::BIGINT}));
     INFO("Finish bind test");
 
@@ -385,7 +385,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
     REQUIRE_NOTHROW(bind_data = shortest_path_func.bind(*TestFixture::conn.context, bind_input, return_types, names));
 
     REQUIRE(bind_data != nullptr);
-    REQUIRE(names == vector<std::string>({"step_number", "vertex_id"}));
+    REQUIRE(names == vector<std::string>({"step_number", "_graphArVertexIndex"}));
     REQUIRE(return_types == vector<LogicalType>({LogicalType::BIGINT, LogicalType::BIGINT}));
     INFO("Finish bind test");
 

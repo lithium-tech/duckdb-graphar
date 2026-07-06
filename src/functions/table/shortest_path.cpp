@@ -92,7 +92,7 @@ unique_ptr<FunctionData> ShortestPath::Bind(ClientContext& context, TableFunctio
     }
 
     return_types = {LogicalType::BIGINT, LogicalType::BIGINT};
-    names = {"step_number", "vertex_id"};
+    names = {"step_number", "_graphArVertexIndex"};
 
     return std::move(bind_data);
 }

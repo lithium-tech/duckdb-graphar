@@ -2,7 +2,7 @@
 # Build Targets
 # =============================================
 
-file(GLOB_RECURSE EXTENSION_SOURCES CONFIGURE_DEPENDS "${EXTENSION_ROOT_DIR}/src/*.cpp")
+file(GLOB_RECURSE EXTENSION_SOURCES "${EXTENSION_ROOT_DIR}/src/*.cpp")
 
 set(PARAMETERS "-warnings")
 set(EXTENSION_STATIC_BUILD ON CACHE BOOL "Build extensions with static DuckDB")
