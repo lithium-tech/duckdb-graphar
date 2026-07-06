@@ -2,56 +2,6 @@
 
 ## Scalar Functions
 
-| Function                  | Description                                              |
-|---------------------------|----------------------------------------------------------|
-| [bfs_exist](#bfs_exist)   | Returns true if there is a path between two vertices     |
-| [bfs_length](#bfs_length) | Returns the length of shortest path between two vertices |
-
-### bfs_exist
-
-#### Signatures
-```sql
-BOOL bfs_exist(BIGINT src_vertex_id, BIGINT dst_vertex_id, VARCHAR graph_path)
-```
-
-#### DESCRIPTION
-
-Returns answer whether there is a path between two vertices or not.
-
-`graph_path` - relative or absolute path to the GraphAr graph info file. 
-Now use first edge type in graph.
-
-This function is implemented using the standard BFS algorithm.
-
-#### Examples
-```sql
-SELECT bfs_exist(31890, 33914, 'test/data/git/Person_knows_Person.yaml');
--- true;
-```
-
-### bfs_length
-
-#### Signatures
-```sql
-BIGINT bfs_length(BIGINT src_vertex_id, BIGINT dst_vertex_id, VARCHAR graph_path)
-```
-
-#### DESCRIPTION
-Return the length of the shortest path between two vertices:
-- -1: no path found
-- 0: start vertices = end person
-- \> 0: base case
-
-`graph_path` - relative or absolute path to the GraphAr graph info file. Now use first edge type in graph.
-
-This function is implemented using the standard BFS algorithm.
-
-#### Examples
-```sql
-SELECT bfs_length(31890, 33914, 'test/data/git/Person_knows_Person.yaml');
--- 2;
-```
-
 ## Table Functions
 
 | Function                        | Description                                            |
@@ -60,6 +10,7 @@ SELECT bfs_length(31890, 33914, 'test/data/git/Person_knows_Person.yaml');
 | [read_edges](#read_edges)       | Returns a Table of Edges by Type of src, edge, dst     |
 | [edges_vertex](#edges_vertex)   | Returns a Table with Degree of vertex for src vertices |
 | [two_hop](#two_hop)             | Returns a Table with 2-hop edges of vertex             |
+| [shortest_path](#shortest_path) | Returns a Table with the shortest path between two vertices |
 
 ### read_vertices
 
@@ -154,4 +105,35 @@ This function finds all edges from vid to its 1-hop neighbors, and all edges fro
 SELECT * 
 FROM edges_vertex('test/data/git/Person_knows_Person.yaml', vid=42);
 -- Table with src (_graphArSrcIndex), dst (_graphArDstIndex);
+```
+
+### shortest_path
+
+#### Signatures
+```sql
+TABLE shortest_path(BIGINT src_vertex_id, BIGINT dst_vertex_id, VARCHAR path);
+TABLE shortest_path(BIGINT src_vertex_id, BIGINT dst_vertex_id, VARCHAR graph_path, src VARCHAR, type VARCHAR, dst VARCHAR);
+```
+
+#### DESCRIPTION
+Returns a table representing the shortest path between two vertices in a GraphAr graph. The result contains two columns: `step_number` (row index) and `_graphArVertexIndex` (vertex ID at that step).
+
+Two signatures are supported:
+
+1. `TABLE shortest_path(BIGINT src_vertex_id, BIGINT dst_vertex_id, VARCHAR edge_table_name)` — uses an edge table name from an attached GraphAr catalog.
+2. `TABLE shortest_path(BIGINT src_vertex_id, BIGINT dst_vertex_id, VARCHAR graph_path, src VARCHAR, type VARCHAR, dst VARCHAR)` — uses a YAML schema file path with named parameters `src`, `type`, and `dst` to specify the edge type.
+
+`src` — The source vertex type name. \
+`type` — The edge type name. \
+`dst` — The destination vertex type name.
+
+This function uses a bidirectional BFS algorithm. It returns the **first** path found, which may not be unique when multiple shortest paths exist. **The result is not guaranteed to be deterministic** across different runs or graph configurations.
+
+#### Examples
+```sql
+SELECT * FROM shortest_path(0, 23977, Person_knows_Person);
+
+SELECT * FROM shortest_path(0, 23977,
+    'test/data/git/Git.yaml',
+    src='Person', type='knows', dst='Person');
 ```
