@@ -129,7 +129,7 @@ public:
     static unique_ptr<LocalTableFunctionState> InitLocalWrapper(ExecutionContext& context, TableFunctionInitInput& input,
                                                                 GlobalTableFunctionState* gstate_ptr);
 
-    template <bool lock>
+    template <bool notLocked>
     static idx_t FetchRowsNum(ReadHopGlobalTableFunctionState& gstate, ReadHopLocalTableFunctionState& lstate);
 
     static void SetTableFuncionParams(TableFunction& fun) {

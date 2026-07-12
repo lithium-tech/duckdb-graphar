@@ -187,7 +187,7 @@ unique_ptr<LocalTableFunctionState> ReadHop::InitLocalWrapper(ExecutionContext& 
 //-------------------------------------------------------------------
 // Execute
 //-------------------------------------------------------------------
-template <bool lock>
+template <bool notLocked>
 idx_t ReadHop::FetchRowsNum(ReadHopGlobalTableFunctionState& gstate, ReadHopLocalTableFunctionState& lstate) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadHop::FetchRowsNum");
 
@@ -200,15 +200,11 @@ idx_t ReadHop::FetchRowsNum(ReadHopGlobalTableFunctionState& gstate, ReadHopLoca
     }
 
     if (needs_new_file) {
-        if constexpr (lock) {
+        if constexpr (notLocked) {
             std::lock_guard<std::mutex> guard(gstate.lock);
-            int i = 0;
             for (auto& reader : lstate.readers) {
                 if (IsNullPtr(reader)) continue;
-
                 AcquirePathUnderLock(reader);
-
-                ++i;
             }
         } else {
             for (auto& reader : lstate.readers) {

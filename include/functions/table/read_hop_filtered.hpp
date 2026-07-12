@@ -165,7 +165,7 @@ public:
     }
     static void Register(ExtensionLoader& loader) { loader.RegisterFunction(GetFunctions()); }
 
-    template <bool lock>
+    template <bool notLocked>
     static idx_t FetchRowsNum(ReadHopFilteredGlobalTableFunctionState& gstate, ReadHopFilteredLocalTableFunctionState& lstate);
 
     static std::string GetFunctionName() {

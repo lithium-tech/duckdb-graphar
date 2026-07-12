@@ -207,12 +207,12 @@ unique_ptr<LocalTableFunctionState> ReadHopFiltered::InitLocal(ExecutionContext&
 //-------------------------------------------------------------------
 // Execute
 //-------------------------------------------------------------------
-template <bool lock>
+template <bool notLocked>
 idx_t ReadHopFiltered::FetchRowsNum(ReadHopFilteredGlobalTableFunctionState& gstate, ReadHopFilteredLocalTableFunctionState& lstate) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadHopFiltered::FetchRowsNum");
 
     idx_t num_rows = STANDARD_VECTOR_SIZE;
-    if constexpr (lock) {
+    if constexpr (notLocked) {
         bool needs_new_file = false;
         for (auto& reader : lstate.readers) {
             if (IsNullPtr(reader)) continue;
@@ -251,12 +251,10 @@ void ReadHopFiltered::Execute(ClientContext& context, TableFunctionInput& input,
     idx_t num_rows = FetchRowsNum<true>(gstate, lstate);
     DUCKDB_GRAPHAR_LOG_DEBUG(chunk_name + " num rows pred: " + std::to_string(num_rows));
     
-
     if (num_rows == 0) {
         std::lock_guard<std::mutex> guard(gstate.lock);
         while (!gstate.vertexes.empty() && num_rows == 0) {
             lstate.cur_idx = gstate.MoveBaseReaders(lstate.cur_idx);
-            
             num_rows = FetchRowsNum<false>(gstate, lstate);
         }
         lstate.storage_state = gstate.storage_state;
