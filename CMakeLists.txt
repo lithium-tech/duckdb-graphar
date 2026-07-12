@@ -7,6 +7,36 @@ set(EXTENSION_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR} CACHE STRING "Extension root 
 
 project(${TARGET_NAME})
 
+# Get git commit hash for this extension
+find_package(Git)
+if(Git_FOUND)
+    # Get extension git commit hash
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} log -1 --format=%h
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        OUTPUT_VARIABLE EXTENSION_GIT_COMMIT_HASH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+        RESULT_VARIABLE EXTENSION_GIT_RESULT
+    )
+    if(EXTENSION_GIT_RESULT)
+        set(EXTENSION_GIT_COMMIT_HASH "unknown")
+    endif()
+else()
+    set(EXTENSION_GIT_COMMIT_HASH "unknown")
+endif()
+
+# Get build timestamp
+string(TIMESTAMP BUILD_TIMESTAMP "%Y-%m-%d %H:%M:%S%z")
+
+# Add compile definitions for version information
+add_definitions(-DEXTENSION_GIT_COMMIT_HASH="${EXTENSION_GIT_COMMIT_HASH}")
+add_definitions(-DEXTENSION_BUILD_TIMESTAMP="${BUILD_TIMESTAMP}")
+
+# Print version information during configuration
+message(STATUS "Extension Git Commit: ${EXTENSION_GIT_COMMIT_HASH}")
+message(STATUS "Build Timestamp: ${BUILD_TIMESTAMP}")
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -41,6 +71,13 @@ find_package(Parquet REQUIRED CONFIG)
 find_package(graphar REQUIRED CONFIG)
 
 include_directories(include)
+
+# Add mini-yaml include path from GraphAr source
+if(GRAPHAR_SRC_DIR)
+    include_directories(${GRAPHAR_SRC_DIR}/cpp/thirdparty)
+elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/graphar/src")
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/graphar/src/cpp/thirdparty)
+endif()
 
 file(GLOB_RECURSE EXTENSION_SOURCES CONFIGURE_DEPENDS "${EXTENSION_ROOT_DIR}/src/*.cpp")
 

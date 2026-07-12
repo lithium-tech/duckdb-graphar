@@ -4,6 +4,8 @@
 
 #include <graphar/arrow/chunk_reader.h>
 
+#include "utils/global_log_manager.hpp"
+
 namespace duckdb {
 
 class QueryChunkReader {
@@ -12,6 +14,8 @@ public:
 
     template <bool Stream = false, typename... Args>
     void callQuery(Args&&... args) {
+        DUCKDB_GRAPHAR_LOG_DEBUG("QueryChunkReader::Call: " + query);
+
         if constexpr (Stream) {
             result = conn->SendQuery(query);
         } else {
@@ -36,7 +40,6 @@ public:
     static graphar::Result<std::shared_ptr<QueryChunkReader>> Make(std::shared_ptr<Connection> conn,
                                                                    std::string& query_string) {
         auto reader = std::make_shared<QueryChunkReader>(std::move(conn), query_string);
-        // reader->callQuery(query_string, vid);
         return reader;
     }
 

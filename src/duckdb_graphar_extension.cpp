@@ -4,6 +4,7 @@
 
 #include "functions/scalar/bfs.hpp"
 #include "functions/table/edges_vertex.hpp"
+#include "functions/table/graphar_info.hpp"
 #include "functions/table/two_hop.hpp"
 #include "functions/table/read_edges.hpp"
 #include "functions/table/read_hop.hpp"
@@ -30,10 +31,19 @@ inline void QuackScalarFun(DataChunk& args, ExpressionState& state, Vector& resu
     });
 }
 
+static void FinalizeS3(DataChunk& args, ExpressionState& state, Vector& result) {
+    if (arrow::fs::IsS3Initialized() && !arrow::fs::IsS3Finalized()) {
+        graphar::FinalizeS3();
+    }
+}
+
 static void LoadInternal(ExtensionLoader& loader) {
     auto duckdb_graphar_scalar_function =
         ScalarFunction("duckdb_graphar", {LogicalType::VARCHAR}, LogicalType::VARCHAR, QuackScalarFun);
     loader.RegisterFunction(duckdb_graphar_scalar_function);
+
+    auto finalize_s3_function = ScalarFunction("duckdb_graphar_finalize_s3", {}, LogicalType::VARCHAR, FinalizeS3);
+    loader.RegisterFunction(finalize_s3_function);
 
     auto& config = DBConfig::GetConfig(loader.GetDatabaseInstance());
 
@@ -49,11 +59,9 @@ static void LoadInternal(ExtensionLoader& loader) {
     TwoHop::Register(loader);
     ReadHop::Register(loader);
     ReadHopFiltered::Register(loader);
+    GraphArInfo::Register(loader);
 
     StorageExtension::Register(config, "duckdb_graphar", make_shared_ptr<GraphArStorageExtension>());
-
-    auto callback = make_shared_ptr<S3CleanupCallback>();
-    ExtensionCallback::Register(loader.GetDatabaseInstance().config, callback);
 }
 
 void DuckdbGrapharExtension::Load(ExtensionLoader& loader) { LoadInternal(loader); }

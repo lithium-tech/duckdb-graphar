@@ -27,32 +27,50 @@ public:
 
 class ReadHopFilteredGlobalTableFunctionState : public HopBaseGlobalTableFunctionState {
 public:
+    ReadHopFilteredGlobalTableFunctionState() = default;
+    ReadHopFilteredGlobalTableFunctionState(ReadBaseGlobalTableFunctionState& gstate) : HopBaseGlobalTableFunctionState(gstate) {}; 
+
     size_t MoveBaseReaders(size_t state_ind, bool force = false) {
-        if ((cur_idx == state_ind || force) && !vertexes.empty()) {
+        DUCKDB_GRAPHAR_LOG_TRACE("ReadHopFilteredGlobalTableFunctionState::MoveBaseReaders");
+
+        if (cur_idx < state_ind) {
+            DUCKDB_GRAPHAR_LOG_WARN("state_index(" + std::to_string(state_ind) + ") > cur_index(" + std::to_string(cur_idx) + "): ");
+        }
+
+        if (cur_idx == state_ind || force) {
             if (cur_idx == next_hop_idx) {
                 storage_state = false;
             }
-            cur_idx++;
-
             const auto prefix = graph_info->GetPrefix();
 
-            auto vid = vertexes.front();
-            vertexes.pop();
-            for (size_t i = 0; i < base_readers.size(); ++i) {
-                if (global_projected_inds[i].empty()) {
-                    continue;
+            auto num_ranges = base_readers[0].size();
+
+            for (size_t r = 0; r < num_ranges && !vertexes.empty(); ++r, ++cur_idx) {
+                if (storage_state && cur_idx == next_hop_idx) {
+                    break; // separate storage and non storage state 
                 }
 
-                auto& base_reader = base_readers[i];
-                std::visit(
-                    [&](auto& r) {
-                        if constexpr (requires { r->callQuery(vid); }) {
-                            r->callQuery(vid);
-                        } else {
-                            throw InternalException("callQuery not implemented for this reader");
-                        }
-                    },
-                    base_reader);
+                auto vid = vertexes.front();
+                vertexes.pop();
+
+                DUCKDB_GRAPHAR_LOG_DEBUG("use vid: " + std::to_string(vid) + " query: " + query_string);
+
+                for (size_t i = 0; i < base_readers.size(); ++i) {
+                    if (global_projected_inds[i].empty()) {
+                        continue;
+                    }
+
+                    std::visit(
+                        [&](auto& r) {
+                            if constexpr (requires { r->callQuery(vid); }) {
+                                r->callQuery(vid);
+                            } else {
+                                throw InternalException("callQuery not implemented for this reader");
+                            }
+                        },
+                    base_readers[i][r]);
+
+                }
             }
         }
         return cur_idx;
@@ -80,7 +98,6 @@ public:
         if (!query_filter.empty()) {
             query_string += " AND " + query_filter;
         }
-        DUCKDB_GRAPHAR_LOG_DEBUG(query_string);
     }
 
 private:
@@ -94,6 +111,10 @@ private:
 };
 
 class ReadHopFilteredLocalTableFunctionState : public ReadBaseLocalTableFunctionState {
+public:
+    ReadHopFilteredLocalTableFunctionState() = default;
+    ReadHopFilteredLocalTableFunctionState(ReadBaseLocalTableFunctionState& lstate) : ReadBaseLocalTableFunctionState(lstate) {};
+
 private:
     bool storage_state = true;
     
@@ -108,27 +129,31 @@ public:
     static unique_ptr<FunctionData> Bind(ClientContext& context, TableFunctionBindInput& input,
                                          vector<LogicalType>& return_types, vector<string>& names);
 
-    static BaseReaderPtr GetBaseReader(ClientContext& context, ReadHopFilteredGlobalTableFunctionState& gstate,
-                                       idx_t ind, const std::string& filter_column);
+    static BaseReaderPtr GetBaseReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate, idx_t ind,
+                                       const std::string& filter_column,
+                                       std::shared_ptr<graphar::SharedChunkCounter> counter = nullptr);
     static void SetFilter(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate, idx_t ind,
-                          const std::pair<int64_t, int64_t>& vid_range, const std::string& filter_column);
+                          const vector<std::pair<int64_t, int64_t>>& vid_ranges, const std::string& filter_column) {
+        throw NotImplementedException("SetFilter is not implemented for ReadHop");
+    }
     static ReaderPtr GetReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate,
                                ReadBaseLocalTableFunctionState& lstate, idx_t ind, const std::string& filter_column);
 
     static unique_ptr<BaseStatistics> GetStatistics(ClientContext& context, const FunctionData* bind_data,
-                                                    column_t column_index);
-
+                                                    column_t column_index) {
+        throw NotImplementedException("GetStatistics is not implemented for ReadHop");
+    }
     static void PushdownComplexFilter(ClientContext& context, LogicalGet& get, FunctionData* bind_data,
                                       vector<unique_ptr<Expression>>& filters);
 
     static TableFunctionSet GetFunctions();
     static TableFunction GetScanFunction();
     static void Execute(ClientContext& context, TableFunctionInput& input, DataChunk& output);
-    static unique_ptr<GlobalTableFunctionState> Init(ClientContext& context, TableFunctionInitInput& input);
+    static unique_ptr<GlobalTableFunctionState> InitWrapper(ClientContext& context, TableFunctionInitInput& input);
     static unique_ptr<LocalTableFunctionState> InitLocal(ExecutionContext& context, TableFunctionInitInput& input,
                                                          GlobalTableFunctionState* gstate_ptr);
     static void SetTableFuncionParams(TableFunction& fun) {
-        fun.init_global = Init;
+        fun.init_global = InitWrapper;
         fun.init_local = InitLocal;
 
         HopBase::SetFunctionParams(fun);
@@ -139,6 +164,9 @@ public:
         fun.pushdown_complex_filter = PushdownComplexFilter;
     }
     static void Register(ExtensionLoader& loader) { loader.RegisterFunction(GetFunctions()); }
+
+    template <bool lock>
+    static idx_t FetchRowsNum(ReadHopFilteredGlobalTableFunctionState& gstate, ReadHopFilteredLocalTableFunctionState& lstate);
 
     static std::string GetFunctionName() {
         return "read_hop_filtered";

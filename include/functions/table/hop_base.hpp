@@ -35,6 +35,22 @@ public:
 
 class HopBaseGlobalTableFunctionState : public ReadBaseGlobalTableFunctionState {
 public:
+    HopBaseGlobalTableFunctionState() = default;
+    HopBaseGlobalTableFunctionState(ReadBaseGlobalTableFunctionState &gstate) : ReadBaseGlobalTableFunctionState(gstate) {}
+
+    std::string vertexesToString() {
+        auto q = vertexes;
+
+        std::string _temp = "vertexes: size=" + std::to_string(q.size()) + "{";
+        while (!q.empty()) {
+            _temp += std::to_string(q.front()) + ",";
+            q.pop();
+        }
+        _temp += "}";
+        return _temp;
+    }
+
+public:
     std::shared_ptr<graphar::EdgeInfo> edge_info;
 
     std::mutex mtx;
@@ -168,19 +184,25 @@ public:
         }
     }
 
-    static void SetGlobalState(HopBaseBindData& bind_data, HopBaseGlobalTableFunctionState& gstate) {
+    static void SetGlobalState(const HopBaseBindData& bind_data, HopBaseGlobalTableFunctionState& gstate) {
         DUCKDB_GRAPHAR_LOG_TRACE("HopBase::SetGlobalState");
 
         gstate.graph_info = bind_data.GetGraphInfo();
         gstate.edge_info = bind_data.edge_info;
 
+        DUCKDB_GRAPHAR_LOG_DEBUG("HopBase::SetGlobalState: after info");
+        DUCKDB_GRAPHAR_LOG_DEBUG("HopBase::SetGlobalState: vids size="+ std::to_string(bind_data.vids.size()));
+
         for (auto& vid : bind_data.vids) {
+            DUCKDB_GRAPHAR_LOG_DEBUG("HopBase::SetGlobalState: vid="+ std::to_string(vid));
             gstate._vertexes.insert(vid);
+            DUCKDB_GRAPHAR_LOG_DEBUG("HopBase::SetGlobalState: vid="+ std::to_string(vid));
             if (gstate.vertexes.size() != gstate._vertexes.size()) {
                 gstate.vertexes.push(vid);
             }
         }
         gstate.next_hop_idx = gstate.vertexes.size();
+        DUCKDB_GRAPHAR_LOG_DEBUG("HopBase::SetGlobalState: dst_column_idx="+ std::to_string(bind_data.dst_column_idx));
         gstate.dst_column_idx = bind_data.dst_column_idx;
     }
 

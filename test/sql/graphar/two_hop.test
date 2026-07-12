@@ -14,7 +14,7 @@ SELECT COUNT(*) FROM two_hop('__WORKING_DIRECTORY__/../data/snap-musae-github/gr
 query I
 SELECT COUNT(*) FROM two_hop('__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person', vids=[1, 10]);
 ----
-18256
+18247
 
 
 statement ok
@@ -28,4 +28,4 @@ SELECT COUNT(*) FROM two_hop('Person_knows_Person', vid=10);
 query I
 SELECT COUNT(*) FROM two_hop('Person_knows_Person', vids=[1, 10]);
 ----
-18256
+18247

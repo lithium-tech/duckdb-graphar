@@ -21,27 +21,30 @@
 namespace duckdb {
 
 LogicalTypeId GraphArFunctions::graphArT2duckT(const std::string& name) {
+    if (name == "bool") return LogicalTypeId::BOOLEAN;
     if (name == "int32") return LogicalTypeId::INTEGER;
     if (name == "int64") return LogicalTypeId::BIGINT;
-    if (name == "string") return LogicalTypeId::VARCHAR;
     if (name == "float") return LogicalTypeId::FLOAT;
     if (name == "double") return LogicalTypeId::DOUBLE;
-    if (name == "bool") return LogicalTypeId::BOOLEAN;
+    if (name == "string") return LogicalTypeId::VARCHAR;
     if (name == "date") return LogicalTypeId::DATE;
+    if (name == "timestamp") return LogicalTypeId::TIMESTAMP;
+    if (name == "timestamp_tz") return LogicalTypeId::TIMESTAMP_TZ;
 
-    throw NotImplementedException("Unsupported type: " + name);
+    throw NotImplementedException("Unsupported type for conversion to duck: " + name);
 }
 
 std::shared_ptr<arrow::DataType> GraphArFunctions::graphArT2arrowT(const std::string& name) {
+    if (name == "bool") return arrow::boolean();
     if (name == "int32") return arrow::int32();
     if (name == "int64") return arrow::int64();
-    if (name == "string") return arrow::utf8();
     if (name == "float") return arrow::float32();
     if (name == "double") return arrow::float64();
-    if (name == "bool") return arrow::boolean();
+    if (name == "string") return arrow::utf8();
     if (name == "date") return arrow::date64();
+    if (name == "timestamp") return arrow::timestamp(arrow::TimeUnit::MILLI);
 
-    throw NotImplementedException("Unsupported type: " + name);
+    throw NotImplementedException("Unsupported type for conversion to arrow: " + name);
 }
 
 unique_ptr<ArrowTypeInfo> GraphArFunctions::graphArT2ArrowTypeInfo(const std::string& name) {
@@ -71,6 +74,11 @@ Value GraphArFunctions::ArrowScalar2DuckValue(const std::shared_ptr<arrow::Scala
         case arrow::Type::STRING:
         case arrow::Type::LARGE_STRING:
             return Value(static_cast<const arrow::StringScalar&>(*scalar).value->ToString());
+        case arrow::Type::DATE64:
+            return Value::DATE(date_t(static_cast<const arrow::Date64Scalar&>(*scalar).value));
+        case arrow::Type::TIMESTAMP: {
+            return Value::TIMESTAMP(timestamp_t(static_cast<const arrow::TimestampScalar&>(*scalar).value));
+        }
         default:
             throw duckdb::NotImplementedException("Arrow scalar type not supported: " + scalar->type->ToString());
     }

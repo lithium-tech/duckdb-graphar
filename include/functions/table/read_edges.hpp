@@ -22,9 +22,10 @@ public:
                                          vector<LogicalType>& return_types, vector<string>& names);
 
     static BaseReaderPtr GetBaseReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate, idx_t ind,
-                                       const std::string& filter_column);
+                                       const std::string& filter_column,
+                                       std::shared_ptr<graphar::SharedChunkCounter> counter = nullptr);
     static void SetFilter(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate, idx_t ind,
-                          const std::pair<int64_t, int64_t>& vid_range, const std::string& filter_column);
+                          const vector<std::pair<int64_t, int64_t>>& vid_ranges, const std::string& filter_column);
     static ReaderPtr GetReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate,
                                ReadBaseLocalTableFunctionState& lstate, idx_t ind, const std::string& filter_column);
 

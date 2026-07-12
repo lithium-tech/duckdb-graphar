@@ -30,6 +30,7 @@ public:
     }
 
     idx_t ReserveRowsToRead() {
+        throw NotImplementedException("ReserveRowsToRead is not implemented");
         if (NoMoreRows()) {
             auto gc_result = base->GetChunk();
             if (gc_result.no_more_chunks || gc_result.chunk == nullptr) {
@@ -42,31 +43,73 @@ public:
         return cur_chunk->size() - read_rows;
     }
 
-    const inline bool NoMoreRows() { return !cur_chunk || read_rows == cur_chunk->size(); }
+    const inline bool NoMoreRows() {
+        if (cur_chunk && read_rows < cur_chunk->size()) {
+            return false;
+        }
+        // if (cur_result) {
+        //     cur_chunk = cur_result->Fetch();
+        //     if (cur_chunk && cur_chunk->size() > 0) {
+        //         return false;
+        //     }
+        //     cur_result = nullptr;
+        // }
+        return true;
+    }
 
-    graphar::Result<unique_ptr<DataChunk>> GetChunk(idx_t num_rows) {
-        if (ReserveRowsToRead() == 0) {
+    graphar::Result<graphar::GetChunkFinalResult> GetChunk(idx_t num_rows) {
+        if (GetRowsNum() == 0) {
             throw graphar::Status::IndexError("No more chunks to read!");
         }
         if (num_rows > cur_chunk->size() - read_rows) {
-            throw graphar::Status::IndexError("Can't read this many rows");
+            throw graphar::Status::IndexError("Could read at most " + std::to_string(cur_chunk->size() - read_rows) +
+                                              " rows, but " + std::to_string(num_rows) + " were requested");
         }
-        auto res = make_uniq<DataChunk>();
+        auto res = duckdb::make_uniq<duckdb::DataChunk>();
         res->Initialize(context, cur_chunk->GetTypes());
         res->Reference(*cur_chunk);
         res->Slice(read_rows, num_rows);
         read_rows += num_rows;
-        return res;
+        cur_read_idx++;
+        return std::make_pair(std::move(res), GetChunkIdx(0, cur_read_idx));
     }
 
-    void SelectColumns(std::vector<column_t> proj_columns_) { proj_columns = std::move(proj_columns_); }
+    bool CheckIfNewFileNeeded() { return NoMoreRows(); }
 
+    void AcquirePathUnderLock() { throw NotImplementedException("AcquirePathUnderLock is not implemented"); }
+
+    void SelectColumns(std::vector<duckdb::column_t> proj_columns_) { 
+        DUCKDB_GRAPHAR_LOG_TRACE("DuckQueryChunkReader::SelectColumns");
+        std::string _temp = "proj_cols: size=" + std::to_string(proj_columns_.size()) + ": ";
+        for (auto& col : proj_columns_) {
+            _temp += std::to_string(col) + ' ';
+        }
+        DUCKDB_GRAPHAR_LOG_WARN("ignore: " + _temp);
+     }
+
+    idx_t GetRowsNum() {
+        if (NoMoreRows()) {
+            auto gc_result = base->GetChunk();
+            if (gc_result.no_more_chunks || gc_result.chunk == nullptr) {
+                return 0;
+            }
+            read_rows = 0;
+            cur_read_idx = 0;
+            cur_chunk = std::move(gc_result.chunk);
+        }
+
+        return cur_chunk->size() - read_rows;
+    }
 private:
-    std::vector<column_t> proj_columns;
     ClientContext& context;
     std::shared_ptr<graphar::TSQueryChunkReader> base;
-    idx_t read_rows = 0;
-    unique_ptr<DataChunk> cur_chunk = nullptr;
+
+    duckdb::idx_t read_rows = 0;
+    duckdb::unique_ptr<duckdb::DataChunk> cur_chunk = nullptr;
+    duckdb::idx_t cur_read_idx = 0;
+    // duckdb::unique_ptr<duckdb::QueryResult> cur_result = nullptr;
+    duckdb::idx_t cur_result_idx = 0;
+    bool next_acquired = false;
 };
 
 }  // namespace duckdb

@@ -1,4 +1,5 @@
 #include "readers/duck_chunk_reader.hpp"
+#include "utils/global_log_manager.hpp"
 
 namespace {
 constexpr std::string_view SQL_SELECT_CLAUSE = "SELECT";
@@ -9,12 +10,14 @@ constexpr std::string_view SQL_LIMIT_CLAUSE = "LIMIT";
 constexpr std::string_view SQL_OFFSET_CLAUSE = "OFFSET";
 constexpr std::string_view READ_PARQUET_FUNCTION = "read_parquet";
 constexpr std::string_view FILE_ROW_NUMBER_CLAUSE = "file_row_number";
+constexpr std::string_view SQL_ORDER_BY_CLAUSE = "ORDER BY file_row_number";
 }  // namespace
 
 namespace duckdb {
 
 std::string QueryStringConstructor::GetMainQueryString(const std::vector<column_t>& proj_columns,
                                                        std::pair<int64_t, int64_t> range) {
+    DUCKDB_GRAPHAR_LOG_TRACE("QueryStringConstructor::GetMainQueryString");
     QueryType query_type = QueryType::MIDDLE;
     if (range.first != -1 && range.second != -1) {
         query_type = QueryType::SINGLE;

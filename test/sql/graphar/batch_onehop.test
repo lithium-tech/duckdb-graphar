@@ -1,0 +1,196 @@
+require duckdb_graphar
+
+statement ok
+SET autoinstall_known_extensions=1;
+
+statement ok
+SET autoload_known_extensions=1;
+
+statement ok
+ATTACH '__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml' as test_db (type duckdb_graphar);
+
+query I
+SELECT id FROM 'Person' WHERE _graphArVertexIndex IN [5, 5];
+----
+5
+
+query I
+SELECT COUNT(*) FROM 'Person' WHERE _graphArVertexIndex IN [10, 10, 10, 10];
+----
+1
+
+query I
+SELECT COUNT(*) FROM 'Person' WHERE _graphArVertexIndex IN [-1, 5];
+----
+1
+
+query I
+SELECT COUNT(*) FROM 'Person' WHERE _graphArVertexIndex IN [-10, -5, -1];
+----
+0
+
+query I
+SELECT id FROM 'Person' WHERE _graphArVertexIndex IN [-3, 0, 3] ORDER BY id;
+----
+0
+3
+
+query I
+SELECT COUNT(*) FROM 'Person' WHERE _graphArVertexIndex IN [37700, 5];
+----
+1
+
+query I
+SELECT COUNT(*) FROM 'Person' WHERE _graphArVertexIndex IN [37700, 37701, 37702];
+----
+0
+
+query I
+SELECT COUNT(*) FROM 'Person' WHERE _graphArVertexIndex IN [37699, 37700, 0, 50000];
+----
+2
+
+query I
+SELECT id FROM 'Person' WHERE _graphArVertexIndex IN [1, 2] AND _graphArVertexIndex IN [2, 3];
+----
+2
+
+query I
+SELECT COUNT(*) FROM 'Person' WHERE _graphArVertexIndex IN [1, 2] AND _graphArVertexIndex IN [5, 6];
+----
+0
+
+query I
+SELECT id FROM 'Person' WHERE _graphArVertexIndex IN [0, 1, 2] AND _graphArVertexIndex IN [1, 2, 3] AND _graphArVertexIndex IN [2, 3, 4];
+----
+2
+
+query I
+SELECT COUNT(*) FROM 'Person' WHERE _graphArVertexIndex IN [999999];
+----
+0
+
+query I
+SELECT COUNT(*) FROM 'Person' WHERE _graphArVertexIndex IN [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
+----
+20
+
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArSrcIndex IN [1, 1];
+----
+8
+
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArSrcIndex IN [5, 5, 5, 5];
+----
+1
+
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArSrcIndex IN [-1, 5];
+----
+1
+
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArSrcIndex IN [-10, -5, -1];
+----
+0
+
+query II
+SELECT _graphArSrcIndex, _graphArDstIndex FROM 'Person_knows_Person' WHERE _graphArSrcIndex IN [-3, 0, 3] ORDER BY _graphArSrcIndex, _graphArDstIndex;
+----
+0	23977
+3	3358
+3	4950
+3	5916
+3	18029
+3	34935
+
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArSrcIndex IN [37700, 5];
+----
+1
+
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArSrcIndex IN [37700, 37701, 37702];
+----
+0
+
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArSrcIndex IN [1, 2] AND _graphArSrcIndex IN [2, 3];
+----
+1
+
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArSrcIndex IN [1, 2] AND _graphArSrcIndex IN [100, 101];
+----
+0
+
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArDstIndex IN [23977, 23977];
+----
+23
+
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArDstIndex IN [3358, 3358, 3358];
+----
+4
+
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArDstIndex IN [-1, 23977];
+----
+23
+
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArDstIndex IN [-10, -5, -1];
+----
+0
+
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArDstIndex IN [999999, 23977];
+----
+23
+
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArDstIndex IN [999999, 999998];
+----
+0
+
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArDstIndex IN [23977, 3358] AND _graphArDstIndex IN [3358, 4950];
+----
+4
+
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArSrcIndex IN [0, 1] AND _graphArDstIndex IN [23977, 34526];
+----
+2
+
+query I
+SELECT COUNT(*) FROM 'Person' WHERE _graphArVertexIndex IN [0, 1, 2] AND ml_target = true;
+----
+1
+
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArSrcIndex IN [0, 1];
+----
+9
+
+query I
+SELECT id FROM 'Person' WHERE _graphArVertexIndex IN [0];
+----
+0
+
+query I
+SELECT COUNT(*) FROM 'Person' WHERE _graphArVertexIndex IN [37699];
+----
+1
+
+query I
+SELECT COUNT(*) FROM 'Person' WHERE _graphArVertexIndex IN [37698, 37699, 37700];
+----
+2
+
+query I
+SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArSrcIndex IN (0, 1) AND _graphArDstIndex IN (23977, 34526);
+----
+2
