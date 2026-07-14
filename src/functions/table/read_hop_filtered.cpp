@@ -202,7 +202,6 @@ unique_ptr<GlobalTableFunctionState> ReadHopFiltered::InitWrapper(ClientContext&
         DUCKDB_GRAPHAR_LOG_WARN(ss.str());
     }
 
-
     return gstate_ptr;
 }
 //-------------------------------------------------------------------
@@ -222,8 +221,8 @@ unique_ptr<LocalTableFunctionState> ReadHopFiltered::InitLocal(ExecutionContext&
     lstate.readers.resize(prop_types_size);
 
     auto conn = std::make_shared<Connection>(*context.client.db);
-    auto edge_reader =
-        DuckEdgeReader::Make(conn, bind_data.GetFullTableName(), gstate.graph_info_path, gstate.edge_info, gstate.query_filter);
+    auto edge_reader = DuckEdgeReader::Make(conn, bind_data.GetFullTableName(), gstate.graph_info_path,
+                                            gstate.edge_info, gstate.query_filter);
     if (edge_reader.has_error()) {
         throw InternalException("Failed to create edge reader: |" + edge_reader.status().message() + "|");
     }
@@ -343,8 +342,6 @@ void ReadHopFiltered::Execute(ClientContext& context, TableFunctionInput& input,
                 continue;
             }
 
-
-
             auto gc_result_final = GetChunk(lstate.readers[i], num_rows);
             lstate.cur_chunks[i] = std::move(gc_result_final.first);
 
@@ -359,7 +356,8 @@ void ReadHopFiltered::Execute(ClientContext& context, TableFunctionInput& input,
                 if (!gstate.dst_column_found && gstate.special_dst.first == i && gstate.special_dst.second == j) {
                     continue;
                 }
-                DUCKDB_GRAPHAR_LOG_DEBUG(chunk_name + " try i" + std::to_string(i) + " j" + std::to_string(j) + ": " + std::to_string(gstate.global_projected_inds[i][j]));
+                DUCKDB_GRAPHAR_LOG_DEBUG(chunk_name + " try i" + std::to_string(i) + " j" + std::to_string(j) + ": " +
+                                         std::to_string(gstate.global_projected_inds[i][j]));
                 output.data[gstate.global_projected_inds[i][j]].Reference(lstate.cur_chunks[i]->data[j]);
             }
         }

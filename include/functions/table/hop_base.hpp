@@ -261,8 +261,7 @@ public:
             DUCKDB_GRAPHAR_LOG_WARN("HopBase::SetGlobalState: EMPTY column_ids");
             column_idx = gstate.dst_column_idx;
         } else {
-            auto column_it =
-                std::find(gstate.column_ids.begin(), gstate.column_ids.end(), gstate.dst_column_idx);
+            auto column_it = std::find(gstate.column_ids.begin(), gstate.column_ids.end(), gstate.dst_column_idx);
             if (column_it == gstate.column_ids.end()) {
                 throw InternalException("dst_column_idx(" + std::to_string(gstate.dst_column_idx) +
                                         ") not found in column_ids");
