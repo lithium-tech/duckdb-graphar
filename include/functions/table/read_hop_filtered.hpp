@@ -2,6 +2,7 @@
 
 #include "functions/table/read_base.hpp"
 #include "functions/table/hop_base.hpp"
+#include "readers/duck_read_edges_reader.hpp"
 
 #include <duckdb/common/named_parameter_map.hpp>
 #include <duckdb/function/table/arrow/arrow_duck_schema.hpp>
@@ -103,6 +104,8 @@ public:
 private:
     bool storage_state = true;
 
+    std::pair<size_t, size_t> special_dst = {-1, -1};
+
     std::string query_string;
     std::string query_filter;
     std::string graph_info_path;
@@ -117,6 +120,7 @@ public:
 
 private:
     bool storage_state = true;
+    std::shared_ptr<DuckEdgeReader> edge_reader;
     
     size_t cur_idx;
 

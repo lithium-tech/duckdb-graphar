@@ -35,7 +35,7 @@ public:
 
     void MoveReader(TwoHopGlobalTableFunctionState &gstate) {
         DUCKDB_GRAPHAR_LOG_TRACE("TwoHopLocalTableFunctionState::MoveReader");
-        std::lock_guard<std::mutex> lock(gstate.mtx);
+        std::lock_guard<std::mutex> lock(gstate.lock);
 
         if (!gstate.vertexes.empty()) {
             cur_idx = gstate.cur_idx++;

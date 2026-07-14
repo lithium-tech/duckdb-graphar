@@ -11,6 +11,9 @@
 #include <graphar/graph_info.h>
 
 namespace duckdb {
+
+enum class DirectionType { DIRECTED, REVERSED };
+
 class HopBaseBindData : public ReadBindData {
 public:
     HopBaseBindData() = default;
@@ -28,6 +31,7 @@ public:
     std::string schema_name;
     std::string table_name;
 
+    DirectionType direction_type = DirectionType::DIRECTED;
     column_t dst_column_idx;
 
     friend class HopBase;
@@ -41,23 +45,25 @@ public:
     std::string vertexesToString() {
         auto q = vertexes;
 
-        std::string _temp = "vertexes: size=" + std::to_string(q.size()) + "{";
+        std::ostringstream ss;
+        ss <<  "vertexes: size=" << q.size() << " {";
         while (!q.empty()) {
-            _temp += std::to_string(q.front()) + ",";
+            ss << q.front() << ",";
             q.pop();
         }
-        _temp += "}";
-        return _temp;
+        ss << "}";
+        return ss.str();
     }
 
 public:
     std::shared_ptr<graphar::EdgeInfo> edge_info;
 
-    std::mutex mtx;
     std::queue<graphar::IdType> vertexes;
     std::unordered_set<graphar::IdType> _vertexes;
     size_t cur_idx = 0;
     size_t next_hop_idx;
+
+    DirectionType direction_type = DirectionType::DIRECTED;
     column_t dst_column_idx;
     bool dst_column_found;
 
@@ -203,6 +209,7 @@ public:
         }
         gstate.next_hop_idx = gstate.vertexes.size();
         DUCKDB_GRAPHAR_LOG_DEBUG("HopBase::SetGlobalState: dst_column_idx="+ std::to_string(bind_data.dst_column_idx));
+        gstate.direction_type = bind_data.direction_type;
         gstate.dst_column_idx = bind_data.dst_column_idx;
     }
 

@@ -206,11 +206,13 @@ idx_t ReadHop::FetchRowsNum(ReadHopGlobalTableFunctionState& gstate, ReadHopLoca
                 if (IsNullPtr(reader)) continue;
                 AcquirePathUnderLock(reader);
             }
+            lstate.storage_state = gstate.storage_state;
         } else {
             for (auto& reader : lstate.readers) {
                 if (IsNullPtr(reader)) continue;
                 AcquirePathUnderLock(reader);
             }
+            lstate.storage_state = gstate.storage_state;
         }
     }
 
@@ -244,7 +246,6 @@ void ReadHop::Execute(ClientContext& context, TableFunctionInput& input, DataChu
             }
             num_rows = FetchRowsNum<false>(gstate, lstate);
         }
-        lstate.storage_state = gstate.storage_state;
     }
 
     DUCKDB_GRAPHAR_LOG_DEBUG(chunk_name + "num rows final: " + std::to_string(num_rows));

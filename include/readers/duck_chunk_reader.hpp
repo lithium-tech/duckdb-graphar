@@ -36,16 +36,12 @@ public:
     explicit DuckParquetFileReader(std::shared_ptr<duckdb::Connection> conn_) : conn(conn_) {}
     unique_ptr<QueryResult> ReadFileToTable(const std::string& path, const std::vector<duckdb::column_t>& proj_columns,
                                             std::pair<int64_t, int64_t> range = {-1, -1}) {
-        DUCKDB_GRAPHAR_LOG_TRACE("DuckParquetFileReader::ReadFileToTable");
         auto query_string = query_string_constructor.GetMainQueryString(proj_columns, range);
-        DUCKDB_GRAPHAR_LOG_DEBUG("::RFTT GetMainQueryString " + query_string + " | " + path);
         conn->Interrupt();
         auto query_result = conn->Query(query_string, Value(path));
         if (query_result->HasError()) {
-            DUCKDB_GRAPHAR_LOG_DEBUG("::RFTT error");
             throw std::runtime_error(query_result->GetError());
         }
-        DUCKDB_GRAPHAR_LOG_DEBUG("::RFTT success");
         return query_result;
     }
 

@@ -1,6 +1,7 @@
 #pragma once
 
-#include "readers/query_reader.hpp"
+// #include "readers/query_reader.hpp"
+#include "readers/vids_reader.hpp"
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
 
@@ -41,7 +42,7 @@ concept IsEdgeReader =
     std::is_same_v<T, AdjListChunkInfoReader> || std::is_same_v<T, AdjListPropertyChunkInfoReader>;
 
 template <typename T>
-concept IsQueryReader = std::is_same_v<T, duckdb::QueryChunkReader>;
+concept IsVidsReader = std::is_same_v<T, VidsChunkReader>;
 
 struct SharedChunkCounter {
     std::atomic<duckdb::idx_t> global_chunk_count{0};
@@ -148,17 +149,10 @@ public:
         filter_info->total_chunks = (offset_pair.second - 1) / chunk_size - offset_pair.first / chunk_size + 1;
     }
 
-    template <typename... Args>
-    void callQuery(Args&&... args)
-    requires IsQueryReader<StoredReader>
+    void Init(duckdb::HopBaseGlobalTableFunctionState* gstate_ptr)
+    requires IsVidsReader<StoredReader>
     {
-        reader->callQuery(std::forward<Args>(args)...);
-    }
-
-    void updateQuery(std::string &query_string)
-    requires IsQueryReader<StoredReader>
-    {
-        reader->updateQuery(query_string);
+        reader->Init(gstate_ptr);
     }
 
     void PrintFilterInfo() {
@@ -187,6 +181,7 @@ using TSAdjListPropertyArrowChunkReader = ThreadSafeReader<AdjListPropertyArrowC
 using TSVertexPropertyChunkInfoReader = ThreadSafeReader<VertexPropertyChunkInfoReader>;
 using TSAdjListChunkInfoReader = ThreadSafeReader<AdjListChunkInfoReader>;
 using TSAdjListPropertyChunkInfoReader = ThreadSafeReader<AdjListPropertyChunkInfoReader>;
-using TSQueryChunkReader = ThreadSafeReader<duckdb::QueryChunkReader>;
+// using TSQueryChunkReader = ThreadSafeReader<duckdb::QueryChunkReader>;
+using TSVidsChunkReader = ThreadSafeReader<VidsChunkReader>;
 
 }  // namespace graphar

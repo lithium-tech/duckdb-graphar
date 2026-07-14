@@ -4,6 +4,7 @@
 #include "readers/duck_arrow_chunk_reader.hpp"
 #include "readers/duck_chunk_reader.hpp"
 #include "readers/duck_query_reader.hpp"
+#include "readers/duck_read_edges_reader.hpp"
 #include "utils/benchmark.hpp"
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
@@ -43,19 +44,24 @@
 
 #include <cxxabi.h>
 
+namespace graphar {
+    using TSVidsChunkReader = ThreadSafeReader<VidsChunkReader>;
+}
+
 namespace duckdb {
 
 using BaseReaderPtr = std::variant<
     std::shared_ptr<graphar::TSVertexPropertyChunkInfoReader>, std::shared_ptr<graphar::TSAdjListChunkInfoReader>,
     std::shared_ptr<graphar::TSAdjListPropertyChunkInfoReader>,
     std::shared_ptr<graphar::TSVertexPropertyArrowChunkReader>, std::shared_ptr<graphar::TSAdjListArrowChunkReader>,
-    std::shared_ptr<graphar::TSAdjListPropertyArrowChunkReader>, std::shared_ptr<graphar::TSQueryChunkReader>>;
+    std::shared_ptr<graphar::TSAdjListPropertyArrowChunkReader>, 
+    std::shared_ptr<graphar::TSVidsChunkReader>>;
 
 using ReaderPtr = std::variant<
     std::shared_ptr<graphar::DuckVertexPropertyArrowChunkReader>, std::shared_ptr<graphar::DuckAdjListArrowChunkReader>,
     std::shared_ptr<graphar::DuckAdjListPropertyArrowChunkReader>,
     std::shared_ptr<graphar::DuckVertexPropertyChunkReader>, std::shared_ptr<graphar::DuckAdjListChunkReader>,
-    std::shared_ptr<graphar::DuckAdjListPropertyChunkReader>, std::shared_ptr<graphar::DuckQueryChunkReader>>;
+    std::shared_ptr<graphar::DuckAdjListPropertyChunkReader>, std::shared_ptr<graphar::DuckReadEdgesChunkReader>>;
 
 template <typename SomeReader>
 BaseReaderPtr ConvertBaseReader(graphar::Result<std::shared_ptr<SomeReader>> maybe_reader,
@@ -158,10 +164,28 @@ static std::string DemangleTypeName(const char* mangled) {
     return result;
 }
 
+static void CopyVidFrom(ReaderPtr& readerSrc, ReaderPtr& readerDst) {
+    std::visit(
+        [&readerSrc](auto& dst_ptr) {
+            std::visit(
+                [&dst_ptr](auto& src_ptr) {
+                    if constexpr (requires { dst_ptr->CopyVidFrom(*src_ptr); }) {
+                        dst_ptr->CopyVidFrom(*src_ptr); 
+                    } else {
+                        DUCKDB_GRAPHAR_LOG_DEBUG("CopyVidFrom not support reader type: " + 
+                            DemangleTypeName(typeid(dst_ptr).name()) + '\n' + 
+                            DemangleTypeName(typeid(src_ptr).name())); 
+                    }
+                },
+                readerSrc
+            );
+        },
+        readerDst);
+}
+
 static idx_t GetRowsNum(ReaderPtr& reader) {
     DUCKDB_GRAPHAR_LOG_DEBUG("GetRowsNum function");
     return std::visit([&](auto& r) -> idx_t {
-        DUCKDB_GRAPHAR_LOG_DEBUG("GetRowsNum reader type: " + DemangleTypeName(typeid(r).name()));
         return r->GetRowsNum();
     }, reader);
 }
@@ -170,11 +194,8 @@ static void Reset(ReaderPtr& reader) {
     DUCKDB_GRAPHAR_LOG_TRACE("Reset function");
 
     return std::visit([&](auto& r) { 
-        DUCKDB_GRAPHAR_LOG_DEBUG("Reset reader type: " + DemangleTypeName(typeid(r).name()));
-
         if constexpr (requires { r->Reset(); }) {
             r->Reset();
-            DUCKDB_GRAPHAR_LOG_DEBUG("Reset reader type: " + DemangleTypeName(typeid(r).name()) + " success");
         } else {
             throw InternalException("Reset not implemented for this reader: " + DemangleTypeName(typeid(r).name()));
         }
@@ -182,7 +203,6 @@ static void Reset(ReaderPtr& reader) {
 }
 
 static idx_t ReserveRowsToRead(ReaderPtr& reader) {
-    // DUCKDB_GRAPHAR_LOG_DEBUG("ReserveRowsToRead function");
     return std::visit([&](auto& r) { 
         if constexpr (requires { r->ReserveRowsToRead(); }) {
             return r->ReserveRowsToRead();
@@ -195,7 +215,6 @@ static idx_t ReserveRowsToRead(ReaderPtr& reader) {
 static void SelectColumns(ReaderPtr& reader, std::vector<column_t> proj_columns) {
     return std::visit([&](auto& r) { r->SelectColumns(proj_columns); }, reader);
 }
-
 
 static std::string GetReaderName(ReaderPtr& reader) {
     return std::visit([&](auto& r) { return DemangleTypeName(typeid(r).name()); }, reader);

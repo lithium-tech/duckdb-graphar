@@ -74,11 +74,11 @@ BaseReaderPtr ReadHopFiltered::GetBaseReader(ClientContext& context, ReadBaseGlo
     DUCKDB_GRAPHAR_LOG_TRACE("ReadHopFiltered::GetBaseReader");
     auto& gstate_hop = gstate.Cast<ReadHopFilteredGlobalTableFunctionState>();
 
-    auto conn = std::make_shared<Connection>(*context.db);
-    auto query_base_reader = QueryChunkReader::Make(std::move(conn), gstate_hop.query_string);
-    BaseReaderPtr base_reader = ConvertBaseReader(query_base_reader, counter);
+    auto vids_reader = graphar::VidsChunkReader::Make();
+    // auto conn = std::make_shared<Connection>(*context.db);
+    // auto query_base_reader = QueryChunkReader::Make(std::move(conn), gstate_hop.query_string);
 
-    return base_reader;
+    return ConvertBaseReader(vids_reader, counter);
 }
 //-------------------------------------------------------------------
 // GetReader
@@ -86,8 +86,17 @@ BaseReaderPtr ReadHopFiltered::GetBaseReader(ClientContext& context, ReadBaseGlo
 ReaderPtr ReadHopFiltered::GetReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate,
                              ReadBaseLocalTableFunctionState& lstate, idx_t ind, const std::string& filter_column) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadHopFiltered::GetReader");
-    auto base_reader = std::get<std::shared_ptr<graphar::TSQueryChunkReader>>(gstate.base_readers[ind][0]);
-    return ConvertReader(graphar::DuckQueryChunkReader::Make(context, base_reader));
+    auto& lstate_hop = lstate.Cast<ReadHopFilteredLocalTableFunctionState>();
+    
+    // auto base_reader = std::get<std::shared_ptr<graphar::TSQueryChunkReader>>(gstate.base_readers[ind][0]);
+    // return ConvertReader(graphar::DuckQueryChunkReader::Make(context, base_reader));
+    std::vector<std::shared_ptr<graphar::TSVidsChunkReader>> base_readers;
+    base_readers.reserve(gstate.base_readers[ind].size());
+    for (const auto& base_reader : gstate.base_readers[ind]) {
+        base_readers.push_back(std::get<std::shared_ptr<graphar::TSVidsChunkReader>>(base_reader));
+    }
+
+    return ConvertReader(graphar::DuckReadEdgesChunkReader::Make(context, lstate_hop.edge_reader, base_readers));
 }
 //-------------------------------------------------------------------
 // PushdownComplexFilter
@@ -156,22 +165,44 @@ unique_ptr<GlobalTableFunctionState> ReadHopFiltered::InitWrapper(ClientContext&
     gstate.query_filter = bind_data.query_filter;
     gstate.graph_info_path = bind_data.graph_info_path;
 
-    gstate.GenerateQuery(bind_data);
+    auto column_it = std::find(gstate.column_ids.begin(), gstate.column_ids.end(), gstate.dst_column_idx);
+    if (column_it == gstate.column_ids.end()) {
+        throw InternalException("dst_column_idx(" + std::to_string(gstate.dst_column_idx) + ") not found in column_ids");
+    }
+
+    auto column_i = std::distance(gstate.column_ids.begin(), column_it);
+
+    auto columns_pref_num = 0;
+    for (auto pg_i = 0; pg_i < gstate.prop_types.size(); columns_pref_num += gstate.prop_types[pg_i].size(), ++pg_i) {
+        if (columns_pref_num > gstate.dst_column_idx || gstate.dst_column_idx >= columns_pref_num + gstate.prop_types[pg_i].size()) {
+            continue;
+        }
+        
+        auto projected_ind = gstate.dst_column_idx - columns_pref_num;
+        if (!bind_data.pg_for_id && pg_i > 0) {
+            projected_ind += bind_data.id_columns_num;
+        }
+
+        auto global_projected_i = std::find(gstate.global_projected_inds[pg_i].begin(), gstate.global_projected_inds[pg_i].end(), column_i);
+        if (global_projected_i == gstate.global_projected_inds[pg_i].end()) {
+            throw InternalException("Column DST " + std::to_string(gstate.dst_column_idx) + " not found in the global projected inds");
+        }
+        gstate.special_dst = {pg_i, global_projected_i - gstate.global_projected_inds[pg_i].begin()}; 
+    }
+
     for (auto &base_readers : gstate.base_readers) {
         for (auto &base_reader : base_readers) {
             std::visit(
-                [&](auto& r) {
-                    if constexpr (requires { r->updateQuery(gstate.query_string); }) {
-                        r->updateQuery(gstate.query_string);
+                [&gstate_ptr](auto& r) {
+                    if constexpr (requires { r->Init(gstate_ptr.get()); }) {
+                        r->Init(gstate_ptr.get());
                     } else {
-                        throw InternalException("callQuery not implemented for this reader");
+                        throw InternalException("Init not implemented for this reader " + DemangleTypeName(typeid(r).name()));
                     }
                 },
             base_reader);
         }
     }
-
-    gstate.MoveBaseReaders(0, true);
 
     return gstate_ptr;
 }
@@ -179,28 +210,33 @@ unique_ptr<GlobalTableFunctionState> ReadHopFiltered::InitWrapper(ClientContext&
 // InitLocal
 //-------------------------------------------------------------------
 unique_ptr<LocalTableFunctionState> ReadHopFiltered::InitLocal(ExecutionContext& context, TableFunctionInitInput& input,
-                                                       GlobalTableFunctionState* gstate_ptr) {
+                                                               GlobalTableFunctionState* gstate_ptr) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadHopFiltered::InitLocal");
-    auto bind_data = input.bind_data->Cast<ReadBindData>();
+    auto bind_data = input.bind_data->Cast<ReadHopFilteredBindData>();
 
     auto lstate_ptr = make_uniq<ReadHopFilteredLocalTableFunctionState>();
     auto& lstate = *lstate_ptr;
     auto& gstate = gstate_ptr->Cast<ReadHopFilteredGlobalTableFunctionState>();
 
-    lstate.cur_idx = gstate.cur_idx;
     const auto prop_types_size = gstate.prop_types.size();
     lstate.cur_chunks.resize(prop_types_size);
     lstate.readers.resize(prop_types_size);
 
+    auto conn = std::make_shared<Connection>(*context.client.db);
+    auto edge_reader = DuckEdgeReader::Make(conn, bind_data.full_table_name(), gstate.graph_info_path, gstate.edge_info);
+    if (edge_reader.has_error()) {
+        throw InternalException("Failed to create edge reader: |" + edge_reader.status().message() + "|");
+    }
+    
+    lstate.edge_reader = edge_reader.value();
+
     for (idx_t i = 0; i < prop_types_size; ++i) {
-        if (gstate.local_projected_inds[i].empty()) {
+        if (gstate.global_projected_inds[i].empty()) {
             continue;
         }
         lstate.readers[i] = std::move(GetReader(context.client, gstate, lstate, i, gstate.filter_column));
+        SelectColumns(lstate.readers[i], gstate.global_projected_inds[i]);
     }
-
-    lstate.cur_idx = gstate.cur_idx;
-    lstate.storage_state = gstate.storage_state;
 
     return lstate_ptr;
 }
@@ -211,32 +247,56 @@ template <bool notLocked>
 idx_t ReadHopFiltered::FetchRowsNum(ReadHopFilteredGlobalTableFunctionState& gstate, ReadHopFilteredLocalTableFunctionState& lstate) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadHopFiltered::FetchRowsNum");
 
-    idx_t num_rows = STANDARD_VECTOR_SIZE;
-    if constexpr (notLocked) {
-        bool needs_new_file = false;
-        for (auto& reader : lstate.readers) {
-            if (IsNullPtr(reader)) continue;
-            if (CheckIfNewFileNeeded(reader)) {
-                needs_new_file = true;
+    bool found_reader = false;
+    bool needs_new_file = false;
+    for (auto& reader : lstate.readers) {
+        if (IsNullPtr(reader)) continue;
+        if (found_reader) {
+            if (CheckIfNewFileNeeded(reader) != needs_new_file) {
+                throw InternalException("All readers should have the same needs_new_file status");
             }
-        }
-
-        DUCKDB_GRAPHAR_LOG_DEBUG("RHF::FetchRowsNum Need new file = " + std::to_string(needs_new_file));
-        if (needs_new_file) {
-            std::lock_guard<std::mutex> guard(gstate.lock);
-
-            for (auto& reader : lstate.readers) {
-                if (IsNullPtr(reader)) continue;
-                num_rows = std::min(num_rows, GetRowsNum(reader));
-            }
-            return num_rows;
+        } else {
+            found_reader = true;
+            needs_new_file = CheckIfNewFileNeeded(reader);
         }
     }
 
+    if (needs_new_file) {
+        size_t first_reader;
+        found_reader = false;
+        if constexpr (notLocked) {
+            std::lock_guard<std::mutex> guard(gstate.lock);
+
+            for (size_t i = 0; i < lstate.readers.size(); ++i) {
+                if (IsNullPtr(lstate.readers[i])) continue;
+                if (!found_reader) {
+                    first_reader = i;
+                    found_reader = true;
+                    AcquirePathUnderLock(lstate.readers[i]);
+                } else {
+                    CopyVidFrom(lstate.readers[first_reader], lstate.readers[i]);
+                }
+            }
+        } else {
+            for (size_t i = 0; i < lstate.readers.size(); ++i) {
+                if (IsNullPtr(lstate.readers[i])) continue;
+                if (!found_reader) {
+                    first_reader = i;
+                    found_reader = true;
+                    AcquirePathUnderLock(lstate.readers[i]);
+                } else {
+                    CopyVidFrom(lstate.readers[first_reader], lstate.readers[i]);
+                }
+            }
+        }
+    }
+
+    idx_t num_rows = STANDARD_VECTOR_SIZE;
     for (auto& reader : lstate.readers) {
         if (IsNullPtr(reader)) continue;
         num_rows = std::min(num_rows, GetRowsNum(reader));
     }
+
     return num_rows;
 }
 void ReadHopFiltered::Execute(ClientContext& context, TableFunctionInput& input, DataChunk& output) {
@@ -254,10 +314,10 @@ void ReadHopFiltered::Execute(ClientContext& context, TableFunctionInput& input,
     if (num_rows == 0) {
         std::lock_guard<std::mutex> guard(gstate.lock);
         while (!gstate.vertexes.empty() && num_rows == 0) {
-            lstate.cur_idx = gstate.MoveBaseReaders(lstate.cur_idx);
+            // lstate.cur_idx = gstate.MoveBaseReaders(lstate.cur_idx);
             num_rows = FetchRowsNum<false>(gstate, lstate);
         }
-        lstate.storage_state = gstate.storage_state;
+        // lstate.storage_state = gstate.storage_state;
     }
 
     DUCKDB_GRAPHAR_LOG_DEBUG(chunk_name + " num rows final: " + std::to_string(num_rows));
@@ -279,21 +339,17 @@ void ReadHopFiltered::Execute(ClientContext& context, TableFunctionInput& input,
                 throw InternalException("Desynchronization error: Property Groups returned different chunk IDs!");
             }
 
-            if (gstate.dst_column_found) {
-                output.Reference(*lstate.cur_chunks[i]);
-            } else {
-                for (idx_t j = 0; j < lstate.cur_chunks[i]->ColumnCount(); ++j) {
-                    if (j == gstate.dst_column_idx) {
-                        continue;
-                    }
-                    output.data[j].Reference(lstate.cur_chunks[i]->data[j]);
+            for (idx_t j = 0; j < lstate.cur_chunks[i]->ColumnCount(); ++j) {
+                if (!gstate.dst_column_found && gstate.special_dst.first == i && gstate.special_dst.second == j) {
+                    continue;
                 }
+                output.data[gstate.global_projected_inds[i][j]].Reference(lstate.cur_chunks[i]->data[j]);
             }
         }
-
-        if (lstate.storage_state) {
+        
+        if (chunk_id_set && GetResultIdx(lstate.cur_chunk_id) < gstate.next_hop_idx) {
             for (idx_t i = 0; i < num_rows; i++) {
-                size_t v = lstate.cur_chunks[0]->data[gstate.dst_column_idx].GetValue(i).GetValue<int64_t>();
+                size_t v = lstate.cur_chunks[gstate.special_dst.first]->data[gstate.special_dst.second].GetValue(i).GetValue<int64_t>();
 
                 // Need check uniq vertexes for 2 hop roots
                 if (!gstate._vertexes.contains(v)) {
@@ -301,7 +357,10 @@ void ReadHopFiltered::Execute(ClientContext& context, TableFunctionInput& input,
                     gstate._vertexes.insert(v);
                 }
             }
+        } else {
+               DUCKDB_GRAPHAR_LOG_DEBUG(chunk_name + " chunk id set " + std::to_string(chunk_id_set) + " cur res idx" + std::to_string(GetResultIdx(lstate.cur_chunk_id)) + "next hop idx " + std::to_string(gstate.next_hop_idx)); 
         }
+        
     }
 
     output.SetCapacity(num_rows);
