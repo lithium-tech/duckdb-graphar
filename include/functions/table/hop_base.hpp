@@ -257,22 +257,24 @@ public:
         gstate.dst_column_idx = bind_data.dst_column_idx;
 
         idx_t column_idx;
-        if (bind_data.column_ids.empty()) {
-            column_idx = bind_data.dst_column_idx;
+        if (gstate.column_ids.empty()) {
+            DUCKDB_GRAPHAR_LOG_WARN("HopBase::SetGlobalState: EMPTY column_ids");
+            column_idx = gstate.dst_column_idx;
         } else {
             auto column_it =
-                std::find(bind_data.column_ids.begin(), bind_data.column_ids.end(), bind_data.dst_column_idx);
-            if (column_it == bind_data.column_ids.end()) {
-                throw InternalException("dst_column_idx(" + std::to_string(bind_data.dst_column_idx) +
+                std::find(gstate.column_ids.begin(), gstate.column_ids.end(), gstate.dst_column_idx);
+            if (column_it == gstate.column_ids.end()) {
+                throw InternalException("dst_column_idx(" + std::to_string(gstate.dst_column_idx) +
                                         ") not found in column_ids");
             }
 
-            column_idx = std::distance(bind_data.column_ids.begin(), column_it);
+            column_idx = std::distance(gstate.column_ids.begin(), column_it);
         }
+        DUCKDB_GRAPHAR_LOG_DEBUG("HopBase::SetGlobalState: column_idx=" + std::to_string(column_idx));
 
         auto columns_pref_num = 0;
-        for (auto pg_i = 0; pg_i < bind_data.prop_types.size();
-             columns_pref_num += bind_data.prop_types[pg_i].size(), ++pg_i) {
+        for (auto pg_i = 0; pg_i < gstate.prop_types.size();
+             columns_pref_num += gstate.prop_types[pg_i].size(), ++pg_i) {
             if (columns_pref_num > gstate.dst_column_idx ||
                 gstate.dst_column_idx >= columns_pref_num + gstate.prop_types[pg_i].size()) {
                 continue;
@@ -280,7 +282,7 @@ public:
 
             auto projected_ind = gstate.dst_column_idx - columns_pref_num;
             if (!bind_data.pg_for_id && pg_i > 0) {
-                projected_ind += bind_data.id_columns_num;
+                projected_ind += gstate.id_columns_num;
             }
 
             auto global_projected_i = std::find(gstate.global_projected_inds[pg_i].begin(),

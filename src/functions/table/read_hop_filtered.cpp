@@ -143,7 +143,18 @@ unique_ptr<GlobalTableFunctionState> ReadHopFiltered::InitWrapper(ClientContext&
     auto& base_gstate = base_gstate_ptr->Cast<ReadBaseGlobalTableFunctionState>();
     auto gstate_ptr = std::make_unique<ReadHopFilteredGlobalTableFunctionState>(base_gstate);
     auto& gstate = *gstate_ptr;
+
+    gstate.column_ids = input.column_ids;
     gstate.dst_column_found = dst_column_found;
+
+    {
+        std::ostringstream ss;
+        ss << "ReadHopFiltered::Init: Cids " << input.column_ids.size() << ": ";
+        for (const auto& cid : gstate.column_ids) {
+            ss << ' ' << cid;
+        }
+        DUCKDB_GRAPHAR_LOG_WARN(ss.str());
+    }
 
     HopBase::SetGlobalState(bind_data, gstate);
 
@@ -165,6 +176,33 @@ unique_ptr<GlobalTableFunctionState> ReadHopFiltered::InitWrapper(ClientContext&
         }
     }
 
+    {
+        std::ostringstream ss;
+        ss << "ReadHopFiltered::Init: GPI";
+        for (const auto& proj_inds : gstate.global_projected_inds) {
+            ss << proj_inds.size() << "[";
+            for (const auto& ind : proj_inds) {
+                ss << ind << " ";
+            }
+            ss << "]\n";
+        }
+        DUCKDB_GRAPHAR_LOG_WARN(ss.str());
+    }
+
+    {
+        std::ostringstream ss;
+        ss << "ReadHopFiltered::Init: LPI";
+        for (const auto& proj_inds : gstate.local_projected_inds) {
+            ss << proj_inds.size() << "[";
+            for (const auto& ind : proj_inds) {
+                ss << ind << " ";
+            }
+            ss << "]\n";
+        }
+        DUCKDB_GRAPHAR_LOG_WARN(ss.str());
+    }
+
+
     return gstate_ptr;
 }
 //-------------------------------------------------------------------
@@ -185,20 +223,34 @@ unique_ptr<LocalTableFunctionState> ReadHopFiltered::InitLocal(ExecutionContext&
 
     auto conn = std::make_shared<Connection>(*context.client.db);
     auto edge_reader =
-        DuckEdgeReader::Make(conn, bind_data.GetFullTableName(), gstate.graph_info_path, gstate.edge_info);
+        DuckEdgeReader::Make(conn, bind_data.GetFullTableName(), gstate.graph_info_path, gstate.edge_info, gstate.query_filter);
     if (edge_reader.has_error()) {
         throw InternalException("Failed to create edge reader: |" + edge_reader.status().message() + "|");
     }
 
     lstate.edge_reader = edge_reader.value();
 
+    std::ostringstream ss;
+    ss << "ReadHopFiltered::InitLocal: readers";
+
     for (idx_t i = 0; i < prop_types_size; ++i) {
         if (gstate.global_projected_inds[i].empty()) {
             continue;
         }
         lstate.readers[i] = std::move(GetReader(context.client, gstate, lstate, i, gstate.filter_column));
-        SelectColumns(lstate.readers[i], gstate.global_projected_inds[i]);
+        vector<column_t> projs;
+        projs.reserve(gstate.global_projected_inds[i].size());
+        for (const auto& proj_ind : gstate.global_projected_inds[i]) {
+            projs.push_back(gstate.column_ids[proj_ind]);
+        }
+        SelectColumns(lstate.readers[i], projs);
+        ss << "\n" << i << ":";
+        for (const auto& ind : projs) {
+            ss << ' ' << ind;
+        }
+        ss << "\n";
     }
+    DUCKDB_GRAPHAR_LOG_WARN(ss.str());
 
     return lstate_ptr;
 }
@@ -291,6 +343,8 @@ void ReadHopFiltered::Execute(ClientContext& context, TableFunctionInput& input,
                 continue;
             }
 
+
+
             auto gc_result_final = GetChunk(lstate.readers[i], num_rows);
             lstate.cur_chunks[i] = std::move(gc_result_final.first);
 
@@ -305,6 +359,7 @@ void ReadHopFiltered::Execute(ClientContext& context, TableFunctionInput& input,
                 if (!gstate.dst_column_found && gstate.special_dst.first == i && gstate.special_dst.second == j) {
                     continue;
                 }
+                DUCKDB_GRAPHAR_LOG_DEBUG(chunk_name + " try i" + std::to_string(i) + " j" + std::to_string(j) + ": " + std::to_string(gstate.global_projected_inds[i][j]));
                 output.data[gstate.global_projected_inds[i][j]].Reference(lstate.cur_chunks[i]->data[j]);
             }
         }

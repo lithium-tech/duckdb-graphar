@@ -41,9 +41,11 @@ public:
     static graphar::Result<std::shared_ptr<DuckEdgeReader>> Make(std::shared_ptr<Connection> conn_,
                                                                  const std::string& edge_table_name,
                                                                  const std::string& graph_info_path,
-                                                                 std::shared_ptr<graphar::EdgeInfo> info) {
+                                                                 std::shared_ptr<graphar::EdgeInfo> info,
+                                                                 const std::string& query_filter) {
         auto edge_reader = std::make_shared<DuckEdgeReader>(conn_);
         edge_reader->PrepareQuery(edge_table_name, graph_info_path, info);
+        edge_reader->query_string_constructor.query_filter = query_filter;
 
         return edge_reader;
     }
