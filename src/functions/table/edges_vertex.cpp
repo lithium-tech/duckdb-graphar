@@ -39,9 +39,8 @@ unique_ptr<FunctionData> EdgesVertex::Bind(ClientContext& context, TableFunction
 
     DUCKDB_GRAPHAR_LOG_DEBUG("Load Edge Info");
 
-    // auto yaml_content = GetYamlContent(file_path);
-    // auto edge_info = graphar::EdgeInfo::Load(yaml_content).value();
-    auto edge_info = graph_info->GetEdgeInfo("company", "knows", "company");
+    auto yaml_content = GetYamlContent(file_path);
+    auto edge_info = graphar::EdgeInfo::Load(yaml_content).value();
     if (!edge_info) {
         throw BinderException("No edge of this type");
     }

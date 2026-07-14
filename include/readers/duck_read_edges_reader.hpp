@@ -45,7 +45,6 @@ public:
         auto edge_reader = std::make_shared<DuckEdgeReader>(conn_);
         edge_reader->PrepareQuery(edge_table_name, graph_info_path, info);
         
-        DUCKDB_GRAPHAR_LOG_DEBUG("DuckEdgeReader::Make GetQueryString query table " + edge_reader->GetTable());
         return edge_reader;
     }
 
@@ -58,10 +57,7 @@ public:
     }
 
     unique_ptr<QueryResult> ReadEdgesToTable(const std::vector<column_t>& proj_columns, const std::vector<graphar::IdType>& vids) {
-        DUCKDB_GRAPHAR_LOG_TRACE("DuckEdgeReader::ReadEdgesToTable");
         auto query_string = query_string_constructor.GetQueryString(proj_columns, vids);
-        DUCKDB_GRAPHAR_LOG_WARN("::RETT GetQueryString " + query_string);
-        conn->Interrupt();
         auto query_result = conn->Query(query_string);
         if (query_result->HasError()) {
             throw std::runtime_error(query_result->GetError());

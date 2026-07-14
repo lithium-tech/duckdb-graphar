@@ -30,9 +30,9 @@ unique_ptr<FunctionData> TwoHop::Bind(ClientContext& context, TableFunctionBindI
     auto bind_data = make_uniq<TwoHopBindData>();
     
     if (is_catalog_mode) {
-        HopBase::SetBindDataByEdgeTable(context, input, return_types, names, *bind_data);
+        HopBase::SetBindDataByEdgeTable(context, input, *bind_data);
     } else {
-        HopBase::SetBindDataByGraphPath(context, input, return_types, names, *bind_data);
+        HopBase::SetBindDataByGraphPath(context, input, *bind_data);
     }
 
     HopBase::SetBindDataVids(input, *bind_data);
@@ -41,7 +41,6 @@ unique_ptr<FunctionData> TwoHop::Bind(ClientContext& context, TableFunctionBindI
     names.push_back(SRC_GID_COLUMN);
     return_types.push_back(LogicalType::BIGINT);
     names.push_back(DST_GID_COLUMN);
-
     bind_data->dst_column_idx = 1;
 
     return std::move(bind_data);

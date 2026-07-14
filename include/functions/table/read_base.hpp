@@ -3,7 +3,6 @@
 #include "readers/base_reader.hpp"
 #include "readers/duck_arrow_chunk_reader.hpp"
 #include "readers/duck_chunk_reader.hpp"
-#include "readers/duck_query_reader.hpp"
 #include "readers/duck_read_edges_reader.hpp"
 #include "utils/benchmark.hpp"
 #include "utils/func.hpp"
@@ -120,18 +119,6 @@ static void FilterByRangeEdge(BaseReaderPtr& reader, const std::pair<int64_t, in
         reader);
 }
 
-static void PrintFilterInfo(BaseReaderPtr& reader) {
-    return std::visit(
-        [&](auto& r) {
-            if constexpr (requires { r->PrintFilterInfo(); }) {
-                r->PrintFilterInfo();
-            } else {
-                throw InternalException("PrintFilterInfo not implemented for this reader");
-            }
-        },
-        reader);
-}
-
 static bool IsNullPtr(BaseReaderPtr& reader) {
     return std::visit([&](auto& r) { return (r == nullptr); }, reader);
 }
@@ -164,6 +151,14 @@ static std::string DemangleTypeName(const char* mangled) {
     return result;
 }
 
+static std::string GetReaderName(ReaderPtr& reader) {
+    return std::visit([&](auto& r) { return DemangleTypeName(typeid(r).name()); }, reader);
+}
+
+static std::string GetReaderName(BaseReaderPtr& reader) {
+    return std::visit([&](auto& r) { return DemangleTypeName(typeid(r).name()); }, reader);
+}
+
 static void CopyVidFrom(ReaderPtr& readerSrc, ReaderPtr& readerDst) {
     std::visit(
         [&readerSrc](auto& dst_ptr) {
@@ -184,10 +179,7 @@ static void CopyVidFrom(ReaderPtr& readerSrc, ReaderPtr& readerDst) {
 }
 
 static idx_t GetRowsNum(ReaderPtr& reader) {
-    DUCKDB_GRAPHAR_LOG_DEBUG("GetRowsNum function");
-    return std::visit([&](auto& r) -> idx_t {
-        return r->GetRowsNum();
-    }, reader);
+    return std::visit([&](auto& r) { return r->GetRowsNum(); }, reader);
 }
 
 static void Reset(ReaderPtr& reader) {
@@ -214,14 +206,6 @@ static idx_t ReserveRowsToRead(ReaderPtr& reader) {
 
 static void SelectColumns(ReaderPtr& reader, std::vector<column_t> proj_columns) {
     return std::visit([&](auto& r) { r->SelectColumns(proj_columns); }, reader);
-}
-
-static std::string GetReaderName(ReaderPtr& reader) {
-    return std::visit([&](auto& r) { return DemangleTypeName(typeid(r).name()); }, reader);
-}
-
-static std::string GetReaderName(BaseReaderPtr& reader) {
-    return std::visit([&](auto& r) { return DemangleTypeName(typeid(r).name()); }, reader);
 }
 
 template <typename ReadFinal>
@@ -333,10 +317,7 @@ protected:
     friend class ReadEdges;
 
     friend class HopBase;
-    friend class ReadHop;
     friend class ReadHopFiltered;
-
-    friend class HopBaseGlobalTableFunctionState;
 };
 
 class ReadBaseLocalTableFunctionState : public LocalTableFunctionState {
@@ -359,6 +340,7 @@ private:
     friend class ReadBase;
     friend class ReadVertices;
     friend class ReadEdges;
+    
     friend class ReadHop;
     friend class ReadHopFiltered;
 };

@@ -18,11 +18,36 @@ class HopBaseBindData : public ReadBindData {
 public:
     HopBaseBindData() = default;
 
-    std::string full_table_name() const {
+    std::string GetFullTableName() const {
         if (!catalog_name.empty() && !schema_name.empty() && !table_name.empty()) {
             return catalog_name + "." + schema_name + "." + table_name;
         }
+        if (!catalog_name.empty() && !table_name.empty()) {
+            return catalog_name + "." + table_name;
+        }
         return "";
+    }
+
+    std::string GetSrcName() const {
+        switch (direction_type) {
+            case DirectionType::DIRECTED:
+                return SRC_GID_COLUMN;
+            case DirectionType::REVERSED:
+                return DST_GID_COLUMN;
+            default:
+                throw NotImplementedException("Unsupported edge direction type");
+        }
+    }
+
+    std::string GetDstName() const {
+        switch (direction_type) {
+            case DirectionType::REVERSED:
+                return SRC_GID_COLUMN;
+            case DirectionType::DIRECTED:
+                return DST_GID_COLUMN;
+            default:
+                throw NotImplementedException("Unsupported edge direction type");
+        }
     }
 
     std::shared_ptr<graphar::EdgeInfo> edge_info;
@@ -67,6 +92,8 @@ public:
     column_t dst_column_idx;
     bool dst_column_found;
 
+    std::pair<size_t, size_t> special_dst = {-1, -1};
+
     friend class HopBase;
 };
 
@@ -98,7 +125,6 @@ public:
         return !is_path_mode;
     }
     static void SetBindDataByEdgeTable(ClientContext& context, TableFunctionBindInput& input,
-                                       vector<LogicalType>& return_types, vector<string>& names,
                                        HopBaseBindData& bind_data) {
         DUCKDB_GRAPHAR_LOG_TRACE("HopBase::SetDataByEdgeTable");
        
@@ -131,10 +157,9 @@ public:
         }
         bind_data.edge_info = std::get<std::shared_ptr<graphar::EdgeInfo>>(table_info->GetTypeInfo());
 
-        DUCKDB_GRAPHAR_LOG_DEBUG("HopBase using edge table: " + bind_data.full_table_name());
+        DUCKDB_GRAPHAR_LOG_DEBUG("HopBase using edge table: " + bind_data.GetFullTableName());
     }
     static void SetBindDataByGraphPath(ClientContext& context, TableFunctionBindInput& input,
-                                       vector<LogicalType>& return_types, vector<string>& names,
                                        HopBaseBindData& bind_data) {
         DUCKDB_GRAPHAR_LOG_TRACE("HopBase::SetBindDataByGraphPath");
         
@@ -188,6 +213,30 @@ public:
         for (size_t i = 0; i < duck_vids.size(); ++i) {
             bind_data.vids[i] = IntegerValue::Get(duck_vids[i]);
         }
+
+        bind_data.vid_ranges.resize(bind_data.vids.size());
+        std::transform(bind_data.vids.begin(), bind_data.vids.end(),
+                       bind_data.vid_ranges.begin(),
+                       [](const auto& vid) { return std::make_pair(vid, vid + 1); });
+    }
+
+    static void SetBindDataFilter(HopBaseBindData& bind_data) {
+        DUCKDB_GRAPHAR_LOG_TRACE("HopBase::SetBindDataDst");
+
+        bind_data.filter_column = bind_data.GetSrcName();
+    }
+
+    static void SetBindDataDstIdx(vector<string>& names, HopBaseBindData& bind_data) {
+        DUCKDB_GRAPHAR_LOG_TRACE("HopBase::SetBindDataDstIdx");
+        auto dst_col = bind_data.GetDstName();
+        for (size_t i = 0; i < names.size(); ++i) {
+            if (names[i] == dst_col) {
+                bind_data.dst_column_idx = i;
+                break;
+            }
+        }
+
+        DUCKDB_GRAPHAR_LOG_DEBUG("HopBase::SetBindDataDstIdx: dst_column_idx = " + std::to_string(bind_data.dst_column_idx));
     }
 
     static void SetGlobalState(const HopBaseBindData& bind_data, HopBaseGlobalTableFunctionState& gstate) {
@@ -196,21 +245,49 @@ public:
         gstate.graph_info = bind_data.GetGraphInfo();
         gstate.edge_info = bind_data.edge_info;
 
-        DUCKDB_GRAPHAR_LOG_DEBUG("HopBase::SetGlobalState: after info");
         DUCKDB_GRAPHAR_LOG_DEBUG("HopBase::SetGlobalState: vids size="+ std::to_string(bind_data.vids.size()));
-
         for (auto& vid : bind_data.vids) {
-            DUCKDB_GRAPHAR_LOG_DEBUG("HopBase::SetGlobalState: vid="+ std::to_string(vid));
             gstate._vertexes.insert(vid);
-            DUCKDB_GRAPHAR_LOG_DEBUG("HopBase::SetGlobalState: vid="+ std::to_string(vid));
             if (gstate.vertexes.size() != gstate._vertexes.size()) {
                 gstate.vertexes.push(vid);
             }
         }
+
         gstate.next_hop_idx = gstate.vertexes.size();
-        DUCKDB_GRAPHAR_LOG_DEBUG("HopBase::SetGlobalState: dst_column_idx="+ std::to_string(bind_data.dst_column_idx));
         gstate.direction_type = bind_data.direction_type;
+        DUCKDB_GRAPHAR_LOG_DEBUG("HopBase::SetGlobalState: dst_column_idx="+ std::to_string(bind_data.dst_column_idx));
         gstate.dst_column_idx = bind_data.dst_column_idx;
+
+        idx_t column_idx;
+        if (bind_data.column_ids.empty()) {
+            column_idx = bind_data.dst_column_idx;
+        } else {
+            auto column_it = std::find(bind_data.column_ids.begin(), bind_data.column_ids.end(), bind_data.dst_column_idx);
+            if (column_it == bind_data.column_ids.end()) {
+                throw InternalException("dst_column_idx(" + std::to_string(bind_data.dst_column_idx) + ") not found in column_ids");
+            }
+
+            column_idx = std::distance(bind_data.column_ids.begin(), column_it);
+        }
+
+        auto columns_pref_num = 0;
+        for (auto pg_i = 0; pg_i < bind_data.prop_types.size(); columns_pref_num += bind_data.prop_types[pg_i].size(), ++pg_i) {
+            if (columns_pref_num > gstate.dst_column_idx || gstate.dst_column_idx >= columns_pref_num + gstate.prop_types[pg_i].size()) {
+                continue;
+            }
+            
+            auto projected_ind = gstate.dst_column_idx - columns_pref_num;
+            if (!bind_data.pg_for_id && pg_i > 0) {
+                projected_ind += bind_data.id_columns_num;
+            }
+
+            auto global_projected_i = std::find(gstate.global_projected_inds[pg_i].begin(), gstate.global_projected_inds[pg_i].end(), column_idx);
+            if (global_projected_i == gstate.global_projected_inds[pg_i].end()) {
+                throw InternalException("Column DST " + std::to_string(gstate.dst_column_idx) + " not found in the global projected inds");
+            }
+            gstate.special_dst = {pg_i, global_projected_i - gstate.global_projected_inds[pg_i].begin()}; 
+        }
+        DUCKDB_GRAPHAR_LOG_DEBUG("HopBase::SetGlobalState: special_dst=" + std::to_string(gstate.special_dst.first) + ',' + std::to_string(gstate.special_dst.second));
     }
 
     static void SetFunctionParams(TableFunction& fun)  {

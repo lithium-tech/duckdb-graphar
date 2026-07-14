@@ -37,7 +37,6 @@ public:
     unique_ptr<QueryResult> ReadFileToTable(const std::string& path, const std::vector<duckdb::column_t>& proj_columns,
                                             std::pair<int64_t, int64_t> range = {-1, -1}) {
         auto query_string = query_string_constructor.GetMainQueryString(proj_columns, range);
-        conn->Interrupt();
         auto query_result = conn->Query(query_string, Value(path));
         if (query_result->HasError()) {
             throw std::runtime_error(query_result->GetError());
@@ -98,13 +97,10 @@ public:
 
     idx_t GetRowsNum() {
         DUCKDB_GRAPHAR_LOG_TRACE("BaseDuckChunkReader::GetRowsNum");
-        DUCKDB_GRAPHAR_LOG_DEBUG("::GRN path_acquired: " + std::to_string(path_acquired));
         if (path_acquired) {
-            DUCKDB_GRAPHAR_LOG_DEBUG("::GRN next_path: " + next_path);
             if (!next_path.empty()) {
                 cur_result = file_reader->ReadFileToTable(next_path, proj_columns, next_rows_range);
                 cur_chunk = cur_result->Fetch();
-                DUCKDB_GRAPHAR_LOG_DEBUG("::GRN new cur_chunk: " + std::to_string(cur_chunk != nullptr));
                 cur_result_idx = next_chunk_idx;
             } else {
                 cur_chunk = nullptr;
@@ -112,11 +108,6 @@ public:
             path_acquired = false;
             read_rows = 0;
             cur_read_idx = 0;
-        }
-
-        DUCKDB_GRAPHAR_LOG_DEBUG("::GRN cur_chunk: " + std::to_string(cur_chunk != nullptr));
-        if (cur_chunk) {
-            DUCKDB_GRAPHAR_LOG_DEBUG("::GRN "" cc " + std::to_string(cur_chunk->size()) + " rr " + std::to_string(read_rows));
         }
         if (cur_chunk && read_rows < cur_chunk->size()) {
             return cur_chunk->size() - read_rows;

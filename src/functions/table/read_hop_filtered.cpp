@@ -23,14 +23,6 @@
 
 namespace duckdb {
 //-------------------------------------------------------------------
-// GetBindData
-//-------------------------------------------------------------------
-void ReadHopFiltered::SetBindData(unique_ptr<ReadHopFilteredBindData>& bind_data) {
-    DUCKDB_GRAPHAR_LOG_TRACE("ReadHopFiltered::SetBindData")
-
-    ReadBase::SetBindData(bind_data->graph_info, bind_data->edge_info, reinterpret_cast<unique_ptr<ReadBindData>&>(bind_data), GetFunctionName(), 0, 1, {SRC_GID_COLUMN, DST_GID_COLUMN});
-}
-//-------------------------------------------------------------------
 // Bind
 //-------------------------------------------------------------------
 unique_ptr<FunctionData> ReadHopFiltered::Bind(ClientContext& context, TableFunctionBindInput& input,
@@ -41,27 +33,23 @@ unique_ptr<FunctionData> ReadHopFiltered::Bind(ClientContext& context, TableFunc
     auto bind_data = make_uniq<ReadHopFilteredBindData>();
 
     if (is_catalog_mode) {
-        HopBase::SetBindDataByEdgeTable(context, input, return_types, names, *bind_data);
+        HopBase::SetBindDataByEdgeTable(context, input, *bind_data);
     } else {
-        HopBase::SetBindDataByGraphPath(context, input, return_types, names, *bind_data);
+        HopBase::SetBindDataByGraphPath(context, input, *bind_data);
         bind_data->graph_info_path = StringValue::Get(input.inputs[0]);
     }
 
     HopBase::SetBindDataVids(input, *bind_data);
 
-    SetBindData(bind_data);
+    ReadBase::SetBindData(bind_data->graph_info, bind_data->edge_info, reinterpret_cast<unique_ptr<ReadBindData>&>(bind_data), GetFunctionName(), 0, 1, {SRC_GID_COLUMN, DST_GID_COLUMN});
 
-    names = bind_data->flatten_prop_names;
-    for (size_t i = 0; i < names.size(); ++i) {
-        if (names[i] == DST_GID_COLUMN) {
-            bind_data->dst_column_idx = i;
-            break;
-        }
-    }
-
-    std::transform(bind_data->flatten_prop_types.begin(), bind_data->flatten_prop_types.end(),
+    names = bind_data->GetFlattenPropNames();
+    const auto& fpt = bind_data->GetFlattenPropTypes();
+    std::transform(fpt.begin(), fpt.end(),
                    std::back_inserter(return_types),
                    [](const auto& return_type) { return GraphArFunctions::graphArT2duckT(return_type); });
+
+    HopBase::SetBindDataDstIdx(names, *bind_data);
 
     return std::move(bind_data);
 }
@@ -72,13 +60,8 @@ BaseReaderPtr ReadHopFiltered::GetBaseReader(ClientContext& context, ReadBaseGlo
                                              const std::string& filter_column,
                                              std::shared_ptr<graphar::SharedChunkCounter> counter) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadHopFiltered::GetBaseReader");
-    auto& gstate_hop = gstate.Cast<ReadHopFilteredGlobalTableFunctionState>();
 
-    auto vids_reader = graphar::VidsChunkReader::Make();
-    // auto conn = std::make_shared<Connection>(*context.db);
-    // auto query_base_reader = QueryChunkReader::Make(std::move(conn), gstate_hop.query_string);
-
-    return ConvertBaseReader(vids_reader, counter);
+    return ConvertBaseReader(graphar::VidsChunkReader::Make(), counter);
 }
 //-------------------------------------------------------------------
 // GetReader
@@ -88,8 +71,6 @@ ReaderPtr ReadHopFiltered::GetReader(ClientContext& context, ReadBaseGlobalTable
     DUCKDB_GRAPHAR_LOG_TRACE("ReadHopFiltered::GetReader");
     auto& lstate_hop = lstate.Cast<ReadHopFilteredLocalTableFunctionState>();
     
-    // auto base_reader = std::get<std::shared_ptr<graphar::TSQueryChunkReader>>(gstate.base_readers[ind][0]);
-    // return ConvertReader(graphar::DuckQueryChunkReader::Make(context, base_reader));
     std::vector<std::shared_ptr<graphar::TSVidsChunkReader>> base_readers;
     base_readers.reserve(gstate.base_readers[ind].size());
     for (const auto& base_reader : gstate.base_readers[ind]) {
@@ -108,12 +89,11 @@ void ReadHopFiltered::PushdownComplexFilter(ClientContext& context, LogicalGet& 
         throw InternalException("Bind data is nullptr");
     }
     auto& read_bind_data = bind_data->Cast<ReadHopFilteredBindData>();
-    std::string filt;
-    for (auto& filter : filters) {
-        filt += filter->ToString();
+    for (size_t i = 0; i < filters.size(); ++i) {
+        if (i) read_bind_data.query_filter += " AND ";
+        read_bind_data.query_filter += filters[i]->ToString();
     }
-    read_bind_data.query_filter = filt;
-    DUCKDB_GRAPHAR_LOG_DEBUG("filters<" + std::to_string(filters.size()) + ">:" + filt);
+    DUCKDB_GRAPHAR_LOG_DEBUG("filters<" + std::to_string(filters.size()) + ">:" + read_bind_data.query_filter);
     
     vector<unique_ptr<Expression>> filters_new;
     filters = std::move(filters_new);
@@ -165,31 +145,6 @@ unique_ptr<GlobalTableFunctionState> ReadHopFiltered::InitWrapper(ClientContext&
     gstate.query_filter = bind_data.query_filter;
     gstate.graph_info_path = bind_data.graph_info_path;
 
-    auto column_it = std::find(gstate.column_ids.begin(), gstate.column_ids.end(), gstate.dst_column_idx);
-    if (column_it == gstate.column_ids.end()) {
-        throw InternalException("dst_column_idx(" + std::to_string(gstate.dst_column_idx) + ") not found in column_ids");
-    }
-
-    auto column_i = std::distance(gstate.column_ids.begin(), column_it);
-
-    auto columns_pref_num = 0;
-    for (auto pg_i = 0; pg_i < gstate.prop_types.size(); columns_pref_num += gstate.prop_types[pg_i].size(), ++pg_i) {
-        if (columns_pref_num > gstate.dst_column_idx || gstate.dst_column_idx >= columns_pref_num + gstate.prop_types[pg_i].size()) {
-            continue;
-        }
-        
-        auto projected_ind = gstate.dst_column_idx - columns_pref_num;
-        if (!bind_data.pg_for_id && pg_i > 0) {
-            projected_ind += bind_data.id_columns_num;
-        }
-
-        auto global_projected_i = std::find(gstate.global_projected_inds[pg_i].begin(), gstate.global_projected_inds[pg_i].end(), column_i);
-        if (global_projected_i == gstate.global_projected_inds[pg_i].end()) {
-            throw InternalException("Column DST " + std::to_string(gstate.dst_column_idx) + " not found in the global projected inds");
-        }
-        gstate.special_dst = {pg_i, global_projected_i - gstate.global_projected_inds[pg_i].begin()}; 
-    }
-
     for (auto &base_readers : gstate.base_readers) {
         for (auto &base_reader : base_readers) {
             std::visit(
@@ -223,7 +178,7 @@ unique_ptr<LocalTableFunctionState> ReadHopFiltered::InitLocal(ExecutionContext&
     lstate.readers.resize(prop_types_size);
 
     auto conn = std::make_shared<Connection>(*context.client.db);
-    auto edge_reader = DuckEdgeReader::Make(conn, bind_data.full_table_name(), gstate.graph_info_path, gstate.edge_info);
+    auto edge_reader = DuckEdgeReader::Make(conn, bind_data.GetFullTableName(), gstate.graph_info_path, gstate.edge_info);
     if (edge_reader.has_error()) {
         throw InternalException("Failed to create edge reader: |" + edge_reader.status().message() + "|");
     }
@@ -314,10 +269,8 @@ void ReadHopFiltered::Execute(ClientContext& context, TableFunctionInput& input,
     if (num_rows == 0) {
         std::lock_guard<std::mutex> guard(gstate.lock);
         while (!gstate.vertexes.empty() && num_rows == 0) {
-            // lstate.cur_idx = gstate.MoveBaseReaders(lstate.cur_idx);
             num_rows = FetchRowsNum<false>(gstate, lstate);
         }
-        // lstate.storage_state = gstate.storage_state;
     }
 
     DUCKDB_GRAPHAR_LOG_DEBUG(chunk_name + " num rows final: " + std::to_string(num_rows));
@@ -367,17 +320,6 @@ void ReadHopFiltered::Execute(ClientContext& context, TableFunctionInput& input,
     output.SetCardinality(num_rows);
     gstate.total_rows += num_rows;
     gstate.chunk_count++;
-
-    if (num_rows == 0) {
-        DUCKDB_GRAPHAR_LOG_DEBUG("One-hop unique size: " + std::to_string(gstate.vertexes.size()));
-        std::string _temp = "_vertexes: {";
-        for (auto v : gstate._vertexes) {
-            _temp += std::to_string(v) + ",";
-        }
-        _temp += "}";
-        DUCKDB_GRAPHAR_LOG_DEBUG(_temp);
-        DUCKDB_GRAPHAR_LOG_DEBUG(gstate.vertexesToString());
-    }
 }
 
 }  // namespace duckdb

@@ -80,7 +80,6 @@ public:
     }
 
 private:
-    std::pair<size_t, size_t> special_dst = {-1, -1};
     int64_t vertex_num = -1;
 
     bool storage_state = true;
@@ -101,7 +100,6 @@ private:
 
 class ReadHop : public ReadBase<ReadHop> {
 public:
-    static void SetBindData(unique_ptr<ReadHopBindData>& bind_data);
     static unique_ptr<FunctionData> Bind(ClientContext& context, TableFunctionBindInput& input,
                                          vector<LogicalType>& return_types, vector<string>& names);
     static BaseReaderPtr GetBaseReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate, idx_t ind,

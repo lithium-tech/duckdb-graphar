@@ -1,6 +1,5 @@
 #pragma once
 
-// #include "readers/query_reader.hpp"
 #include "readers/vids_reader.hpp"
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
@@ -155,17 +154,6 @@ public:
         reader->Init(gstate_ptr);
     }
 
-    void PrintFilterInfo() {
-        using namespace duckdb;
-        if (filter_info) {
-            DUCKDB_GRAPHAR_LOG_DEBUG("Filter info: offset rows: " + std::to_string(filter_info->offset_rows) +
-                                     " last chunk rows: " + std::to_string(filter_info->last_chunk_rows) +
-                                     " total chunks: " + std::to_string(filter_info->total_chunks));
-        } else {
-            DUCKDB_GRAPHAR_LOG_DEBUG("Filter info: empty");
-        }
-    }
-
 private:
     std::shared_ptr<StoredReader> reader;
     std::shared_ptr<SharedChunkCounter> shared_counter;
@@ -181,7 +169,6 @@ using TSAdjListPropertyArrowChunkReader = ThreadSafeReader<AdjListPropertyArrowC
 using TSVertexPropertyChunkInfoReader = ThreadSafeReader<VertexPropertyChunkInfoReader>;
 using TSAdjListChunkInfoReader = ThreadSafeReader<AdjListChunkInfoReader>;
 using TSAdjListPropertyChunkInfoReader = ThreadSafeReader<AdjListPropertyChunkInfoReader>;
-// using TSQueryChunkReader = ThreadSafeReader<duckdb::QueryChunkReader>;
 using TSVidsChunkReader = ThreadSafeReader<VidsChunkReader>;
 
 }  // namespace graphar
