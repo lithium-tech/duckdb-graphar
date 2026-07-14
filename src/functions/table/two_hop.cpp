@@ -1,11 +1,11 @@
 #include "functions/table/two_hop.hpp"
-#include "functions/table/hop_base.hpp"
 
+#include "functions/table/hop_base.hpp"
+#include "storage/graphar_catalog.hpp"
+#include "storage/graphar_schema_entry.hpp"
 #include "utils/benchmark.hpp"
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
-#include "storage/graphar_catalog.hpp"
-#include "storage/graphar_schema_entry.hpp"
 
 #include <duckdb/common/named_parameter_map.hpp>
 #include <duckdb/common/vector_size.hpp>
@@ -22,13 +22,13 @@ namespace duckdb {
 // Bind
 //-------------------------------------------------------------------
 unique_ptr<FunctionData> TwoHop::Bind(ClientContext& context, TableFunctionBindInput& input,
-                                             vector<LogicalType>& return_types, vector<string>& names) {
+                                      vector<LogicalType>& return_types, vector<string>& names) {
     DUCKDB_GRAPHAR_LOG_TRACE("TwoHop::Bind");
-    
+
     const bool is_catalog_mode = HopBase::IsCatalogMode(input);
 
     auto bind_data = make_uniq<TwoHopBindData>();
-    
+
     if (is_catalog_mode) {
         HopBase::SetBindDataByEdgeTable(context, input, *bind_data);
     } else {
@@ -66,7 +66,7 @@ unique_ptr<GlobalTableFunctionState> TwoHop::Init(ClientContext& context, TableF
 // InitLocal
 //-------------------------------------------------------------------
 unique_ptr<LocalTableFunctionState> TwoHop::InitLocal(ExecutionContext& context, TableFunctionInitInput& input,
-                                                             GlobalTableFunctionState* gstate_ptr) {
+                                                      GlobalTableFunctionState* gstate_ptr) {
     DUCKDB_GRAPHAR_LOG_TRACE("TwoHop::LocalStateInit");
 
     TwoHopGlobalTableFunctionState& gstate = gstate_ptr->Cast<TwoHopGlobalTableFunctionState>();
@@ -75,7 +75,7 @@ unique_ptr<LocalTableFunctionState> TwoHop::InitLocal(ExecutionContext& context,
     auto& lstate = *lstate_ptr;
 
     lstate.MoveReader(gstate);
-    
+
     return lstate_ptr;
 }
 //-------------------------------------------------------------------

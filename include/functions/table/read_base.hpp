@@ -33,6 +33,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cxxabi.h>
 #include <filesystem>
 #include <iostream>
 #include <limits>
@@ -41,10 +42,8 @@
 #include <unordered_map>
 #include <variant>
 
-#include <cxxabi.h>
-
 namespace graphar {
-    using TSVidsChunkReader = ThreadSafeReader<VidsChunkReader>;
+using TSVidsChunkReader = ThreadSafeReader<VidsChunkReader>;
 }
 
 namespace duckdb {
@@ -53,8 +52,7 @@ using BaseReaderPtr = std::variant<
     std::shared_ptr<graphar::TSVertexPropertyChunkInfoReader>, std::shared_ptr<graphar::TSAdjListChunkInfoReader>,
     std::shared_ptr<graphar::TSAdjListPropertyChunkInfoReader>,
     std::shared_ptr<graphar::TSVertexPropertyArrowChunkReader>, std::shared_ptr<graphar::TSAdjListArrowChunkReader>,
-    std::shared_ptr<graphar::TSAdjListPropertyArrowChunkReader>, 
-    std::shared_ptr<graphar::TSVidsChunkReader>>;
+    std::shared_ptr<graphar::TSAdjListPropertyArrowChunkReader>, std::shared_ptr<graphar::TSVidsChunkReader>>;
 
 using ReaderPtr = std::variant<
     std::shared_ptr<graphar::DuckVertexPropertyArrowChunkReader>, std::shared_ptr<graphar::DuckAdjListArrowChunkReader>,
@@ -165,15 +163,14 @@ static void CopyVidFrom(ReaderPtr& readerSrc, ReaderPtr& readerDst) {
             std::visit(
                 [&dst_ptr](auto& src_ptr) {
                     if constexpr (requires { dst_ptr->CopyVidFrom(*src_ptr); }) {
-                        dst_ptr->CopyVidFrom(*src_ptr); 
+                        dst_ptr->CopyVidFrom(*src_ptr);
                     } else {
-                        DUCKDB_GRAPHAR_LOG_DEBUG("CopyVidFrom not support reader type: " + 
-                            DemangleTypeName(typeid(dst_ptr).name()) + '\n' + 
-                            DemangleTypeName(typeid(src_ptr).name())); 
+                        DUCKDB_GRAPHAR_LOG_DEBUG(
+                            "CopyVidFrom not support reader type: " + DemangleTypeName(typeid(dst_ptr).name()) + '\n' +
+                            DemangleTypeName(typeid(src_ptr).name()));
                     }
                 },
-                readerSrc
-            );
+                readerSrc);
         },
         readerDst);
 }
@@ -185,23 +182,27 @@ static idx_t GetRowsNum(ReaderPtr& reader) {
 static void Reset(ReaderPtr& reader) {
     DUCKDB_GRAPHAR_LOG_TRACE("Reset function");
 
-    return std::visit([&](auto& r) { 
-        if constexpr (requires { r->Reset(); }) {
-            r->Reset();
-        } else {
-            throw InternalException("Reset not implemented for this reader: " + DemangleTypeName(typeid(r).name()));
-        }
-    }, reader);
+    return std::visit(
+        [&](auto& r) {
+            if constexpr (requires { r->Reset(); }) {
+                r->Reset();
+            } else {
+                throw InternalException("Reset not implemented for this reader: " + DemangleTypeName(typeid(r).name()));
+            }
+        },
+        reader);
 }
 
 static idx_t ReserveRowsToRead(ReaderPtr& reader) {
-    return std::visit([&](auto& r) { 
-        if constexpr (requires { r->ReserveRowsToRead(); }) {
-            return r->ReserveRowsToRead();
-        } else {
-            return idx_t(0);
-        }
-    }, reader);
+    return std::visit(
+        [&](auto& r) {
+            if constexpr (requires { r->ReserveRowsToRead(); }) {
+                return r->ReserveRowsToRead();
+            } else {
+                return idx_t(0);
+            }
+        },
+        reader);
 }
 
 static void SelectColumns(ReaderPtr& reader, std::vector<column_t> proj_columns) {
@@ -260,7 +261,7 @@ private:
     friend class ReadBase;
     friend class ReadVertices;
     friend class ReadEdges;
-    
+
     friend class HopBase;
     friend class ReadHop;
     friend class ReadHopFiltered;
@@ -327,7 +328,7 @@ public:
         readers = lstate_ptr.readers;
         file_reader = lstate_ptr.file_reader;
         cur_chunks = std::move(lstate_ptr.cur_chunks);
-        cur_chunk_id = lstate_ptr.cur_chunk_id; 
+        cur_chunk_id = lstate_ptr.cur_chunk_id;
     }
 
 private:
@@ -340,7 +341,7 @@ private:
     friend class ReadBase;
     friend class ReadVertices;
     friend class ReadEdges;
-    
+
     friend class ReadHop;
     friend class ReadHopFiltered;
 };
@@ -1049,8 +1050,6 @@ public:
         return OperatorPartitionData(lstate.cur_chunk_id);
     }
 
-    static std::string GetFunctionName() {
-        return ReadFinal::GetFunctionName();
-    }
+    static std::string GetFunctionName() { return ReadFinal::GetFunctionName(); }
 };
 }  // namespace duckdb

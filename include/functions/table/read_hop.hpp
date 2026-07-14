@@ -1,7 +1,7 @@
 #pragma once
 
-#include "functions/table/read_base.hpp"
 #include "functions/table/hop_base.hpp"
+#include "functions/table/read_base.hpp"
 
 #include <duckdb/common/named_parameter_map.hpp>
 #include <duckdb/function/table/arrow/arrow_duck_schema.hpp>
@@ -24,26 +24,29 @@ class ReadHopBindData : public HopBaseBindData {
 class ReadHopGlobalTableFunctionState : public HopBaseGlobalTableFunctionState {
 public:
     ReadHopGlobalTableFunctionState() = default;
-    ReadHopGlobalTableFunctionState(ReadBaseGlobalTableFunctionState& gstate) : HopBaseGlobalTableFunctionState(gstate) {};    
+    ReadHopGlobalTableFunctionState(ReadBaseGlobalTableFunctionState& gstate)
+        : HopBaseGlobalTableFunctionState(gstate) {};
 
     size_t MoveBaseReaders(size_t state_ind) {
         DUCKDB_GRAPHAR_LOG_TRACE("ReadHopGlobalTableFunctionState::MoveBaseReaders");
 
         if (vertex_num == -1) {
             vertex_num = (filter_column == SRC_GID_COLUMN)
-                                ? GetCountClass::GetCount(graph_info->GetVertexInfo(edge_info->GetSrcType()),
-                                                            graph_info->GetPrefix())
-                                : GetCountClass::GetCount(graph_info->GetVertexInfo(edge_info->GetDstType()),
-                                                            graph_info->GetPrefix());
+                             ? GetCountClass::GetCount(graph_info->GetVertexInfo(edge_info->GetSrcType()),
+                                                       graph_info->GetPrefix())
+                             : GetCountClass::GetCount(graph_info->GetVertexInfo(edge_info->GetDstType()),
+                                                       graph_info->GetPrefix());
         }
 
         if (cur_idx < state_ind) {
-            DUCKDB_GRAPHAR_LOG_WARN("state_index(" + std::to_string(state_ind) + ") > cur_index(" + std::to_string(cur_idx) + "): ");
+            DUCKDB_GRAPHAR_LOG_WARN("state_index(" + std::to_string(state_ind) + ") > cur_index(" +
+                                    std::to_string(cur_idx) + "): ");
         }
         if (cur_idx == state_ind && !vertexes.empty()) {
             if (cur_idx + 1 == next_hop_idx) {
                 storage_state = false;
-                DUCKDB_GRAPHAR_LOG_DEBUG("state_index(" + std::to_string(state_ind) + ") cur_index(" + std::to_string(cur_idx) + ") STORAGE finished");
+                DUCKDB_GRAPHAR_LOG_DEBUG("state_index(" + std::to_string(state_ind) + ") cur_index(" +
+                                         std::to_string(cur_idx) + ") STORAGE finished");
             }
 
             const auto prefix = graph_info->GetPrefix();
@@ -57,15 +60,15 @@ public:
 
             for (size_t r = 0; r < num_ranges && !vertexes.empty(); ++r, ++cur_idx) {
                 if (storage_state && cur_idx + 1 == next_hop_idx) {
-                    break; // separate storage and non storage state 
+                    break;  // separate storage and non storage state
                 }
 
                 auto vid = vertexes.front();
                 vertexes.pop();
 
-                if (vid < 0 || vid >= vertex_num || vid + 1 <= 0 ||
-                    vid + 1 > vertex_num) {
-                    throw BinderException("Invalid filter vertex id range: " + std::to_string(vid) + " " + std::to_string(vid + 1));
+                if (vid < 0 || vid >= vertex_num || vid + 1 <= 0 || vid + 1 > vertex_num) {
+                    throw BinderException("Invalid filter vertex id range: " + std::to_string(vid) + " " +
+                                          std::to_string(vid + 1));
                 }
 
                 for (size_t i = 0; i < base_readers.size(); ++i) {
@@ -90,7 +93,8 @@ private:
 class ReadHopLocalTableFunctionState : public ReadBaseLocalTableFunctionState {
 public:
     ReadHopLocalTableFunctionState() = default;
-    ReadHopLocalTableFunctionState(ReadBaseLocalTableFunctionState& lstate) : ReadBaseLocalTableFunctionState(lstate) {};
+    ReadHopLocalTableFunctionState(ReadBaseLocalTableFunctionState& lstate)
+        : ReadBaseLocalTableFunctionState(lstate) {};
 
 private:
     bool storage_state = true;
@@ -124,7 +128,8 @@ public:
     static TableFunction GetScanFunction();
     static void Execute(ClientContext& context, TableFunctionInput& input, DataChunk& output);
     static unique_ptr<GlobalTableFunctionState> InitWrapper(ClientContext& context, TableFunctionInitInput& input);
-    static unique_ptr<LocalTableFunctionState> InitLocalWrapper(ExecutionContext& context, TableFunctionInitInput& input,
+    static unique_ptr<LocalTableFunctionState> InitLocalWrapper(ExecutionContext& context,
+                                                                TableFunctionInitInput& input,
                                                                 GlobalTableFunctionState* gstate_ptr);
 
     template <bool notLocked>
@@ -143,8 +148,6 @@ public:
     }
     static void Register(ExtensionLoader& loader) { loader.RegisterFunction(GetFunctions()); }
 
-    static std::string GetFunctionName() {
-        return "read_hop";
-    }
+    static std::string GetFunctionName() { return "read_hop"; }
 };
 }  // namespace duckdb

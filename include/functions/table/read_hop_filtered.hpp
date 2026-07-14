@@ -1,7 +1,7 @@
 #pragma once
 
-#include "functions/table/read_base.hpp"
 #include "functions/table/hop_base.hpp"
+#include "functions/table/read_base.hpp"
 #include "readers/duck_read_edges_reader.hpp"
 
 #include <duckdb/common/named_parameter_map.hpp>
@@ -29,7 +29,8 @@ public:
 class ReadHopFilteredGlobalTableFunctionState : public HopBaseGlobalTableFunctionState {
 public:
     ReadHopFilteredGlobalTableFunctionState() = default;
-    ReadHopFilteredGlobalTableFunctionState(ReadBaseGlobalTableFunctionState& gstate) : HopBaseGlobalTableFunctionState(gstate) {}; 
+    ReadHopFilteredGlobalTableFunctionState(ReadBaseGlobalTableFunctionState& gstate)
+        : HopBaseGlobalTableFunctionState(gstate) {};
 
 private:
     std::string query_string;
@@ -42,11 +43,12 @@ private:
 class ReadHopFilteredLocalTableFunctionState : public ReadBaseLocalTableFunctionState {
 public:
     ReadHopFilteredLocalTableFunctionState() = default;
-    ReadHopFilteredLocalTableFunctionState(ReadBaseLocalTableFunctionState& lstate) : ReadBaseLocalTableFunctionState(lstate) {};
+    ReadHopFilteredLocalTableFunctionState(ReadBaseLocalTableFunctionState& lstate)
+        : ReadBaseLocalTableFunctionState(lstate) {};
 
 private:
     std::shared_ptr<DuckEdgeReader> edge_reader;
-    
+
     friend class ReadHopFiltered;
 };
 
@@ -92,10 +94,9 @@ public:
     static void Register(ExtensionLoader& loader) { loader.RegisterFunction(GetFunctions()); }
 
     template <bool notLocked>
-    static idx_t FetchRowsNum(ReadHopFilteredGlobalTableFunctionState& gstate, ReadHopFilteredLocalTableFunctionState& lstate);
+    static idx_t FetchRowsNum(ReadHopFilteredGlobalTableFunctionState& gstate,
+                              ReadHopFilteredLocalTableFunctionState& lstate);
 
-    static std::string GetFunctionName() {
-        return "read_hop_filtered";
-    }
+    static std::string GetFunctionName() { return "read_hop_filtered"; }
 };
 }  // namespace duckdb

@@ -1,8 +1,8 @@
 #pragma once
 
+#include "functions/table/hop_base.hpp"
 #include "readers/low_edge_reader.hpp"
 #include "utils/func.hpp"
-#include "functions/table/hop_base.hpp"
 
 #include <duckdb/common/named_parameter_map.hpp>
 #include <duckdb/function/table/arrow.hpp>
@@ -14,26 +14,26 @@
 
 namespace duckdb {
 class TwoHopBindData final : public HopBaseBindData {
-    
     friend class TwoHop;
 };
 
 class TwoHopGlobalTableFunctionState : public HopBaseGlobalTableFunctionState {
 private:
     std::string edge_info_prefix;
-    
+
     friend class TwoHop;
 };
 
 class TwoHopLocalTableFunctionState : public LocalTableFunctionState {
 public:
-    TwoHopLocalTableFunctionState(const std::shared_ptr<graphar::EdgeInfo> edge_info, const std::string& edge_info_prefix, ExecutionContext& context) {
+    TwoHopLocalTableFunctionState(const std::shared_ptr<graphar::EdgeInfo> edge_info,
+                                  const std::string& edge_info_prefix, ExecutionContext& context) {
         DUCKDB_GRAPHAR_LOG_TRACE("TwoHopLocalTableFunctionState");
         reader = make_uniq<LowEdgeReaderByVertex>(edge_info, edge_info_prefix, graphar::AdjListType::ordered_by_source);
         reader->conn = make_uniq<Connection>(*context.client.db);
     }
 
-    void MoveReader(TwoHopGlobalTableFunctionState &gstate) {
+    void MoveReader(TwoHopGlobalTableFunctionState& gstate) {
         DUCKDB_GRAPHAR_LOG_TRACE("TwoHopLocalTableFunctionState::MoveReader");
         std::lock_guard<std::mutex> lock(gstate.lock);
 
@@ -69,7 +69,7 @@ public:
     static void Execute(ClientContext& context, TableFunctionInput& input, DataChunk& output);
 
     static TableFunctionSet GetFunctions();
-    static void SetTableFuncionParams(TableFunction& fun)  {
+    static void SetTableFuncionParams(TableFunction& fun) {
         fun.init_global = Init;
         fun.init_local = InitLocal;
 
@@ -77,9 +77,7 @@ public:
     }
     static void Register(ExtensionLoader& loader) { loader.RegisterFunction(GetFunctions()); }
 
-    static std::string GetFunctionName() {
-        return "two_hop";
-    }
+    static std::string GetFunctionName() { return "two_hop"; }
 };
 
 }  // namespace duckdb

@@ -2,7 +2,6 @@
 
 #include "readers/base_reader.hpp"
 #include "readers/vids_reader.hpp"
-
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
 
@@ -19,12 +18,11 @@ public:
     std::string const GetQueryFilterString(const std::vector<graphar::IdType>& vids);
 
     static std::string GetQueryColumnsString(const std::vector<column_t>& proj_columns);
-    void GenerateQueryTableString(const std::string& edge_table_name, const std::string& graph_info_path, std::shared_ptr<graphar::EdgeInfo> info); 
+    void GenerateQueryTableString(const std::string& edge_table_name, const std::string& graph_info_path,
+                                  std::shared_ptr<graphar::EdgeInfo> info);
     std::string GetQueryString(const std::vector<column_t>& proj_columns, const std::vector<graphar::IdType>& vids);
 
-    bool const inline isReady() {
-        return !query_table.empty();
-    }
+    bool const inline isReady() { return !query_table.empty(); }
 
     void SetQueryFilterType(QueryFilterType new_query_filter_type) { query_filter_type = new_query_filter_type; }
     void SetQueryFilter(std::string& new_query_filter) { query_filter = new_query_filter; }
@@ -40,23 +38,25 @@ class DuckEdgeReader {
 public:
     explicit DuckEdgeReader(std::shared_ptr<Connection> conn_) : conn(conn_) {}
 
-    static graphar::Result<std::shared_ptr<DuckEdgeReader>> Make(
-        std::shared_ptr<Connection> conn_, const std::string& edge_table_name, const std::string& graph_info_path, std::shared_ptr<graphar::EdgeInfo> info) {
+    static graphar::Result<std::shared_ptr<DuckEdgeReader>> Make(std::shared_ptr<Connection> conn_,
+                                                                 const std::string& edge_table_name,
+                                                                 const std::string& graph_info_path,
+                                                                 std::shared_ptr<graphar::EdgeInfo> info) {
         auto edge_reader = std::make_shared<DuckEdgeReader>(conn_);
         edge_reader->PrepareQuery(edge_table_name, graph_info_path, info);
-        
+
         return edge_reader;
     }
 
-    std::string GetTable() {
-        return query_string_constructor.query_table;
-    }
+    std::string GetTable() { return query_string_constructor.query_table; }
 
-    void PrepareQuery(const std::string& edge_table_name, const std::string& graph_info_path, std::shared_ptr<graphar::EdgeInfo> info) {
+    void PrepareQuery(const std::string& edge_table_name, const std::string& graph_info_path,
+                      std::shared_ptr<graphar::EdgeInfo> info) {
         query_string_constructor.GenerateQueryTableString(edge_table_name, graph_info_path, info);
     }
 
-    unique_ptr<QueryResult> ReadEdgesToTable(const std::vector<column_t>& proj_columns, const std::vector<graphar::IdType>& vids) {
+    unique_ptr<QueryResult> ReadEdgesToTable(const std::vector<column_t>& proj_columns,
+                                             const std::vector<graphar::IdType>& vids) {
         auto query_string = query_string_constructor.GetQueryString(proj_columns, vids);
         auto query_result = conn->Query(query_string);
         if (query_result->HasError()) {
@@ -73,7 +73,7 @@ private:
 class DuckReadEdgesChunkReader {
 public:
     DuckReadEdgesChunkReader(const std::vector<std::shared_ptr<graphar::TSVidsChunkReader>>& init_bases,
-                        std::shared_ptr<DuckEdgeReader> init_edge_reader, ClientContext& init_context)
+                             std::shared_ptr<DuckEdgeReader> init_edge_reader, ClientContext& init_context)
         : context(init_context), bases(std::move(init_bases)), edge_reader(std::move(init_edge_reader)) {}
 
     static graphar::Result<std::shared_ptr<DuckReadEdgesChunkReader>> Make(
@@ -86,8 +86,7 @@ public:
 
     static graphar::Result<std::shared_ptr<DuckReadEdgesChunkReader>> Make(
         ClientContext& context, std::shared_ptr<duckdb::HopBaseGlobalTableFunctionState> gstate_ptr,
-        std::shared_ptr<DuckEdgeReader> edge_reader,
-        const std::shared_ptr<graphar::PropertyGroup>& property_group, 
+        std::shared_ptr<DuckEdgeReader> edge_reader, const std::shared_ptr<graphar::PropertyGroup>& property_group,
         const std::vector<std::shared_ptr<graphar::TSVidsChunkReader>>& init_baseptrs = {}) {
         std::vector<std::shared_ptr<graphar::TSVidsChunkReader>> bases;
         if (init_baseptrs.empty()) {
@@ -128,7 +127,8 @@ public:
         if (base_idx >= bases.size()) {
             return;
         }
-        DUCKDB_GRAPHAR_LOG_TRACE("DuckReadEdgesChunkReader::AcquireVidUnderLock bases size=" + std::to_string(bases.size()) + " idx=" + std::to_string(base_idx));
+        DUCKDB_GRAPHAR_LOG_TRACE("DuckReadEdgesChunkReader::AcquireVidUnderLock bases size=" +
+                                 std::to_string(bases.size()) + " idx=" + std::to_string(base_idx));
         auto gc_result = bases[base_idx]->GetChunk();
         while (gc_result.no_more_chunks) {
             base_idx++;
@@ -143,12 +143,12 @@ public:
         }
         next_vid = maybe_vid.value();
         next_chunk_idx = gc_result.chunk_idx;
-        vid_acquired = true; 
+        vid_acquired = true;
     }
 
     void AcquirePathUnderLock() {
         DUCKDB_GRAPHAR_LOG_TRACE("DuckReadEdgesChunkReader::AcquirePathUnderLock");
-        AcquireVidUnderLock(); // for ReaderPtr interface
+        AcquireVidUnderLock();  // for ReaderPtr interface
     }
 
     idx_t GetRowsNum() {
@@ -171,7 +171,10 @@ public:
 
         DUCKDB_GRAPHAR_LOG_DEBUG("::GRN cur_chunk: " + std::to_string(cur_chunk != nullptr));
         if (cur_chunk) {
-            DUCKDB_GRAPHAR_LOG_DEBUG("::GRN "" cc " + std::to_string(cur_chunk->size()) + " rr " + std::to_string(read_rows));
+            DUCKDB_GRAPHAR_LOG_DEBUG(
+                "::GRN "
+                " cc " +
+                std::to_string(cur_chunk->size()) + " rr " + std::to_string(read_rows));
         }
         if (cur_chunk && read_rows < cur_chunk->size()) {
             return cur_chunk->size() - read_rows;
@@ -179,7 +182,7 @@ public:
         return 0;
     }
 
-    void CopyVidFrom(DuckReadEdgesChunkReader &other) {
+    void CopyVidFrom(DuckReadEdgesChunkReader& other) {
         DUCKDB_GRAPHAR_LOG_TRACE("DuckReadEdgesChunkReader::CopyVid");
         next_vid = other.next_vid;
         next_chunk_idx = other.next_chunk_idx;

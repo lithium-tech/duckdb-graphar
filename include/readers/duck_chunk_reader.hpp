@@ -139,9 +139,7 @@ public:
         proj_columns = std::move(proj_columns_);
     }
 
-    void Reset() {
-        base_idx = 0;
-    }
+    void Reset() { base_idx = 0; }
 
 protected:
     std::vector<std::shared_ptr<BaseArrowChunkReader>> bases;

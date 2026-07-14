@@ -21,21 +21,22 @@ public:
             vertex_chunk_size = edge_info->GetDstChunkSize();
         } else {
             throw InternalException("The adj list type has to be ordered_by_source or ordered_by_dest, but got " +
-                                     std::string(graphar::AdjListTypeToString(adj_list_type)));
+                                    std::string(graphar::AdjListTypeToString(adj_list_type)));
         }
 
         fs = graphar::FileSystemFromUriOrPath(prefix, &out_prefix).value();
         auto adjacent_list = edge_info->GetAdjacentList(adj_list_type);
         if (adjacent_list == nullptr) {
             throw InternalException("The adjacent list is not set for adj list type " +
-                                     std::string(graphar::AdjListTypeToString(adj_list_type)));
+                                    std::string(graphar::AdjListTypeToString(adj_list_type)));
         }
 
         file_type = adjacent_list->GetFileType();
     }
 
     void OpenTable(graphar::IdType vid) {
-        DUCKDB_GRAPHAR_LOG_TRACE("OffsetReader::OpenTable " + std::to_string(vid) + " / " + std::to_string(vertex_chunk_size));
+        DUCKDB_GRAPHAR_LOG_TRACE("OffsetReader::OpenTable " + std::to_string(vid) + " / " +
+                                 std::to_string(vertex_chunk_size));
         graphar::IdType offset_chunk_index = vid / vertex_chunk_size;
 
         if (offset_chunk_index != current_offset_chunk_index) {

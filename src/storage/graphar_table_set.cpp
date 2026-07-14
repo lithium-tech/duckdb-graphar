@@ -116,7 +116,7 @@ void GraphArTableSet::LoadEntries(ClientContext& context) {
 }
 
 optional_ptr<GraphArTableInformation> GraphArTableSet::GetTableInfo(ClientContext& context, GraphArSchemaEntry& schema,
-                                                                  const string& table_name) {
+                                                                    const string& table_name) {
     LoadEntries(context);
     lock_guard<mutex> l(entry_lock);
     {

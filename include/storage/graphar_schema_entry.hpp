@@ -43,7 +43,7 @@ private:
 
 private:
     GraphArCatalogSet& GetCatalogSet(CatalogType type);
-    
+
 public:
     GraphArTableSet tables;
 };

@@ -3,7 +3,7 @@
 #include "functions/table/hop_base.hpp"
 
 namespace graphar {
-    using namespace duckdb;
+using namespace duckdb;
 
 Status VidsChunkReader::next_chunk() {
     DUCKDB_GRAPHAR_LOG_TRACE("VidsChunkReader::next_chunk");

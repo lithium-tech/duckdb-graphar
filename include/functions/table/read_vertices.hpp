@@ -38,8 +38,6 @@ public:
 
     static TableFunction GetScanFunction();
 
-    static std::string GetFunctionName() {
-        return "read_vertices";
-    }
+    static std::string GetFunctionName() { return "read_vertices"; }
 };
 }  // namespace duckdb

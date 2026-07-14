@@ -1,4 +1,5 @@
 #include "readers/duck_chunk_reader.hpp"
+
 #include "utils/global_log_manager.hpp"
 
 namespace {

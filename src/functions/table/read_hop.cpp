@@ -1,10 +1,10 @@
 #include "functions/table/read_hop.hpp"
 
 #include "functions/table/read_edges.hpp"
-#include "utils/benchmark.hpp"
-#include "utils/func.hpp"
 #include "storage/graphar_catalog.hpp"
 #include "storage/graphar_schema_entry.hpp"
+#include "utils/benchmark.hpp"
+#include "utils/func.hpp"
 
 #include <arrow/c/bridge.h>
 
@@ -42,12 +42,13 @@ unique_ptr<FunctionData> ReadHop::Bind(ClientContext& context, TableFunctionBind
     HopBase::SetBindDataVids(input, *bind_data);
     HopBase::SetBindDataFilter(*bind_data);
 
-    ReadBase::SetBindData(bind_data->graph_info, bind_data->edge_info, reinterpret_cast<unique_ptr<ReadBindData>&>(bind_data), GetFunctionName(), 0, 1, {SRC_GID_COLUMN, DST_GID_COLUMN});
+    ReadBase::SetBindData(bind_data->graph_info, bind_data->edge_info,
+                          reinterpret_cast<unique_ptr<ReadBindData>&>(bind_data), GetFunctionName(), 0, 1,
+                          {SRC_GID_COLUMN, DST_GID_COLUMN});
 
     names = bind_data->GetFlattenPropNames();
     const auto& fpt = bind_data->GetFlattenPropTypes();
-    std::transform(fpt.begin(), fpt.end(),
-                   std::back_inserter(return_types),
+    std::transform(fpt.begin(), fpt.end(), std::back_inserter(return_types),
                    [](const auto& return_type) { return GraphArFunctions::graphArT2duckT(return_type); });
 
     HopBase::SetBindDataDstIdx(names, *bind_data);
@@ -108,7 +109,8 @@ unique_ptr<GlobalTableFunctionState> ReadHop::InitWrapper(ClientContext& context
     auto bind_data = input.bind_data->Cast<ReadHopBindData>();
     bool dst_column_found = true;
 
-    if (std::find(input.column_ids.begin(), input.column_ids.end(), bind_data.dst_column_idx) == input.column_ids.end()) {
+    if (std::find(input.column_ids.begin(), input.column_ids.end(), bind_data.dst_column_idx) ==
+        input.column_ids.end()) {
         dst_column_found = false;
         input.column_ids.push_back(bind_data.dst_column_idx);
     }
@@ -118,7 +120,7 @@ unique_ptr<GlobalTableFunctionState> ReadHop::InitWrapper(ClientContext& context
     auto gstate_ptr = std::make_unique<ReadHopGlobalTableFunctionState>(base_gstate);
     auto& gstate = *gstate_ptr;
     gstate.dst_column_found = dst_column_found;
-    
+
     HopBase::SetGlobalState(bind_data, gstate);
 
     gstate.vertexes = std::queue<graphar::IdType>();
@@ -133,7 +135,7 @@ unique_ptr<LocalTableFunctionState> ReadHop::InitLocalWrapper(ExecutionContext& 
                                                               GlobalTableFunctionState* gstate_ptr) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadHop::InitLocalWrapper");
     auto& gstate = gstate_ptr->Cast<ReadHopGlobalTableFunctionState>();
-    
+
     auto base_lstate_ptr = InitLocal(context, input, gstate_ptr);
     auto& base_lstate = base_lstate_ptr->Cast<ReadBaseLocalTableFunctionState>();
 
@@ -234,8 +236,11 @@ void ReadHop::Execute(ClientContext& context, TableFunctionInput& input, DataChu
 
         if (lstate.storage_state) {
             for (idx_t i = 0; i < num_rows; i++) {
-                size_t v = lstate.cur_chunks[gstate.special_dst.first]->data[gstate.special_dst.second].GetValue(i).GetValue<int64_t>();
-                
+                size_t v = lstate.cur_chunks[gstate.special_dst.first]
+                               ->data[gstate.special_dst.second]
+                               .GetValue(i)
+                               .GetValue<int64_t>();
+
                 // Need check uniq vertexes for 2 hop roots
                 if (!gstate._vertexes.contains(v)) {
                     gstate.vertexes.push(v);

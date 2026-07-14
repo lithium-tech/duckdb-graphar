@@ -15,12 +15,15 @@ constexpr std::string_view READ_EDGES_DESTINATION_ARG = "dst";
 
 namespace duckdb {
 
-std::string QueryReadEdgesStringConstructor::GetQueryReadString(const std::string& graph_info_path, std::shared_ptr<graphar::EdgeInfo> info) {
+std::string QueryReadEdgesStringConstructor::GetQueryReadString(const std::string& graph_info_path,
+                                                                std::shared_ptr<graphar::EdgeInfo> info) {
     DUCKDB_GRAPHAR_LOG_TRACE("QueryReadEdgesStringConstructor::GetQueryBaseString");
 
     std::ostringstream ss;
 
-    ss << READ_EDGES_FUNCTION << "('" << graph_info_path << "', " << READ_EDGES_SOURCE_ARG << "=" << info->GetSrcType() << ", " << READ_EDGES_EDGE_TYPE_ARG << "=" << info->GetEdgeType() << ", " << READ_EDGES_DESTINATION_ARG << "=" << info->GetDstType() << ")";
+    ss << READ_EDGES_FUNCTION << "('" << graph_info_path << "', " << READ_EDGES_SOURCE_ARG << "=" << info->GetSrcType()
+       << ", " << READ_EDGES_EDGE_TYPE_ARG << "=" << info->GetEdgeType() << ", " << READ_EDGES_DESTINATION_ARG << "="
+       << info->GetDstType() << ")";
 
     return ss.str();
 }
@@ -54,7 +57,6 @@ std::string const QueryReadEdgesStringConstructor::GetQueryFilterString(const st
     return ss.str();
 }
 
-
 std::string QueryReadEdgesStringConstructor::GetQueryColumnsString(const std::vector<column_t>& proj_columns) {
     DUCKDB_GRAPHAR_LOG_TRACE("QueryReadEdgesStringConstructor::GenerateQueryColumnsString");
 
@@ -68,7 +70,9 @@ std::string QueryReadEdgesStringConstructor::GetQueryColumnsString(const std::ve
     return ss.str();
 }
 
-void QueryReadEdgesStringConstructor::GenerateQueryTableString(const std::string& edge_table_name, const std::string& graph_info_path, std::shared_ptr<graphar::EdgeInfo> info) {
+void QueryReadEdgesStringConstructor::GenerateQueryTableString(const std::string& edge_table_name,
+                                                               const std::string& graph_info_path,
+                                                               std::shared_ptr<graphar::EdgeInfo> info) {
     DUCKDB_GRAPHAR_LOG_TRACE("QueryReadEdgesStringConstructor::GenerateQueryTableString");
 
     if (edge_table_name.empty()) {
@@ -78,7 +82,8 @@ void QueryReadEdgesStringConstructor::GenerateQueryTableString(const std::string
     }
 }
 
-std::string QueryReadEdgesStringConstructor::GetQueryString(const std::vector<column_t>& proj_columns, const std::vector<graphar::IdType>& vids) {
+std::string QueryReadEdgesStringConstructor::GetQueryString(const std::vector<column_t>& proj_columns,
+                                                            const std::vector<graphar::IdType>& vids) {
     DUCKDB_GRAPHAR_LOG_TRACE("QueryReadEdgesStringConstructor::GetQueryString");
 
     if (!isReady()) {
@@ -86,7 +91,8 @@ std::string QueryReadEdgesStringConstructor::GetQueryString(const std::vector<co
     }
 
     std::ostringstream ss;
-    ss << SQL_SELECT_CLAUSE << " " << GetQueryColumnsString(proj_columns) << " " << SQL_FROM_CLAUSE << " " << query_table << " " << SQL_WHERE_CLAUSE << " " << GetQueryFilterString(vids);
+    ss << SQL_SELECT_CLAUSE << " " << GetQueryColumnsString(proj_columns) << " " << SQL_FROM_CLAUSE << " "
+       << query_table << " " << SQL_WHERE_CLAUSE << " " << GetQueryFilterString(vids);
     return ss.str();
 }
 
