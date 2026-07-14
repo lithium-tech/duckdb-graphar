@@ -3,6 +3,7 @@
 #include "readers/base_reader.hpp"
 #include "readers/duck_arrow_chunk_reader.hpp"
 #include "readers/duck_chunk_reader.hpp"
+#include "readers/duck_read_edges_reader.hpp"
 #include "utils/benchmark.hpp"
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
@@ -32,6 +33,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cxxabi.h>
 #include <filesystem>
 #include <iostream>
 #include <limits>
@@ -40,19 +42,23 @@
 #include <unordered_map>
 #include <variant>
 
+namespace graphar {
+using TSVidsChunkReader = ThreadSafeReader<VidsChunkReader>;
+}
+
 namespace duckdb {
 
 using BaseReaderPtr = std::variant<
     std::shared_ptr<graphar::TSVertexPropertyChunkInfoReader>, std::shared_ptr<graphar::TSAdjListChunkInfoReader>,
     std::shared_ptr<graphar::TSAdjListPropertyChunkInfoReader>,
     std::shared_ptr<graphar::TSVertexPropertyArrowChunkReader>, std::shared_ptr<graphar::TSAdjListArrowChunkReader>,
-    std::shared_ptr<graphar::TSAdjListPropertyArrowChunkReader>>;
+    std::shared_ptr<graphar::TSAdjListPropertyArrowChunkReader>, std::shared_ptr<graphar::TSVidsChunkReader>>;
 
 using ReaderPtr = std::variant<
     std::shared_ptr<graphar::DuckVertexPropertyArrowChunkReader>, std::shared_ptr<graphar::DuckAdjListArrowChunkReader>,
     std::shared_ptr<graphar::DuckAdjListPropertyArrowChunkReader>,
     std::shared_ptr<graphar::DuckVertexPropertyChunkReader>, std::shared_ptr<graphar::DuckAdjListChunkReader>,
-    std::shared_ptr<graphar::DuckAdjListPropertyChunkReader>>;
+    std::shared_ptr<graphar::DuckAdjListPropertyChunkReader>, std::shared_ptr<graphar::DuckReadEdgesChunkReader>>;
 
 template <typename SomeReader>
 BaseReaderPtr ConvertBaseReader(graphar::Result<std::shared_ptr<SomeReader>> maybe_reader,
@@ -125,8 +131,78 @@ static bool CheckIfNewFileNeeded(ReaderPtr& reader) {
 static void AcquirePathUnderLock(ReaderPtr& reader) {
     std::visit([&](auto& r) { r->AcquirePathUnderLock(); }, reader);
 }
+
+static std::string DemangleTypeName(const char* mangled) {
+    static std::unordered_map<std::string, std::string> cache;
+    std::string key(mangled);
+    auto it = cache.find(key);
+    if (it != cache.end()) {
+        return it->second;
+    }
+    int status = 0;
+    char* demangled = abi::__cxa_demangle(mangled, nullptr, nullptr, &status);
+    std::string result = (status == 0 && demangled) ? std::string(demangled) : mangled;
+    if (demangled) {
+        free(demangled);
+    }
+    cache.insert_or_assign(key, result);
+    return result;
+}
+
+static std::string GetReaderName(ReaderPtr& reader) {
+    return std::visit([&](auto& r) { return DemangleTypeName(typeid(r).name()); }, reader);
+}
+
+static std::string GetReaderName(BaseReaderPtr& reader) {
+    return std::visit([&](auto& r) { return DemangleTypeName(typeid(r).name()); }, reader);
+}
+
+static void CopyVidFrom(ReaderPtr& readerSrc, ReaderPtr& readerDst) {
+    std::visit(
+        [&readerSrc](auto& dst_ptr) {
+            std::visit(
+                [&dst_ptr](auto& src_ptr) {
+                    if constexpr (requires { dst_ptr->CopyVidFrom(*src_ptr); }) {
+                        dst_ptr->CopyVidFrom(*src_ptr);
+                    } else {
+                        DUCKDB_GRAPHAR_LOG_DEBUG(
+                            "CopyVidFrom not support reader type: " + DemangleTypeName(typeid(dst_ptr).name()) + '\n' +
+                            DemangleTypeName(typeid(src_ptr).name()));
+                    }
+                },
+                readerSrc);
+        },
+        readerDst);
+}
+
 static idx_t GetRowsNum(ReaderPtr& reader) {
     return std::visit([&](auto& r) { return r->GetRowsNum(); }, reader);
+}
+
+static void Reset(ReaderPtr& reader) {
+    DUCKDB_GRAPHAR_LOG_TRACE("Reset function");
+
+    return std::visit(
+        [&](auto& r) {
+            if constexpr (requires { r->Reset(); }) {
+                r->Reset();
+            } else {
+                throw InternalException("Reset not implemented for this reader: " + DemangleTypeName(typeid(r).name()));
+            }
+        },
+        reader);
+}
+
+static idx_t ReserveRowsToRead(ReaderPtr& reader) {
+    return std::visit(
+        [&](auto& r) {
+            if constexpr (requires { r->ReserveRowsToRead(); }) {
+                return r->ReserveRowsToRead();
+            } else {
+                return idx_t(0);
+            }
+        },
+        reader);
 }
 
 static void SelectColumns(ReaderPtr& reader, std::vector<column_t> proj_columns) {
@@ -138,6 +214,14 @@ class ReadBase;
 
 class ReadVertices;
 class ReadEdges;
+
+class HopBase;
+class ReadHop;
+class ReadHopFiltered;
+
+class HopBaseGlobalTableFunctionState;
+class ReadHopGlobalTableFunctionState;
+class ReadHopFilteredGlobalTableFunctionState;
 
 struct ColumnStats {
     bool has_min_max = false;
@@ -177,14 +261,37 @@ private:
     friend class ReadBase;
     friend class ReadVertices;
     friend class ReadEdges;
+
+    friend class HopBase;
+    friend class ReadHop;
+    friend class ReadHopFiltered;
 };
 
 class ReadBaseGlobalTableFunctionState : public GlobalTableFunctionState {
 public:
+    ReadBaseGlobalTableFunctionState() = default;
+    ReadBaseGlobalTableFunctionState(ReadBaseGlobalTableFunctionState& gstate) {
+        params = gstate.params;
+        pgs = gstate.pgs;
+        prop_names = gstate.prop_names;
+        prop_types = gstate.prop_types;
+        total_props_num = gstate.total_props_num;
+        base_readers = gstate.base_readers;
+        type_info = gstate.type_info;
+        graph_info = gstate.graph_info;
+        filter_range = gstate.filter_range;
+        filter_column = gstate.filter_column;
+        function_name = gstate.function_name;
+        column_ids = gstate.column_ids;
+        global_projected_inds = gstate.global_projected_inds;
+        local_projected_inds = gstate.local_projected_inds;
+        id_columns_num = gstate.id_columns_num;
+    }
+
     idx_t MaxThreads() const override { return MAX_THREADS; }
     std::mutex lock;
 
-private:
+protected:
     vector<std::string> params;
     graphar::PropertyGroupVector pgs;
     vector<vector<std::string>> prop_names;
@@ -209,9 +316,21 @@ private:
     friend class ReadBase;
     friend class ReadVertices;
     friend class ReadEdges;
+
+    friend class HopBase;
+    friend class ReadHopFiltered;
 };
 
 class ReadBaseLocalTableFunctionState : public LocalTableFunctionState {
+public:
+    ReadBaseLocalTableFunctionState() = default;
+    ReadBaseLocalTableFunctionState(ReadBaseLocalTableFunctionState& lstate_ptr) {
+        readers = lstate_ptr.readers;
+        file_reader = lstate_ptr.file_reader;
+        cur_chunks = std::move(lstate_ptr.cur_chunks);
+        cur_chunk_id = lstate_ptr.cur_chunk_id;
+    }
+
 private:
     vector<ReaderPtr> readers;
     std::shared_ptr<DuckParquetFileReader> file_reader;
@@ -222,6 +341,9 @@ private:
     friend class ReadBase;
     friend class ReadVertices;
     friend class ReadEdges;
+
+    friend class ReadHop;
+    friend class ReadHopFiltered;
 };
 
 template <typename ReadFinal>
@@ -927,5 +1049,7 @@ public:
         auto& lstate = input.local_state->Cast<ReadBaseLocalTableFunctionState>();
         return OperatorPartitionData(lstate.cur_chunk_id);
     }
+
+    static std::string GetFunctionName() { return ReadFinal::GetFunctionName(); }
 };
 }  // namespace duckdb

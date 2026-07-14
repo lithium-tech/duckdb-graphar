@@ -112,6 +112,8 @@ public:
 
     void SelectColumns(std::vector<column_t> proj_columns_) { proj_columns = std::move(proj_columns_); }
 
+    void Reset() { current_base_idx = 0; }
+
 private:
     std::vector<column_t> proj_columns;
     ClientContext& context;

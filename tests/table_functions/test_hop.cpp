@@ -302,6 +302,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture,"TwoHop Bind and Execute functio
     if(tmp.size() > 0) res.Append(tmp, true);
 
     INFO("Checking results");
+    INFO("RESULT: " + res.ToString());
     REQUIRE(res.size() == 5); // 2 3; 2 4; 3 4; 3 5; 4 5;
     REQUIRE(res.ColumnCount() == 2); 
     INFO("Finish execute test");

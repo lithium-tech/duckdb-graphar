@@ -5,10 +5,11 @@
 #include "functions/scalar/bfs.hpp"
 #include "functions/table/edges_vertex.hpp"
 #include "functions/table/graphar_info.hpp"
-#include "functions/table/hop.hpp"
-#include "functions/table/hop_thread.hpp"
 #include "functions/table/read_edges.hpp"
+#include "functions/table/read_hop.hpp"
+#include "functions/table/read_hop_filtered.hpp"
 #include "functions/table/read_vertices.hpp"
+#include "functions/table/two_hop.hpp"
 #include "storage/graphar_storage.hpp"
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
@@ -49,15 +50,15 @@ static void LoadInternal(ExtensionLoader& loader) {
     config.AddExtensionOption("graphar_time_logging", "Enable time logging for GraphAr requests.", LogicalType::BOOLEAN,
                               Value::BOOLEAN(false));
 
-    GlobalLogManager::Initialize(loader.GetDatabaseInstance());
+    GlobalLogManager::Initialize(loader.GetDatabaseInstance(), duckdb::LogLevel::LOG_WARNING);
 
     ReadVertices::Register(loader);
     ReadEdges::Register(loader);
     Bfs::Register(loader);
     EdgesVertex::Register(loader);
     TwoHop::Register(loader);
-    OneMoreHop::Register(loader);
-    TwoHopThreads::Register(loader);
+    ReadHop::Register(loader);
+    ReadHopFiltered::Register(loader);
     GraphArInfo::Register(loader);
 
     StorageExtension::Register(config, "duckdb_graphar", make_shared_ptr<GraphArStorageExtension>());
