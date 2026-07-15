@@ -153,7 +153,7 @@ unique_ptr<GlobalTableFunctionState> ReadHopFiltered::InitWrapper(ClientContext&
         for (const auto& cid : gstate.column_ids) {
             ss << ' ' << cid;
         }
-        DUCKDB_GRAPHAR_LOG_WARN(ss.str());
+        DUCKDB_GRAPHAR_LOG_DEBUG(ss.str());
     }
 
     HopBase::SetGlobalState(bind_data, gstate);
@@ -186,7 +186,7 @@ unique_ptr<GlobalTableFunctionState> ReadHopFiltered::InitWrapper(ClientContext&
             }
             ss << "]\n";
         }
-        DUCKDB_GRAPHAR_LOG_WARN(ss.str());
+        DUCKDB_GRAPHAR_LOG_DEBUG(ss.str());
     }
 
     {
@@ -199,7 +199,7 @@ unique_ptr<GlobalTableFunctionState> ReadHopFiltered::InitWrapper(ClientContext&
             }
             ss << "]\n";
         }
-        DUCKDB_GRAPHAR_LOG_WARN(ss.str());
+        DUCKDB_GRAPHAR_LOG_DEBUG(ss.str());
     }
 
     return gstate_ptr;
@@ -249,7 +249,7 @@ unique_ptr<LocalTableFunctionState> ReadHopFiltered::InitLocal(ExecutionContext&
         }
         ss << "\n";
     }
-    DUCKDB_GRAPHAR_LOG_WARN(ss.str());
+    DUCKDB_GRAPHAR_LOG_DEBUG(ss.str());
 
     return lstate_ptr;
 }
