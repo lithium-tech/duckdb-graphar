@@ -50,7 +50,7 @@ jobs:
   build:
     name: ${{ matrix.os }} Build and Test
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
