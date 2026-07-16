@@ -235,6 +235,7 @@ void ReadHop::Execute(ClientContext& context, TableFunctionInput& input, DataChu
         }
 
         if (lstate.storage_state) {
+            std::lock_guard<std::mutex> guard(gstate.lock);
             for (idx_t i = 0; i < num_rows; i++) {
                 size_t v = lstate.cur_chunks[gstate.special_dst.first]
                                ->data[gstate.special_dst.second]

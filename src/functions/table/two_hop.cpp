@@ -91,6 +91,7 @@ void TwoHop::Execute(ClientContext& context, TableFunctionInput& input, DataChun
         if (data != nullptr) {
             output.Reference(*data);
             if (lstate.cur_idx < gstate.next_hop_idx) {
+                std::lock_guard<std::mutex> guard(gstate.lock);
                 for (idx_t i = 0; i < data->size(); ++i) {
                     auto dst = data->GetValue(gstate.dst_column_idx, i).GetValue<int64_t>();
                     if (!gstate._vertexes.contains(dst)) {

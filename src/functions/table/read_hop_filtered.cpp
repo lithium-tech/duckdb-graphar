@@ -363,6 +363,7 @@ void ReadHopFiltered::Execute(ClientContext& context, TableFunctionInput& input,
         }
 
         if (chunk_id_set && GetResultIdx(lstate.cur_chunk_id) < gstate.next_hop_idx) {
+            std::lock_guard<std::mutex> guard(gstate.lock); // Replace by threadsafe queue like boost
             for (idx_t i = 0; i < num_rows; i++) {
                 size_t v = lstate.cur_chunks[gstate.special_dst.first]
                                ->data[gstate.special_dst.second]
