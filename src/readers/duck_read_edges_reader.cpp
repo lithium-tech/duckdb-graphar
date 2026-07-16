@@ -21,9 +21,9 @@ std::string QueryReadEdgesStringConstructor::GetQueryReadString(const std::strin
 
     std::ostringstream ss;
 
-    ss << READ_EDGES_FUNCTION << "('" << graph_info_path << "', " << READ_EDGES_SOURCE_ARG << "=" << info->GetSrcType()
-       << ", " << READ_EDGES_EDGE_TYPE_ARG << "=" << info->GetEdgeType() << ", " << READ_EDGES_DESTINATION_ARG << "="
-       << info->GetDstType() << ")";
+    ss << READ_EDGES_FUNCTION << "('" << graph_info_path << "', " << READ_EDGES_SOURCE_ARG << "='" << info->GetSrcType()
+       << "', " << READ_EDGES_EDGE_TYPE_ARG << "='" << info->GetEdgeType() << "', " << READ_EDGES_DESTINATION_ARG
+       << "='" << info->GetDstType() << "')";
 
     return ss.str();
 }

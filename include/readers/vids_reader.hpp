@@ -38,7 +38,7 @@ public:
     Status Init(duckdb::HopBaseGlobalTableFunctionState* init_gstate_ptr);
 
 private:
-    duckdb::HopBaseGlobalTableFunctionState* gstate_ptr;
+    duckdb::HopBaseGlobalTableFunctionState* gstate_ptr = nullptr;
 };
 
 }  // namespace graphar

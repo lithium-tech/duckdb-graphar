@@ -82,7 +82,7 @@ unique_ptr<LocalTableFunctionState> TwoHop::InitLocal(ExecutionContext& context,
 // Execute
 //-------------------------------------------------------------------
 void TwoHop::Execute(ClientContext& context, TableFunctionInput& input, DataChunk& output) {
-    DUCKDB_GRAPHAR_LOG_TRACE("TwoHop::Execute")
+    DUCKDB_GRAPHAR_LOG_TRACE("TwoHop::Execute");
     auto& gstate = input.global_state->Cast<TwoHopGlobalTableFunctionState>();
     auto& lstate = input.local_state->Cast<TwoHopLocalTableFunctionState>();
 
