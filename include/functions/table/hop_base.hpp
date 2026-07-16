@@ -258,7 +258,7 @@ public:
 
         idx_t column_idx;
         if (gstate.column_ids.empty()) {
-            DUCKDB_GRAPHAR_LOG_WARN("HopBase::SetGlobalState: EMPTY column_ids");
+            DUCKDB_GRAPHAR_LOG_DEBUG("HopBase::SetGlobalState: EMPTY column_ids");
             column_idx = gstate.dst_column_idx;
         } else {
             auto column_it = std::find(gstate.column_ids.begin(), gstate.column_ids.end(), gstate.dst_column_idx);

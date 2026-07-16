@@ -42,9 +42,12 @@ unique_ptr<FunctionData> ReadHop::Bind(ClientContext& context, TableFunctionBind
     HopBase::SetBindDataVids(input, *bind_data);
     HopBase::SetBindDataFilter(*bind_data);
 
-    ReadBase::SetBindData(bind_data->graph_info, bind_data->edge_info,
-                          reinterpret_cast<unique_ptr<ReadBindData>&>(bind_data), GetFunctionName(), 0, 1,
+    auto graph_info = bind_data->graph_info;
+    auto edge_info = bind_data->edge_info;
+    unique_ptr<ReadBindData> base_bind_data = std::move(bind_data);
+    ReadBase::SetBindData(graph_info, edge_info, base_bind_data, GetFunctionName(), 0, 1,
                           {SRC_GID_COLUMN, DST_GID_COLUMN});
+    bind_data.reset(static_cast<ReadHopBindData*>(base_bind_data.release()));
 
     names = bind_data->GetFlattenPropNames();
     const auto& fpt = bind_data->GetFlattenPropTypes();
@@ -235,6 +238,7 @@ void ReadHop::Execute(ClientContext& context, TableFunctionInput& input, DataChu
         }
 
         if (lstate.storage_state) {
+            std::lock_guard<std::mutex> guard(gstate.lock);
             for (idx_t i = 0; i < num_rows; i++) {
                 size_t v = lstate.cur_chunks[gstate.special_dst.first]
                                ->data[gstate.special_dst.second]

@@ -28,7 +28,7 @@ namespace duckdb {
 //-------------------------------------------------------------------
 unique_ptr<FunctionData> ReadHopFiltered::Bind(ClientContext& context, TableFunctionBindInput& input,
                                                vector<LogicalType>& return_types, vector<string>& names) {
-    DUCKDB_GRAPHAR_LOG_TRACE("ReadHopFiltered::Bind")
+    DUCKDB_GRAPHAR_LOG_TRACE("ReadHopFiltered::Bind");
     const bool is_catalog_mode = HopBase::IsCatalogMode(input);
 
     auto bind_data = make_uniq<ReadHopFilteredBindData>();
@@ -42,9 +42,12 @@ unique_ptr<FunctionData> ReadHopFiltered::Bind(ClientContext& context, TableFunc
 
     HopBase::SetBindDataVids(input, *bind_data);
 
-    ReadBase::SetBindData(bind_data->graph_info, bind_data->edge_info,
-                          reinterpret_cast<unique_ptr<ReadBindData>&>(bind_data), GetFunctionName(), 0, 1,
+    auto graph_info = bind_data->graph_info;
+    auto edge_info = bind_data->edge_info;
+    unique_ptr<ReadBindData> base_bind_data = std::move(bind_data);
+    ReadBase::SetBindData(graph_info, edge_info, base_bind_data, GetFunctionName(), 0, 1,
                           {SRC_GID_COLUMN, DST_GID_COLUMN});
+    bind_data.reset(static_cast<ReadHopFilteredBindData*>(base_bind_data.release()));
 
     names = bind_data->GetFlattenPropNames();
     const auto& fpt = bind_data->GetFlattenPropTypes();
@@ -153,7 +156,7 @@ unique_ptr<GlobalTableFunctionState> ReadHopFiltered::InitWrapper(ClientContext&
         for (const auto& cid : gstate.column_ids) {
             ss << ' ' << cid;
         }
-        DUCKDB_GRAPHAR_LOG_WARN(ss.str());
+        DUCKDB_GRAPHAR_LOG_DEBUG(ss.str());
     }
 
     HopBase::SetGlobalState(bind_data, gstate);
@@ -186,7 +189,7 @@ unique_ptr<GlobalTableFunctionState> ReadHopFiltered::InitWrapper(ClientContext&
             }
             ss << "]\n";
         }
-        DUCKDB_GRAPHAR_LOG_WARN(ss.str());
+        DUCKDB_GRAPHAR_LOG_DEBUG(ss.str());
     }
 
     {
@@ -199,7 +202,7 @@ unique_ptr<GlobalTableFunctionState> ReadHopFiltered::InitWrapper(ClientContext&
             }
             ss << "]\n";
         }
-        DUCKDB_GRAPHAR_LOG_WARN(ss.str());
+        DUCKDB_GRAPHAR_LOG_DEBUG(ss.str());
     }
 
     return gstate_ptr;
@@ -249,7 +252,7 @@ unique_ptr<LocalTableFunctionState> ReadHopFiltered::InitLocal(ExecutionContext&
         }
         ss << "\n";
     }
-    DUCKDB_GRAPHAR_LOG_WARN(ss.str());
+    DUCKDB_GRAPHAR_LOG_DEBUG(ss.str());
 
     return lstate_ptr;
 }
@@ -363,6 +366,7 @@ void ReadHopFiltered::Execute(ClientContext& context, TableFunctionInput& input,
         }
 
         if (chunk_id_set && GetResultIdx(lstate.cur_chunk_id) < gstate.next_hop_idx) {
+            std::lock_guard<std::mutex> guard(gstate.lock);  // Replace by threadsafe queue like boost
             for (idx_t i = 0; i < num_rows; i++) {
                 size_t v = lstate.cur_chunks[gstate.special_dst.first]
                                ->data[gstate.special_dst.second]

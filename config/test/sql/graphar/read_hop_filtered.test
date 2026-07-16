@@ -29,3 +29,8 @@ query I
 SELECT COUNT(*) FROM read_hop_filtered('Person_knows_Person', vids=[1, 10]);
 ----
 18247
+
+query I
+SELECT COUNT(*) FROM read_hop_filtered('Person_knows_Person', vids=[1, 10]) WHERE _graphArDstIndex != 2370;
+----
+18209

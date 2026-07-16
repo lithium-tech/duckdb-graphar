@@ -133,7 +133,7 @@ static void AcquirePathUnderLock(ReaderPtr& reader) {
 }
 
 static std::string DemangleTypeName(const char* mangled) {
-    static std::unordered_map<std::string, std::string> cache;
+    static thread_local std::unordered_map<std::string, std::string> cache;
     std::string key(mangled);
     auto it = cache.find(key);
     if (it != cache.end()) {
