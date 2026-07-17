@@ -100,7 +100,6 @@ public:
 class HopBase {
 public:
     static bool IsCatalogMode(TableFunctionBindInput& input) {
-        ;
         DUCKDB_GRAPHAR_LOG_TRACE("HopBase::IsCatalogMode");
 
         bool has_src = input.named_parameters.find("src") != input.named_parameters.end();

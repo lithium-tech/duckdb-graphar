@@ -44,6 +44,9 @@ public:
 
     void start() {
         DUCKDB_GRAPHAR_LOG_TRACE("LowEdgeReaderByVertex::start");
+        if (!conn) {
+            throw InternalException("LowEdgeReaderByVertex::start: conn is nullptr");
+        }
         auto paths = GetChunkPaths();
         vector<Value> paths_val;
         paths_val.reserve(paths.size());

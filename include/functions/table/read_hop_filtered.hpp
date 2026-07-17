@@ -62,14 +62,14 @@ public:
                                        std::shared_ptr<graphar::SharedChunkCounter> counter = nullptr);
     static void SetFilter(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate, idx_t ind,
                           const vector<std::pair<int64_t, int64_t>>& vid_ranges, const std::string& filter_column) {
-        throw NotImplementedException("SetFilter is not implemented for ReadHop");
+        throw NotImplementedException("SetFilter is not implemented for ReadHopFiltered");
     }
     static ReaderPtr GetReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate,
                                ReadBaseLocalTableFunctionState& lstate, idx_t ind, const std::string& filter_column);
 
     static unique_ptr<BaseStatistics> GetStatistics(ClientContext& context, const FunctionData* bind_data,
                                                     column_t column_index) {
-        throw NotImplementedException("GetStatistics is not implemented for ReadHop");
+        throw NotImplementedException("GetStatistics is not implemented for ReadHopFiltered");
     }
     static void PushdownComplexFilter(ClientContext& context, LogicalGet& get, FunctionData* bind_data,
                                       vector<unique_ptr<Expression>>& filters);
