@@ -37,6 +37,7 @@ static std::string GetVertexTypeName(TypeInfoPtr& type_info, const std::string& 
 class GetCountClass {
 public:
     static int64_t GetCount(const TypeInfoPtr& type_info, const std::string& graph_prefix);
+    static int64_t GetCount(const std::string& name, const std::string& num_file_path);
 
 private:
     static std::unordered_map<std::string, int64_t> count_cache;

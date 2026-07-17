@@ -1,6 +1,8 @@
 #pragma once
 
+#include "readers/vids_reader.hpp"
 #include "utils/func.hpp"
+#include "utils/global_log_manager.hpp"
 
 #include <graphar/arrow/chunk_reader.h>
 #include <graphar/chunk_info_reader.h>
@@ -37,6 +39,9 @@ template <typename T>
 concept IsEdgeReader =
     std::is_same_v<T, AdjListArrowChunkReader> || std::is_same_v<T, AdjListPropertyArrowChunkReader> ||
     std::is_same_v<T, AdjListChunkInfoReader> || std::is_same_v<T, AdjListPropertyChunkInfoReader>;
+
+template <typename T>
+concept IsVidsReader = std::is_same_v<T, VidsChunkReader>;
 
 struct SharedChunkCounter {
     std::atomic<duckdb::idx_t> global_chunk_count{0};
@@ -102,6 +107,7 @@ public:
             return;
         }
         GAR_RAISE_ERROR_NOT_OK(reader->seek(vid_range.first));
+        local_chunk_count = 0;
         const auto chunk_size = vertex_info->GetChunkSize();
         filter_info->offset_rows = vid_range.first % chunk_size;
         filter_info->last_chunk_rows = (vid_range.second - 1) % chunk_size + 1;
@@ -128,6 +134,7 @@ public:
         } else {
             reader->seek_dst(vid_range.first);
         }
+        local_chunk_count = 0;
         const auto chunk_size = edge_info->GetChunkSize();
         GAR_ASSIGN_OR_RAISE_ERROR(auto offset_pair, graphar::util::GetAdjListOffsetOfVertex(
                                                         edge_info, prefix, adj_list_type, vid_range.first));
@@ -139,6 +146,12 @@ public:
         filter_info->offset_rows = offset_pair.first % chunk_size;
         filter_info->last_chunk_rows = (offset_pair.second - 1) % chunk_size + 1;
         filter_info->total_chunks = (offset_pair.second - 1) / chunk_size - offset_pair.first / chunk_size + 1;
+    }
+
+    void Init(duckdb::HopBaseGlobalTableFunctionState* gstate_ptr)
+    requires IsVidsReader<StoredReader>
+    {
+        reader->Init(gstate_ptr);
     }
 
 private:
@@ -156,5 +169,6 @@ using TSAdjListPropertyArrowChunkReader = ThreadSafeReader<AdjListPropertyArrowC
 using TSVertexPropertyChunkInfoReader = ThreadSafeReader<VertexPropertyChunkInfoReader>;
 using TSAdjListChunkInfoReader = ThreadSafeReader<AdjListChunkInfoReader>;
 using TSAdjListPropertyChunkInfoReader = ThreadSafeReader<AdjListPropertyChunkInfoReader>;
+using TSVidsChunkReader = ThreadSafeReader<VidsChunkReader>;
 
 }  // namespace graphar
