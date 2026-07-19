@@ -13,32 +13,40 @@ namespace duckdb {
 class LowEdgeReaderByVertex {
 public:
     LowEdgeReaderByVertex(const std::shared_ptr<graphar::EdgeInfo> edge_info, const std::string& prefix,
-                          graphar::AdjListType adj_list_type, std::shared_ptr<OffsetReader> offset_reader)
+                          graphar::AdjListType adj_list_type)
         : edge_info(edge_info),
           prefix(prefix),
           adj_list_type(adj_list_type),
           file_type(edge_info->GetAdjacentList(adj_list_type)->GetFileType()),
-          offset_reader(offset_reader) {}
+          vid(-1),
+          vertex_chunk_index(-1) {
+        DUCKDB_GRAPHAR_LOG_TRACE("LowEdgeReaderByVertex::LowEdgeReaderByVertex");
+        offset_reader = std::make_unique<OffsetReader>(edge_info, prefix, adj_list_type);
+    }
 
-    void SetVertex(graphar::IdType vid) {
-        DUCKDB_GRAPHAR_LOG_TRACE("Reader::SetVertex");
+    void SetVertex(graphar::IdType _vid) {
+        DUCKDB_GRAPHAR_LOG_TRACE("LowEdgeReaderByVertex::SetVertex " + std::to_string(_vid));
+        vid = _vid;
         offset = offset_reader->GetOffset(vid);
         vertex_chunk_index = vid / offset_reader->vertex_chunk_size;
         result = nullptr;
     }
 
     unique_ptr<DataChunk> read() {
-        DUCKDB_GRAPHAR_LOG_TRACE("Reader::read");
+        DUCKDB_GRAPHAR_LOG_TRACE("LowEdgeReaderByVertex::read");
         if (!started()) {
-            throw NotImplementedException("Reader for Vertex not started");
+            start();
         }
         return std::move(result->Fetch());
     }
 
     bool started() { return (result != nullptr); }
 
-    void start(std::unique_ptr<Connection> conn) {
-        DUCKDB_GRAPHAR_LOG_TRACE("Reader::start");
+    void start() {
+        DUCKDB_GRAPHAR_LOG_TRACE("LowEdgeReaderByVertex::start");
+        if (!conn) {
+            throw InternalException("LowEdgeReaderByVertex::start: conn is nullptr");
+        }
         auto paths = GetChunkPaths();
         vector<Value> paths_val;
         paths_val.reserve(paths.size());
@@ -49,8 +57,8 @@ public:
         auto offset_in_chunk = offset.first % edge_info->GetChunkSize();
         auto count = offset.second - offset.first;
         Value path_list_val = Value::LIST(paths_val);
-        DUCKDB_GRAPHAR_LOG_DEBUG("Reader::params: " + path_list_val.ToString() + " " + std::to_string(offset_in_chunk) +
-                                 " " + std::to_string(count));
+        DUCKDB_GRAPHAR_LOG_DEBUG("LowEdgeReaderByVertex::params: " + path_list_val.ToString() + " " +
+                                 std::to_string(offset_in_chunk) + " " + std::to_string(count));
         result = std::move(conn->Query(query, path_list_val, offset_in_chunk, count));
     }
 
@@ -89,14 +97,20 @@ public:
         }
     }
 
+    const graphar::IdType GetVertex() { return vid; }
+
+public:
+    pair<graphar::IdType, graphar::IdType> offset;
+    std::unique_ptr<Connection> conn;
+
 private:
     const std::shared_ptr<graphar::EdgeInfo> edge_info;
     const std::string prefix;
     graphar::AdjListType adj_list_type;
     graphar::FileType file_type;
-    pair<graphar::IdType, graphar::IdType> offset;
     graphar::IdType vertex_chunk_index;
     std::unique_ptr<QueryResult> result = nullptr;
-    std::shared_ptr<OffsetReader> offset_reader;
+    std::unique_ptr<OffsetReader> offset_reader;
+    graphar::IdType vid;
 };
 }  // namespace duckdb
