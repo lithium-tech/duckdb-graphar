@@ -130,4 +130,6 @@ static idx_t GetChunkIdx(duckdb::idx_t result_idx, duckdb::idx_t read_idx) {
     return (result_idx) << 32 | read_idx;
 }
 
+static idx_t GetResultIdx(duckdb::idx_t chunk_idx) { return chunk_idx >> 32; }
+
 }  // namespace duckdb

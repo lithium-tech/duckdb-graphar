@@ -96,6 +96,7 @@ public:
     }
 
     idx_t GetRowsNum() {
+        DUCKDB_GRAPHAR_LOG_TRACE("BaseDuckChunkReader::GetRowsNum");
         if (path_acquired) {
             if (!next_path.empty()) {
                 cur_result = file_reader->ReadFileToTable(next_path, proj_columns, next_rows_range);
@@ -137,6 +138,8 @@ public:
         }
         proj_columns = std::move(proj_columns_);
     }
+
+    void Reset() { base_idx = 0; }
 
 protected:
     std::vector<std::shared_ptr<BaseArrowChunkReader>> bases;

@@ -1,5 +1,7 @@
 #include "readers/duck_chunk_reader.hpp"
 
+#include "utils/global_log_manager.hpp"
+
 namespace {
 constexpr std::string_view SQL_SELECT_CLAUSE = "SELECT";
 constexpr std::string_view SQL_FROM_CLAUSE = "FROM";
@@ -16,6 +18,7 @@ namespace duckdb {
 
 std::string QueryStringConstructor::GetMainQueryString(const std::vector<column_t>& proj_columns,
                                                        std::pair<int64_t, int64_t> range) {
+    DUCKDB_GRAPHAR_LOG_TRACE("QueryStringConstructor::GetMainQueryString");
     QueryType query_type = QueryType::MIDDLE;
     if (range.first != -1 && range.second != -1) {
         query_type = QueryType::SINGLE;

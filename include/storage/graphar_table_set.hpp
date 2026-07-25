@@ -17,8 +17,8 @@ public:
     explicit GraphArTableSet(GraphArSchemaEntry& schema) : GraphArCatalogSet(schema) {}
 
 public:
-    static unique_ptr<GraphArTableInformation> GetTableInfo(ClientContext& context, GraphArSchemaEntry& schema,
-                                                            const string& table_name);
+    optional_ptr<GraphArTableInformation> GetTableInfo(ClientContext& context, GraphArSchemaEntry& schema,
+                                                       const string& table_name);
     optional_ptr<CatalogEntry> GetEntry(ClientContext& context, const EntryLookupInfo& lookup) override;
     void Scan(ClientContext& context, const std::function<void(CatalogEntry&)>& callback) override;
     optional_ptr<CatalogEntry> CreateNewEntry(ClientContext& context, Catalog& catalog, GraphArSchemaEntry& schema,
