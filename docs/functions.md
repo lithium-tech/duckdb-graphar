@@ -220,7 +220,7 @@ WHERE creationDate > '2020-01-01';
 
 #### Signatures
 ```sql
-TABLE shortest_path(BIGINT src_vertex_id, BIGINT dst_vertex_id, VARCHAR path);
+TABLE shortest_path(BIGINT src_vertex_id, BIGINT dst_vertex_id, VARCHAR edge_table_name);
 TABLE shortest_path(BIGINT src_vertex_id, BIGINT dst_vertex_id, VARCHAR graph_path, src VARCHAR, type VARCHAR, dst VARCHAR);
 ```
 

@@ -12,6 +12,22 @@
 using namespace duckdb;
 using namespace graphar;
 
+// Trial Graph Structure (used in most tests):
+// Vertices: 0, 1, 2, 3, 4, 5
+// Edges (directed): 1->2, 2->3, 2->4, 3->5
+//
+// Visual representation:
+//   0 (isolated)
+//   1 -> 2 -> 3 -> 5
+//        |
+//        v
+//        4
+//
+// Multi-component Graph:
+// Component 1: 0->1->2->3->4 (chain)
+// Component 2: 5->7->9 (chain)
+// Component 3: 8->6 (chain)
+
 #define TestFixture TableFunctionsFixture<TestType>
 
 TEST_CASE("ShortestPath GetFunction basic test", "[shortest_path]") {

@@ -20,9 +20,8 @@ unique_ptr<FunctionData> ShortestPath::Bind(ClientContext& context, TableFunctio
     DUCKDB_GRAPHAR_LOG_TRACE("ShortestPath::Bind");
 
     auto bind_data = make_uniq<ShortestPathBindData>();
-
-    bind_data->start_id = input.inputs[0].GetValue<int64_t>();
-    bind_data->end_id = input.inputs[1].GetValue<int64_t>();
+    bind_data->start_id = input.inputs[0].GetValue<graphar::IdType>();
+    bind_data->end_id = input.inputs[1].GetValue<graphar::IdType>();
 
     // Check if named parameters exist (new signature) or not (old signature)
     bool use_yaml_path = !input.named_parameters.empty();
@@ -179,7 +178,7 @@ unique_ptr<GlobalTableFunctionState> ShortestPath::InitGlobal(ClientContext& con
                 if (forward_iter != global_state->forward_edges->end()) {
                     do {
                         auto dst = forward_iter.destination();
-                        if (dst < vertex_count && !visited_forward[dst]) {
+                        if (dst >= 0 && dst < vertex_count && !visited_forward[dst]) {
                             visited_forward[dst] = true;
                             parent_forward[dst] = curr;
 
@@ -210,7 +209,7 @@ unique_ptr<GlobalTableFunctionState> ShortestPath::InitGlobal(ClientContext& con
                 if (backward_iter != global_state->backward_edges->end()) {
                     do {
                         auto src = backward_iter.source();
-                        if (src < vertex_count && !visited_backward[src]) {
+                        if (src >= 0 && src < vertex_count && !visited_backward[src]) {
                             visited_backward[src] = true;
                             parent_backward[src] = curr;
 
@@ -284,10 +283,9 @@ void ShortestPath::Function(ClientContext& context, TableFunctionInput& data_p, 
 }
 
 TableFunction ShortestPath::GetFunction() {
-    // Single signature with optional named parameters
-    // shortest_path(start_id, end_id, path_or_table)
-    // If named params (src, type, dst) are provided, path_or_table is treated as YAML path
-    // Otherwise, it's treated as table name
+    // Supports two signatures:
+    // 1. shortest_path(start_id, end_id, edge_table_name) - uses catalog lookup
+    // 2. shortest_path(start_id, end_id, graph_path, src=..., type=..., dst=...) - uses YAML path
     TableFunction func("shortest_path", {LogicalType::BIGINT, LogicalType::BIGINT, LogicalType::VARCHAR}, Function,
                        Bind, InitGlobal);
     func.named_parameters["src"] = LogicalType::VARCHAR;

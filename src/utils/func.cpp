@@ -22,7 +22,6 @@ namespace duckdb {
 
 LogicalTypeId GraphArFunctions::graphArT2duckT(const std::string& name) {
     if (name == "bool") return LogicalTypeId::BOOLEAN;
-    if (name == "int16") return LogicalTypeId::SMALLINT;
     if (name == "int32") return LogicalTypeId::INTEGER;
     if (name == "int64") return LogicalTypeId::BIGINT;
     if (name == "float") return LogicalTypeId::FLOAT;
@@ -37,7 +36,6 @@ LogicalTypeId GraphArFunctions::graphArT2duckT(const std::string& name) {
 
 std::shared_ptr<arrow::DataType> GraphArFunctions::graphArT2arrowT(const std::string& name) {
     if (name == "bool") return arrow::boolean();
-    if (name == "int16") return arrow::int16();
     if (name == "int32") return arrow::int32();
     if (name == "int64") return arrow::int64();
     if (name == "float") return arrow::float32();
@@ -65,8 +63,6 @@ Value GraphArFunctions::ArrowScalar2DuckValue(const std::shared_ptr<arrow::Scala
     switch (scalar->type->id()) {
         case arrow::Type::BOOL:
             return Value::BOOLEAN(static_cast<const arrow::BooleanScalar&>(*scalar).value);
-        case arrow::Type::INT16:
-            return Value::SMALLINT(static_cast<const arrow::Int16Scalar&>(*scalar).value);
         case arrow::Type::INT32:
             return Value::INTEGER(static_cast<const arrow::Int32Scalar&>(*scalar).value);
         case arrow::Type::INT64:
@@ -130,10 +126,6 @@ std::shared_ptr<arrow::Table> GraphArFunctions::EmptyTableFromNamesAndTypes(cons
 std::shared_ptr<graphar::Expression> GraphArFunctions::GetFilter(const std::string& filter_type,
                                                                  const std::string& filter_value,
                                                                  const std::string& filter_column) {
-    if (filter_type == "int16") {
-        return graphar::_Equal(graphar::_Property(filter_column),
-                               graphar::_Literal(static_cast<int16_t>(std::stoi(filter_value))));
-    }
     if (filter_type == "int32") {
         return graphar::_Equal(graphar::_Property(filter_column), graphar::_Literal(std::stoi(filter_value)));
     }

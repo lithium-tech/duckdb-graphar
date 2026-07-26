@@ -15,8 +15,8 @@ namespace duckdb {
 struct ShortestPathBindData : public ReadBindData {
     ShortestPathBindData() : ReadBindData() {}
 
-    graphar::IdType start_id;
-    graphar::IdType end_id;
+    graphar::IdType start_id = 0;
+    graphar::IdType end_id = 0;
     std::shared_ptr<graphar::EdgeInfo> edge_info;
     std::shared_ptr<graphar::GraphInfo> graph_info;
     std::shared_ptr<graphar::VertexInfo> vertex_info;
