@@ -49,6 +49,8 @@ struct GraphArFunctions {
                           const std::string& prop_name, const std::string& prop_type) {
         if (prop_type == "bool") {
             output.SetValue(prop_i, row_i, iter.template property<bool>(prop_name).value());
+        } else if (prop_type == "int16") {
+            output.SetValue(prop_i, row_i, iter.template property<int16_t>(prop_name).value());
         } else if (prop_type == "int32") {
             output.SetValue(prop_i, row_i, iter.template property<int32_t>(prop_name).value());
         } else if (prop_type == "int64") {
