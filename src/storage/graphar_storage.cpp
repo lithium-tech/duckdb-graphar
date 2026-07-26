@@ -23,6 +23,22 @@ static unique_ptr<Catalog> GraphArAttach(optional_ptr<StorageExtensionInfo> stor
                                          AttachedDatabase& db, const string& name, AttachInfo& info,
                                          AttachOptions& attach_options) {
     DUCKDB_GRAPHAR_LOG_TRACE("GraphArAttach");
+    if (info.path.starts_with("s3://")) {
+        arrow::fs::FileSystemGlobalOptions global_options;
+        std::vector<std::string> env_vars = {"AWS_CA_BUNDLE", "SSL_CERT_FILE", "CURL_CA_BUNDLE", "REQUESTS_CA_BUNDLE"};
+        std::string ca_bundle;
+        for (const auto& env_var : env_vars) {
+            const char* value = std::getenv(env_var.c_str());
+            if (value != nullptr && value[0] != '\0') {
+                ca_bundle = value;
+                break;
+            }
+        }
+        if (!ca_bundle.empty()) {
+            global_options.tls_ca_file_path = ca_bundle;
+        }
+        auto status = arrow::fs::Initialize(global_options);
+    }
     auto maybe_graph_info = graphar::GraphInfo::Load(info.path);
     if (maybe_graph_info.has_error()) {
         throw IOException("Failed to load graph info from path: %s because of %s", info.path,
@@ -34,7 +50,6 @@ static unique_ptr<Catalog> GraphArAttach(optional_ptr<StorageExtensionInfo> stor
         throw IOException(
             "Using relative path as prefix is not supported. Please use absolute path or just remove this field.");
     }
-
     if (prefix.starts_with("s3://")) {
         if (!arrow::fs::IsS3Initialized()) {
             auto status = graphar::InitializeS3();
