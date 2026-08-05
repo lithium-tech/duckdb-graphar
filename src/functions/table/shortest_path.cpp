@@ -54,12 +54,16 @@ unique_ptr<FunctionData> ShortestPath::Bind(ClientContext& context, TableFunctio
         auto src_vtype = edge_info->GetSrcType();
         auto dst_vtype = edge_info->GetDstType();
         if (src_vtype != dst_vtype) {
-            throw InvalidInputException("Shortest path requires same vertex type for source and destination. "
-                                        "Got src=" + src_vtype + ", dst=" + dst_vtype);
+            throw InvalidInputException(
+                "Shortest path requires same vertex type for source and destination. "
+                "Got src=" +
+                src_vtype + ", dst=" + dst_vtype);
         }
         if (!edge_info->IsDirected()) {
-            throw InvalidInputException("Shortest path algorithm only supports directed graphs. "
-                                        "Edge type '" + edge_info->GetEdgeType() + "' is undirected.");
+            throw InvalidInputException(
+                "Shortest path algorithm only supports directed graphs. "
+                "Edge type '" +
+                edge_info->GetEdgeType() + "' is undirected.");
         }
         bind_data->vertex_info = bind_data->graph_info->GetVertexInfo(src_vtype);
         if (!bind_data->vertex_info) {
@@ -94,12 +98,16 @@ unique_ptr<FunctionData> ShortestPath::Bind(ClientContext& context, TableFunctio
         auto src_type = bind_data->edge_info->GetSrcType();
         auto dst_type = bind_data->edge_info->GetDstType();
         if (src_type != dst_type) {
-            throw InvalidInputException("Shortest path requires same vertex type for source and destination. "
-                                        "Got src=" + src_type + ", dst=" + dst_type);
+            throw InvalidInputException(
+                "Shortest path requires same vertex type for source and destination. "
+                "Got src=" +
+                src_type + ", dst=" + dst_type);
         }
         if (!bind_data->edge_info->IsDirected()) {
-            throw InvalidInputException("Shortest path algorithm only supports directed graphs. "
-                                        "Edge type '" + bind_data->edge_info->GetEdgeType() + "' is undirected.");
+            throw InvalidInputException(
+                "Shortest path algorithm only supports directed graphs. "
+                "Edge type '" +
+                bind_data->edge_info->GetEdgeType() + "' is undirected.");
         }
         bind_data->vertex_info = bind_data->graph_info->GetVertexInfo(src_type);
         if (bind_data->vertex_info == nullptr) {
@@ -152,8 +160,8 @@ unique_ptr<GlobalTableFunctionState> ShortestPath::InitGlobal(ClientContext& con
     TypeInfoPtr vertex_type_info = bind_data.vertex_info;
     auto vertex_count = GetCountClass::GetCount(vertex_type_info, bind_data.graph_info->GetPrefix());
 
-    if (bind_data.start_id < 0 || bind_data.end_id < 0 || 
-        bind_data.start_id >= vertex_count || bind_data.end_id >= vertex_count) {
+    if (bind_data.start_id < 0 || bind_data.end_id < 0 || bind_data.start_id >= vertex_count ||
+        bind_data.end_id >= vertex_count) {
         global_state->path_found = false;
         return std::move(global_state);
     }
@@ -162,7 +170,6 @@ unique_ptr<GlobalTableFunctionState> ShortestPath::InitGlobal(ClientContext& con
         global_state->path_found = true;
         global_state->path = {bind_data.start_id};
     } else {
-
         // Bidirectional BFS: search from both start and end
         std::vector<bool> visited_forward(vertex_count, false);
         std::vector<bool> visited_backward(vertex_count, false);
