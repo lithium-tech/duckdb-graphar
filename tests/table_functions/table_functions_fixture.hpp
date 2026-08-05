@@ -57,7 +57,7 @@ public:
                 }, 
                 {
                     EdgesSchema(
-                        VERTEX_LABEL, EDGE_LABEL, VERTEX_LABEL, 0, false, 
+                        VERTEX_LABEL, EDGE_LABEL, VERTEX_LABEL, 0, true, 
                         {}, 
                         {
                             {1, 2}, 
@@ -100,7 +100,7 @@ public:
                 }, 
                 {
                     EdgesSchema(
-                        VERTEX_LABEL, EDGE_LABEL, VERTEX_LABEL, 0, false, 
+                        VERTEX_LABEL, EDGE_LABEL, VERTEX_LABEL, 0, true, 
                         {
                             PropertySchema("friend_score", "int32", false, false),
                             PropertySchema("created_at", "string", false, false), 
@@ -150,7 +150,7 @@ public:
                 },
                 {
                     EdgesSchema(
-                        VERTEX_LABEL, EDGE_LABEL, VERTEX_LABEL, 0, false,
+                        VERTEX_LABEL, EDGE_LABEL, VERTEX_LABEL, 0, true,
                         {},
                         {
                             // Component 1: 0->1->2->3->4

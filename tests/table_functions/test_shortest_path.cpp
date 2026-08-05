@@ -14,7 +14,7 @@ using namespace graphar;
 
 // Trial Graph Structure (used in most tests):
 // Vertices: 0, 1, 2, 3, 4, 5
-// Edges (directed): 1->2, 2->3, 2->4, 3->5
+// Edges (directed): 1->2, 1->3, 2->3, 2->4, 3->4, 3->5, 4->5
 //
 // Visual representation:
 //   0 (isolated)
@@ -442,5 +442,182 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
     REQUIRE(vertex_data[1] == 1);
     REQUIRE(step_data[2] == 2);
     REQUIRE(vertex_data[2] == 2);
+    INFO("Finish execute test");
+}
+
+TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute - non-existent vertex (start == end)", "[shortest_path]", FILE_TYPES_FOR_TEST) {
+    INFO("Start mocking data for bind");
+    vector<Value> inputs({Value::BIGINT(999999), Value::BIGINT(999999), Value(TestFixture::path_trial_graph)});
+
+    INFO("Path graph: " + TestFixture::path_trial_graph);
+
+    named_parameter_map_t named_parameters({
+        {"src", Value("Person")},
+        {"type", Value("knows")},
+        {"dst", Value("Person")}
+    });
+    vector<LogicalType> input_table_types({});
+    auto bind_input = TestFixture::CreateMockBindInput(inputs, named_parameters, input_table_types);
+
+    vector<LogicalType> return_types;
+    vector<std::string> names;
+    INFO("Finish mocking");
+
+    TableFunction shortest_path_func = ShortestPath::GetFunction();
+
+    INFO("Bind test");
+    TestFixture::conn.BeginTransaction();
+    unique_ptr<FunctionData> bind_data;
+    REQUIRE_NOTHROW(bind_data = shortest_path_func.bind(*TestFixture::conn.context, bind_input, return_types, names));
+
+    REQUIRE(bind_data != nullptr);
+    REQUIRE(names == vector<std::string>({"step_number", "_graphArVertexIndex"}));
+    REQUIRE(return_types == vector<LogicalType>({LogicalType::BIGINT, LogicalType::BIGINT}));
+    INFO("Finish bind test");
+
+    TableFunctionInitInput func_init_input(bind_data.get(), vector<column_t>(), {}, nullptr);
+    INFO("Prepare func_init_input");
+
+    unique_ptr<GlobalTableFunctionState> gstate;
+    REQUIRE_NOTHROW(gstate = shortest_path_func.init_global(*TestFixture::conn.context, func_init_input));
+    INFO("Finish init global state");
+
+    TableFunctionInput func_input(bind_data.get(), nullptr, gstate);
+    INFO("Prepare func_input");
+
+    DataChunk res;
+    res.Initialize(*TestFixture::conn.context, return_types);
+    DataChunk tmp;
+    tmp.Initialize(*TestFixture::conn.context, return_types);
+
+    INFO("Execute test");
+    REQUIRE_NOTHROW(shortest_path_func.function(*TestFixture::conn.context, func_input, tmp));
+    while (tmp.size() > 0){
+        res.Append(tmp, true);
+        tmp.Reset();
+        REQUIRE_NOTHROW(shortest_path_func.function(*TestFixture::conn.context, func_input, tmp));
+    }
+    if(tmp.size() > 0) res.Append(tmp, true);
+
+    INFO("Checking results");
+    REQUIRE(res.size() == 0);
+    INFO("Finish execute test");
+}
+
+TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute - non-existent vertex (start > vertex_count)", "[shortest_path]", FILE_TYPES_FOR_TEST) {
+    INFO("Start mocking data for bind");
+    vector<Value> inputs({Value::BIGINT(999999), Value::BIGINT(1), Value(TestFixture::path_trial_graph)});
+
+    INFO("Path graph: " + TestFixture::path_trial_graph);
+
+    named_parameter_map_t named_parameters({
+        {"src", Value("Person")},
+        {"type", Value("knows")},
+        {"dst", Value("Person")}
+    });
+    vector<LogicalType> input_table_types({});
+    auto bind_input = TestFixture::CreateMockBindInput(inputs, named_parameters, input_table_types);
+
+    vector<LogicalType> return_types;
+    vector<std::string> names;
+    INFO("Finish mocking");
+
+    TableFunction shortest_path_func = ShortestPath::GetFunction();
+
+    INFO("Bind test");
+    TestFixture::conn.BeginTransaction();
+    unique_ptr<FunctionData> bind_data;
+    REQUIRE_NOTHROW(bind_data = shortest_path_func.bind(*TestFixture::conn.context, bind_input, return_types, names));
+
+    REQUIRE(bind_data != nullptr);
+    REQUIRE(names == vector<std::string>({"step_number", "_graphArVertexIndex"}));
+    REQUIRE(return_types == vector<LogicalType>({LogicalType::BIGINT, LogicalType::BIGINT}));
+    INFO("Finish bind test");
+
+    TableFunctionInitInput func_init_input(bind_data.get(), vector<column_t>(), {}, nullptr);
+    INFO("Prepare func_init_input");
+
+    unique_ptr<GlobalTableFunctionState> gstate;
+    REQUIRE_NOTHROW(gstate = shortest_path_func.init_global(*TestFixture::conn.context, func_init_input));
+    INFO("Finish init global state");
+
+    TableFunctionInput func_input(bind_data.get(), nullptr, gstate);
+    INFO("Prepare func_input");
+
+    DataChunk res;
+    res.Initialize(*TestFixture::conn.context, return_types);
+    DataChunk tmp;
+    tmp.Initialize(*TestFixture::conn.context, return_types);
+
+    INFO("Execute test");
+    REQUIRE_NOTHROW(shortest_path_func.function(*TestFixture::conn.context, func_input, tmp));
+    while (tmp.size() > 0){
+        res.Append(tmp, true);
+        tmp.Reset();
+        REQUIRE_NOTHROW(shortest_path_func.function(*TestFixture::conn.context, func_input, tmp));
+    }
+    if(tmp.size() > 0) res.Append(tmp, true);
+
+    INFO("Checking results");
+    REQUIRE(res.size() == 0);
+    INFO("Finish execute test");
+}
+
+TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute - non-existent vertex (end > vertex_count)", "[shortest_path]", FILE_TYPES_FOR_TEST) {
+    INFO("Start mocking data for bind");
+    vector<Value> inputs({Value::BIGINT(1), Value::BIGINT(999999), Value(TestFixture::path_trial_graph)});
+
+    INFO("Path graph: " + TestFixture::path_trial_graph);
+
+    named_parameter_map_t named_parameters({
+        {"src", Value("Person")},
+        {"type", Value("knows")},
+        {"dst", Value("Person")}
+    });
+    vector<LogicalType> input_table_types({});
+    auto bind_input = TestFixture::CreateMockBindInput(inputs, named_parameters, input_table_types);
+
+    vector<LogicalType> return_types;
+    vector<std::string> names;
+    INFO("Finish mocking");
+
+    TableFunction shortest_path_func = ShortestPath::GetFunction();
+
+    INFO("Bind test");
+    TestFixture::conn.BeginTransaction();
+    unique_ptr<FunctionData> bind_data;
+    REQUIRE_NOTHROW(bind_data = shortest_path_func.bind(*TestFixture::conn.context, bind_input, return_types, names));
+
+    REQUIRE(bind_data != nullptr);
+    REQUIRE(names == vector<std::string>({"step_number", "_graphArVertexIndex"}));
+    REQUIRE(return_types == vector<LogicalType>({LogicalType::BIGINT, LogicalType::BIGINT}));
+    INFO("Finish bind test");
+
+    TableFunctionInitInput func_init_input(bind_data.get(), vector<column_t>(), {}, nullptr);
+    INFO("Prepare func_init_input");
+
+    unique_ptr<GlobalTableFunctionState> gstate;
+    REQUIRE_NOTHROW(gstate = shortest_path_func.init_global(*TestFixture::conn.context, func_init_input));
+    INFO("Finish init global state");
+
+    TableFunctionInput func_input(bind_data.get(), nullptr, gstate);
+    INFO("Prepare func_input");
+
+    DataChunk res;
+    res.Initialize(*TestFixture::conn.context, return_types);
+    DataChunk tmp;
+    tmp.Initialize(*TestFixture::conn.context, return_types);
+
+    INFO("Execute test");
+    REQUIRE_NOTHROW(shortest_path_func.function(*TestFixture::conn.context, func_input, tmp));
+    while (tmp.size() > 0){
+        res.Append(tmp, true);
+        tmp.Reset();
+        REQUIRE_NOTHROW(shortest_path_func.function(*TestFixture::conn.context, func_input, tmp));
+    }
+    if(tmp.size() > 0) res.Append(tmp, true);
+
+    INFO("Checking results");
+    REQUIRE(res.size() == 0);
     INFO("Finish execute test");
 }
