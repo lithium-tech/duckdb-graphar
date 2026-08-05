@@ -7,9 +7,18 @@
 template <typename FileTypeTag> 
 class TableFunctionsFixture: public BasicGrapharFixture<FileTypeTag> {
 protected:
+    // Trial graph: single connected component (vertices 1-5)
     std::string path_trial_graph;
     std::string path_edges_trial_graph;
     std::string folder_trial_graph;
+
+    // Multi-component graph: 3 disconnected components
+    // Component 1: 1-2-3-4-5 (chain)
+    // Component 2: 6-8-10 (chain)
+    // Component 3: 9-7 (chain)
+    std::string path_multi_component_graph;
+    std::string path_edges_multi_component_graph;
+    std::string folder_multi_component_graph;
 
     std::string path_feature_graph;
     std::string path_edges_feature_graph;
@@ -48,7 +57,7 @@ public:
                 }, 
                 {
                     EdgesSchema(
-                        VERTEX_LABEL, EDGE_LABEL, VERTEX_LABEL, 0, false, 
+                        VERTEX_LABEL, EDGE_LABEL, VERTEX_LABEL, 0, true, 
                         {}, 
                         {
                             {1, 2}, 
@@ -91,7 +100,7 @@ public:
                 }, 
                 {
                     EdgesSchema(
-                        VERTEX_LABEL, EDGE_LABEL, VERTEX_LABEL, 0, false, 
+                        VERTEX_LABEL, EDGE_LABEL, VERTEX_LABEL, 0, true, 
                         {
                             PropertySchema("friend_score", "int32", false, false),
                             PropertySchema("created_at", "string", false, false), 
@@ -112,5 +121,55 @@ public:
         );
         path_feature_graph = folder_feature_graph + "/" + FEATURE_GRAPH_NAME + GraphFileExtension;
         path_edges_feature_graph = folder_feature_graph + "/" +  VERTEX_LABEL + "_" + EDGE_LABEL + "_" + VERTEX_LABEL + EdgeFileExtension;
+
+        // Multi-component graph: 3 disconnected components
+        // Component 1: vertices 0-4 (chain: 0->1->2->3->4)
+        // Component 2: vertices 5,7,9 (chain: 5->7->9)
+        // Component 3: vertices 6,8 (chain: 8->6)
+        constexpr const char* MULTI_COMPONENT_GRAPH_NAME = "multi_component";
+        REQUIRE_NOTHROW(
+            folder_multi_component_graph = BasicGrapharFixture<FileTypeTag>::CreateTestGraph(
+                MULTI_COMPONENT_GRAPH_NAME,
+                {
+                    VerticesSchema(
+                        VERTEX_LABEL, 1024,
+                        { PropertySchema("hash_phone_no", "int32", false, true) },
+                        {
+                            {0, {{"hash_phone_no", int32_t{0}}}},
+                            {1, {{"hash_phone_no", int32_t{10}}}},
+                            {2, {{"hash_phone_no", int32_t{20}}}},
+                            {3, {{"hash_phone_no", int32_t{30}}}},
+                            {4, {{"hash_phone_no", int32_t{40}}}},
+                            {5, {{"hash_phone_no", int32_t{50}}}},
+                            {6, {{"hash_phone_no", int32_t{60}}}},
+                            {7, {{"hash_phone_no", int32_t{70}}}},
+                            {8, {{"hash_phone_no", int32_t{80}}}},
+                            {9, {{"hash_phone_no", int32_t{90}}}}
+                        }
+                    )
+                },
+                {
+                    EdgesSchema(
+                        VERTEX_LABEL, EDGE_LABEL, VERTEX_LABEL, 0, true,
+                        {},
+                        {
+                            // Component 1: 0->1->2->3->4
+                            {0, 1},
+                            {1, 2},
+                            {2, 3},
+                            {3, 4},
+                            // Component 2: 5->7->9
+                            {5, 7},
+                            {7, 9},
+                            // Component 3: 8->6
+                            {8, 6}
+                        },
+                        10  // num_vertices
+                    )
+                }
+            )
+        );
+        path_multi_component_graph = folder_multi_component_graph + "/" + MULTI_COMPONENT_GRAPH_NAME + GraphFileExtension;
+        path_edges_multi_component_graph = folder_multi_component_graph + "/" + VERTEX_LABEL + "_" + EDGE_LABEL + "_" + VERTEX_LABEL + EdgeFileExtension;
     };
 };

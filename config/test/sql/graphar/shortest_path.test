@@ -1,0 +1,166 @@
+require duckdb_graphar
+
+statement ok
+SET autoinstall_known_extensions=1;
+
+statement ok
+SET autoload_known_extensions=1;
+
+statement ok
+ATTACH '__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml' as test_db (type duckdb_graphar);
+
+################################################################################
+# Test 1: Direct edge (1-hop path)
+################################################################################
+query III
+SELECT COUNT(*) AS path_length,
+       MIN(_graphArVertexIndex) FILTER (WHERE step_number = 0) AS first_vertex,
+       MIN(_graphArVertexIndex) FILTER (WHERE _graphArVertexIndex = 23977) AS end_vertex
+FROM shortest_path(0, 23977, Person_knows_Person);
+----
+2	0	23977
+
+################################################################################
+# Test 2: 2-hop path
+################################################################################
+query III
+SELECT COUNT(*) AS path_length,
+       MIN(_graphArVertexIndex) FILTER (WHERE step_number = 0) AS first_vertex,
+       MIN(_graphArVertexIndex) FILTER (WHERE _graphArVertexIndex = 29188) AS end_vertex
+FROM shortest_path(0, 29188, 'Person_knows_Person');
+----
+3	0	29188
+
+################################################################################
+# Test 3: 3-hop path
+################################################################################
+query III
+SELECT COUNT(*) AS path_length,
+       MIN(_graphArVertexIndex) FILTER (WHERE step_number = 0) AS first_vertex,
+       MIN(_graphArVertexIndex) FILTER (WHERE _graphArVertexIndex = 27173) AS end_vertex
+FROM shortest_path(0, 27173, 'Person_knows_Person');
+----
+4	0	27173
+
+################################################################################
+# Test 4: Same vertex (start == end)
+# Expected: single row with step 0
+################################################################################
+query II
+SELECT * FROM shortest_path(5, 5, 'Person_knows_Person');
+----
+0	5
+
+################################################################################
+# Test 5: No path - source vertex has no outgoing edges
+# Vertex 37699 confirmed to have 0 outgoing edges
+################################################################################
+query II
+SELECT * FROM shortest_path(37699, 0, 'Person_knows_Person');
+----
+
+################################################################################
+# Test 6: No path - invalid IDs (out of range)
+# Vertex count is 37700, so 999999 and 888888 are invalid
+################################################################################
+query II
+SELECT * FROM shortest_path(999999, 888888, 'Person_knows_Person');
+----
+
+################################################################################
+# Test 7: No path - valid start, invalid end
+# Vertex 0 is valid, but 999999 is out of range
+################################################################################
+query II
+SELECT * FROM shortest_path(0, 999999, 'Person_knows_Person');
+----
+
+################################################################################
+# Test 8: Another direct edge (different vertex pair)
+################################################################################
+query III
+SELECT COUNT(*) AS path_length,
+       MIN(_graphArVertexIndex) FILTER (WHERE step_number = 0) AS first_vertex,
+       MIN(_graphArVertexIndex) FILTER (WHERE _graphArVertexIndex = 2370) AS end_vertex
+FROM shortest_path(1, 2370, 'Person_knows_Person');
+----
+2	1	2370
+
+################################################################################
+# Test 9: No path - invalid start ID (out of range), valid end ID
+################################################################################
+query II
+SELECT * FROM shortest_path(999999, 0, 'Person_knows_Person');
+----
+
+################################################################################
+# Test 10: Reverse direction test (directed graph)
+# Graph is directed: 0 -> 23977 exists, but 23977 -> 0 has no path
+# This verifies the algorithm respects edge directionality
+################################################################################
+query II
+SELECT * FROM shortest_path(23977, 0, 'Person_knows_Person');
+----
+
+################################################################################
+# Test 11: 4-hop path
+################################################################################
+query III
+SELECT COUNT(*) AS path_length,
+       MIN(_graphArVertexIndex) FILTER (WHERE step_number = 0) AS first_vertex,
+       MIN(_graphArVertexIndex) FILTER (WHERE _graphArVertexIndex = 37180) AS end_vertex
+FROM shortest_path(0, 37180, 'Person_knows_Person');
+----
+5	0	37180
+
+################################################################################
+# Test 12: Error handling - non-existent table name
+# Should throw a catalog error
+################################################################################
+statement error
+SELECT * FROM shortest_path(0, 5, 'NonExistentTable');
+----
+Catalog Error: Table with name NonExistentTable does not exist!
+
+################################################################################
+# Test 13: New signature - Direct edge with YAML path
+# Using file path instead of table name
+################################################################################
+query III
+SELECT COUNT(*) AS path_length,
+       MIN(_graphArVertexIndex) FILTER (WHERE step_number = 0) AS first_vertex,
+       MIN(_graphArVertexIndex) FILTER (WHERE _graphArVertexIndex = 23977) AS end_vertex
+FROM shortest_path(0, 23977,
+    '__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml',
+    src='Person', type='knows', dst='Person');
+----
+2	0	23977
+
+################################################################################
+# Test 14: New signature - Same vertex with YAML path
+################################################################################
+query II
+SELECT * FROM shortest_path(5, 5,
+    '__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml',
+    src='Person', type='knows', dst='Person');
+----
+0	5
+
+################################################################################
+# Test 15: New signature - No path with YAML path
+################################################################################
+query II
+SELECT * FROM shortest_path(37699, 0,
+    '__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml',
+    src='Person', type='knows', dst='Person');
+----
+
+################################################################################
+# Test 16: New signature - Error handling for non-existent edge type
+################################################################################
+statement error
+SELECT * FROM shortest_path(0, 5,
+    '__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml',
+    src='Person', type='nonexistent', dst='Person');
+----
+Binder Error: Edges of this type are not found: Person_nonexistent_Person

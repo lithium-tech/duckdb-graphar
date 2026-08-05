@@ -2,13 +2,13 @@
 
 #include "duckdb_graphar_extension.hpp"
 
-#include "functions/scalar/bfs.hpp"
 #include "functions/table/edges_vertex.hpp"
 #include "functions/table/graphar_info.hpp"
 #include "functions/table/read_edges.hpp"
 #include "functions/table/read_hop.hpp"
 #include "functions/table/read_hop_filtered.hpp"
 #include "functions/table/read_vertices.hpp"
+#include "functions/table/shortest_path.hpp"
 #include "functions/table/two_hop.hpp"
 #include "storage/graphar_storage.hpp"
 #include "utils/func.hpp"
@@ -54,12 +54,12 @@ static void LoadInternal(ExtensionLoader& loader) {
 
     ReadVertices::Register(loader);
     ReadEdges::Register(loader);
-    Bfs::Register(loader);
     EdgesVertex::Register(loader);
     TwoHop::Register(loader);
     ReadHop::Register(loader);
     ReadHopFiltered::Register(loader);
     GraphArInfo::Register(loader);
+    ShortestPath::Register(loader);
 
     StorageExtension::Register(config, "duckdb_graphar", make_shared_ptr<GraphArStorageExtension>());
 }
