@@ -218,6 +218,7 @@ class ReadEdges;
 class HopBase;
 class ReadHop;
 class ReadHopFiltered;
+class Hop;
 
 class HopBaseGlobalTableFunctionState;
 class ReadHopGlobalTableFunctionState;
@@ -265,6 +266,7 @@ private:
     friend class HopBase;
     friend class ReadHop;
     friend class ReadHopFiltered;
+    friend class Hop;
 };
 
 class ReadBaseGlobalTableFunctionState : public GlobalTableFunctionState {

@@ -4,6 +4,7 @@
 
 #include "functions/table/edges_vertex.hpp"
 #include "functions/table/graphar_info.hpp"
+#include "functions/table/hop.hpp"
 #include "functions/table/read_edges.hpp"
 #include "functions/table/read_hop.hpp"
 #include "functions/table/read_hop_filtered.hpp"
@@ -58,6 +59,7 @@ static void LoadInternal(ExtensionLoader& loader) {
     TwoHop::Register(loader);
     ReadHop::Register(loader);
     ReadHopFiltered::Register(loader);
+    Hop::Register(loader);
     GraphArInfo::Register(loader);
     ShortestPath::Register(loader);
 
