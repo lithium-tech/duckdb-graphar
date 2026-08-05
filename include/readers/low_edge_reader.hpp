@@ -26,6 +26,9 @@ public:
 
     void SetVertex(graphar::IdType _vid) {
         DUCKDB_GRAPHAR_LOG_TRACE("LowEdgeReaderByVertex::SetVertex " + std::to_string(_vid));
+        if (_vid < 0) {
+            throw IOException("LowEdgeReaderByVertex: _vid = " + std::to_string(_vid) + " < 0");
+        }
         vid = _vid;
         offset = offset_reader->GetOffset(vid);
         vertex_chunk_index = vid / offset_reader->vertex_chunk_size;
@@ -36,6 +39,9 @@ public:
         DUCKDB_GRAPHAR_LOG_TRACE("LowEdgeReaderByVertex::read");
         if (!started()) {
             start();
+        }
+        if (!started()) {
+            return nullptr;
         }
         return std::move(result->Fetch());
     }
@@ -48,6 +54,11 @@ public:
             throw InternalException("LowEdgeReaderByVertex::start: conn is nullptr");
         }
         auto paths = GetChunkPaths();
+        if (paths.empty()) {
+            result = nullptr;
+            return;
+        }
+
         vector<Value> paths_val;
         paths_val.reserve(paths.size());
         for (auto& el : paths) {
