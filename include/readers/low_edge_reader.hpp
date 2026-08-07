@@ -20,7 +20,9 @@ public:
           adj_list_type(adj_list_type),
           file_type(edge_info->GetAdjacentList(adj_list_type)->GetFileType()),
           vid(-1),
-          vertex_chunk_index(-1) {
+          vertex_chunk_index(-1),
+          cached_vertex_chunk_index(-1),
+          cached_edge_chunk_num(0) {
         DUCKDB_GRAPHAR_LOG_TRACE("LowEdgeReaderByVertex::LowEdgeReaderByVertex");
         offset_reader = std::make_unique<OffsetReader>(edge_info, prefix, adj_list_type);
         duckdb_prefix = prefix;
@@ -60,16 +62,29 @@ public:
             throw InternalException("LowEdgeReaderByVertex::start: conn is nullptr");
         }
 
-        auto maybe_edge_chunk_num =
-            graphar::util::GetEdgeChunkNum(original_prefix, edge_info, adj_list_type, vertex_chunk_index);
+        if (vertex_chunk_index != cached_vertex_chunk_index) {
+            auto maybe_edge_chunk_num =
+                graphar::util::GetEdgeChunkNum(original_prefix, edge_info, adj_list_type, vertex_chunk_index);
 
-        if (!maybe_edge_chunk_num.has_value() || maybe_edge_chunk_num.value() <= 0) {
-            DUCKDB_GRAPHAR_LOG_DEBUG("No edge chunks found for vertex chunk " + std::to_string(vertex_chunk_index));
+            if (!maybe_edge_chunk_num.has_value() || maybe_edge_chunk_num.value() <= 0) {
+                DUCKDB_GRAPHAR_LOG_DEBUG("No edge chunks found for vertex chunk " + std::to_string(vertex_chunk_index));
+                cached_edge_chunk_num = 0;
+                cached_vertex_chunk_index = vertex_chunk_index;
+                result = nullptr;
+                return;
+            }
+
+            cached_edge_chunk_num = maybe_edge_chunk_num.value();
+            cached_vertex_chunk_index = vertex_chunk_index;
+        }
+
+        graphar::IdType edge_chunk_num = cached_edge_chunk_num;
+        if (edge_chunk_num <= 0) {
+            DUCKDB_GRAPHAR_LOG_DEBUG("No edge chunks to read for vertex " + std::to_string(vid));
             result = nullptr;
             return;
         }
 
-        graphar::IdType edge_chunk_num = maybe_edge_chunk_num.value();
         DUCKDB_GRAPHAR_LOG_DEBUG("Edge chunk num for vertex chunk " + std::to_string(vertex_chunk_index) + ": " +
                                  std::to_string(edge_chunk_num));
 
@@ -169,5 +184,7 @@ private:
     std::unique_ptr<OffsetReader> offset_reader;
     graphar::IdType vid;
     std::string duckdb_prefix;
+    graphar::IdType cached_vertex_chunk_index;
+    graphar::IdType cached_edge_chunk_num;
 };
 }  // namespace duckdb
