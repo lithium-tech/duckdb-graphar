@@ -125,10 +125,10 @@ unique_ptr<GlobalTableFunctionState> Hop::Init(ClientContext& context, TableFunc
         gstate.query += "'";
         gstate.query += bind_data.graph_info_path;
         gstate.query += "', src='";
-        gstate.query += bind_data.GetSrcName();
+        gstate.query += bind_data.edge_info->GetSrcType();
         gstate.query += "', dst='";
-        gstate.query += bind_data.GetDstName();
-        gstate.query += ", type='";
+        gstate.query += bind_data.edge_info->GetDstType();
+        gstate.query += "', type='";
         gstate.query += bind_data.edge_info->GetEdgeType();
         gstate.query += "'";
     } else {
@@ -156,7 +156,7 @@ unique_ptr<GlobalTableFunctionState> Hop::Init(ClientContext& context, TableFunc
     gstate.query += ";";
 
     gstate.conn = make_uniq<duckdb::Connection>(*context.db);
-    DUCKDB_GRAPHAR_LOG_WARN("Hop::Query = " + gstate.query);
+    DUCKDB_GRAPHAR_LOG_DEBUG("Hop::Query = " + gstate.query);
     gstate.result = gstate.conn->Query(gstate.query);
 
     return gstate_ptr;
