@@ -99,24 +99,19 @@ jobs:
             ${{ runner.os }}-ccache-${{ hashFiles('Makefile', 'CMakeLists.txt', 'extension_config.cmake') }}
             ${{ runner.os }}-ccache-
 
-      - name: Cache Arrow and GraphAr build
+      - name: Cache Arrow and GraphAr
         id: cache-third-party
         uses: actions/cache@v4
         with:
           path: |
-            third_party/arrow/src/cpp/build
-            third_party/graphar/src/cpp/build
-          key: ${{ runner.os }}-third-party-build-${{ hashFiles('Makefile') }}
+            third_party/
+          key: ${{ runner.os }}-third-party-${{ hashFiles('Makefile') }}
           restore-keys: |
-            ${{ runner.os }}-third-party-build-
+            ${{ runner.os }}-third-party-
 
       - name: Skip Arrow/GraphAr build if cached
         if: steps.cache-third-party.outputs.cache-hit == 'true'
         run: |
-          touch third_party/arrow/.cloned
-          touch third_party/arrow/.built
-          touch third_party/graphar/.cloned
-          touch third_party/graphar/.built
           echo "Arrow and GraphAr restored from cache"
 
       - name: Set up DuckDB
