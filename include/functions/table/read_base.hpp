@@ -12,12 +12,12 @@
 #include <arrow/c/bridge.h>
 
 #include <duckdb/common/named_parameter_map.hpp>
+#include <duckdb/execution/expression_executor.hpp>
 #include <duckdb/function/table/arrow.hpp>
 #include <duckdb/function/table_function.hpp>
 #include <duckdb/main/extension/extension_loader.hpp>
 #include <duckdb/planner/expression.hpp>
 #include <duckdb/planner/expression/bound_comparison_expression.hpp>
-#include <duckdb/execution/expression_executor.hpp>
 #include <duckdb/planner/expression/bound_conjunction_expression.hpp>
 #include <duckdb/planner/expression/bound_constant_expression.hpp>
 #include <duckdb/planner/expression/bound_function_expression.hpp>
@@ -900,9 +900,8 @@ public:
                         auto column_name = left.ToString();
                         Value val;
 
-                        auto& scalar_expr = (left.GetExpressionClass() == ExpressionClass::BOUND_COLUMN_REF)
-                                                ? right
-                                                : left;
+                        auto& scalar_expr =
+                            (left.GetExpressionClass() == ExpressionClass::BOUND_COLUMN_REF) ? right : left;
 
                         if (!ExpressionExecutor::TryEvaluateScalar(context, scalar_expr, val)) {
                             continue;

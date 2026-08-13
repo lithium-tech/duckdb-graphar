@@ -313,8 +313,8 @@ TableFunction ShortestPath::GetFunction() {
     // Supports two signatures:
     // 1. shortest_path(start_id, end_id, edge_table_name) - uses catalog lookup
     // 2. shortest_path(start_id, end_id, graph_path, src=..., type=..., dst=...) - uses YAML path
-    TableFunction func(Identifier("shortest_path"), {LogicalType::BIGINT, LogicalType::BIGINT, LogicalType::VARCHAR}, Function,
-                       Bind, InitGlobal);
+    TableFunction func(Identifier("shortest_path"), {LogicalType::BIGINT, LogicalType::BIGINT, LogicalType::VARCHAR},
+                       Function, Bind, InitGlobal);
     func.named_parameters["src"] = LogicalType::VARCHAR;
     func.named_parameters["type"] = LogicalType::VARCHAR;
     func.named_parameters["dst"] = LogicalType::VARCHAR;

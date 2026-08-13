@@ -7,6 +7,9 @@ statement ok
 SET autoload_known_extensions=1;
 
 statement ok
+LOAD parquet;
+
+statement ok
 ATTACH '{WORKING_DIRECTORY}/../data/snap-musae-github/graphar/Git.graph.yaml' as test_db (type duckdb_graphar);
 
 query I

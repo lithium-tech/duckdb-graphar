@@ -73,7 +73,7 @@ public:
                 result = nullptr;
                 return;
             }
-            
+
             if (maybe_edge_chunk_num.value() <= 0) {
                 DUCKDB_GRAPHAR_LOG_DEBUG("No edge chunks found for vertex chunk " + std::to_string(vertex_chunk_index));
                 cached_edge_chunk_num = 0;
