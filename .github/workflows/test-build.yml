@@ -89,23 +89,53 @@ jobs:
             echo "/usr/local/opt/ccache/libexec" >> $GITHUB_PATH
           fi
 
-      - name: Cache Dependencies
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.workspace }}/.ccache
+          key: ${{ runner.os }}-ccache-${{ hashFiles('Makefile', 'CMakeLists.txt', 'extension_config.cmake') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-${{ hashFiles('Makefile', 'CMakeLists.txt', 'extension_config.cmake') }}
+            ${{ runner.os }}-ccache-
+
+      - name: Cache Arrow and GraphAr
+        id: cache-third-party
         uses: actions/cache@v4
         with:
           path: |
-            ${{ matrix.ccache_dir }}
-            build/_deps
-          key: ${{ runner.os }}-deps-${{ hashFiles('CMakeLists.txt') }}
+            third_party/arrow/cpp/build
+            third_party/graphar/cpp/build
+          key: ${{ runner.os }}-third-party-build-${{ hashFiles('Makefile') }}
           restore-keys: |
-            ${{ runner.os }}-deps
+            ${{ runner.os }}-third-party-build-
+
+      - name: Skip Arrow/GraphAr build if cached
+        if: steps.cache-third-party.outputs.cache-hit == 'true'
+        run: |
+          touch third_party/arrow/.cloned
+          touch third_party/arrow/.built
+          touch third_party/graphar/.cloned
+          touch third_party/graphar/.built
+          echo "Arrow and GraphAr restored from cache"
 
       - name: Set up DuckDB
+        id: duckdb-version
         run: |
           git submodule update --init --remote duckdb
           cd duckdb
           git fetch --tags origin
           cd ..
-          DUCKDB_GIT_VERSION=v1.5.1 make set_duckdb_version
+          DUCKDB_GIT_VERSION=v1.5.0 make set_duckdb_version
+          cd duckdb && echo "duckdb_hash=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+      # - name: Cache DuckDB build
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: build
+      #     key: ${{ runner.os }}-duckdb-${{ steps.duckdb-version.outputs.duckdb_hash }}-${{ hashFiles('Makefile', 'CMakeLists.txt', 'extension_config.cmake') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-duckdb-${{ steps.duckdb-version.outputs.duckdb_hash }}
+      #       ${{ runner.os }}-duckdb-
 
       - name: Build
         run: |
