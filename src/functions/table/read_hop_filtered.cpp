@@ -110,10 +110,10 @@ void ReadHopFiltered::PushdownComplexFilter(ClientContext& context, LogicalGet& 
 TableFunctionSet ReadHopFiltered::GetFunctions() {
     TableFunctionSet read_hop_filtered((Identifier(GetFunctionName())));
 
-    TableFunction read_hop_defalt("", {LogicalType::VARCHAR}, Execute, Bind);
+    TableFunction read_hop_default("", {LogicalType::VARCHAR}, Execute, Bind);
 
-    SetTableFuncionParams(read_hop_defalt);
-    read_hop_filtered.AddFunction(read_hop_defalt);
+    SetTableFuncionParams(read_hop_default);
+    read_hop_filtered.AddFunction(read_hop_default);
 
     return read_hop_filtered;
 }

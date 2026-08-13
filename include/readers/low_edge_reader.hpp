@@ -66,15 +66,7 @@ public:
             auto maybe_edge_chunk_num =
                 graphar::util::GetEdgeChunkNum(original_prefix, edge_info, adj_list_type, vertex_chunk_index);
 
-            if (!maybe_edge_chunk_num.has_value()) {
-                DUCKDB_GRAPHAR_LOG_DEBUG("No edge chunks found for vertex chunk " + std::to_string(vertex_chunk_index));
-                cached_edge_chunk_num = 0;
-                cached_vertex_chunk_index = vertex_chunk_index;
-                result = nullptr;
-                return;
-            }
-
-            if (maybe_edge_chunk_num.value() <= 0) {
+            if (!maybe_edge_chunk_num.has_value() || maybe_edge_chunk_num.value() <= 0) {
                 DUCKDB_GRAPHAR_LOG_DEBUG("No edge chunks found for vertex chunk " + std::to_string(vertex_chunk_index));
                 cached_edge_chunk_num = 0;
                 cached_vertex_chunk_index = vertex_chunk_index;
