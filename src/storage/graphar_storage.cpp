@@ -58,7 +58,7 @@ static unique_ptr<Catalog> GraphArAttach(optional_ptr<StorageExtensionInfo> stor
             }
         }
     }
-    return make_uniq<GraphArCatalog>(db, info.path, graph_info, context, db.name);
+    return make_uniq<GraphArCatalog>(db, info.path, graph_info, context, name);
 }
 
 static unique_ptr<TransactionManager> GraphArCreateTransactionManager(optional_ptr<StorageExtensionInfo> storage_info,

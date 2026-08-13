@@ -216,8 +216,8 @@ set(DISABLE_VPTR_SANITIZER ON CACHE BOOL "")
 FetchContent_Declare(
     duckdb
     GIT_REPOSITORY https://github.com/duckdb/duckdb.git
-    GIT_TAG v1.5.1
-    GIT_SHALLOW TRUE
+    GIT_TAG 86cc0b4b980afa845d6ad90910e0ee869e019509
+    GIT_SHALLOW FALSE
     GIT_PROGRESS TRUE
 )
 log_done()

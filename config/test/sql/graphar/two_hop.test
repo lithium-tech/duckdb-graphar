@@ -6,19 +6,22 @@ SET autoinstall_known_extensions=1;
 statement ok
 SET autoload_known_extensions=1;
 
+statement ok
+LOAD parquet;
+
 query I
-SELECT COUNT(*) FROM two_hop('__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person', vid=10);
+SELECT COUNT(*) FROM two_hop('{WORKING_DIRECTORY}/../data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person', vid=10);
 ----
 17457
 
 query I
-SELECT COUNT(*) FROM two_hop('__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person', vids=[1, 10]);
+SELECT COUNT(*) FROM two_hop('{WORKING_DIRECTORY}/../data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person', vids=[1, 10]);
 ----
 18247
 
 
 statement ok
-ATTACH '__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml' as git(type duckdb_graphar);
+ATTACH '{WORKING_DIRECTORY}/../data/snap-musae-github/graphar/Git.graph.yaml' as git(type duckdb_graphar);
 
 query I
 SELECT COUNT(*) FROM two_hop('Person_knows_Person', vid=10);

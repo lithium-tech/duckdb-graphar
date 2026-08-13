@@ -28,9 +28,9 @@ target_link_libraries(unittest_graphar
         Catch2::Catch2WithMain
 )
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    target_link_libraries(unittest_graphar PRIVATE jemalloc_extension)
-endif()
+# jemalloc is now built into DuckDB core (ENABLE_JEMALLOC), not a separate extension
+# The jemalloc_extension target is only created as an empty INTERFACE for backward compatibility
+# when jemalloc is explicitly listed in BUILD_EXTENSIONS, so we should not unconditionally link it
 
 target_include_directories(unittest_graphar PRIVATE
     ${DUCKDB_INCLUDES}

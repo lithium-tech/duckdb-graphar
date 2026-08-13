@@ -77,11 +77,13 @@ unique_ptr<FunctionData> ShortestPath::Bind(ClientContext& context, TableFunctio
                                  ", end=" + std::to_string(bind_data->end_id) + ", table=" + table_name);
 
         auto qname = QualifiedName::Parse(table_name);
-        Binder::BindSchemaOrCatalog(context, qname.catalog, qname.schema);
+        auto catalog_name = qname.Catalog();
+        auto schema_name = qname.Schema();
+        Binder::BindSchemaOrCatalog(context, catalog_name, schema_name);
 
-        auto& entry = Catalog::GetEntry(context, CatalogType::TABLE_ENTRY, qname.catalog, qname.schema, qname.name);
+        auto& entry = Catalog::GetEntry(context, CatalogType::TABLE_ENTRY, catalog_name, schema_name, qname.Name());
 
-        auto& table_entry = entry.Cast<GraphArTableEntry>();
+        auto& table_entry = entry.template Cast<GraphArTableEntry>();
         auto table_info = table_entry.GetTableInfo();
         if (table_info == nullptr) {
             throw InvalidInputException("Table info for '" + table_name + "' is expired.");
@@ -298,8 +300,8 @@ void ShortestPath::Function(ClientContext& context, TableFunctionInput& data_p, 
     step_vector.SetVectorType(VectorType::FLAT_VECTOR);
     vertex_vector.SetVectorType(VectorType::FLAT_VECTOR);
 
-    auto step_data = FlatVector::GetData<int64_t>(step_vector);
-    auto vertex_data = FlatVector::GetData<int64_t>(vertex_vector);
+    auto step_data = FlatVector::GetDataMutable<int64_t>(step_vector);
+    auto vertex_data = FlatVector::GetDataMutable<int64_t>(vertex_vector);
 
     step_data[0] = static_cast<int64_t>(global_state.current_step);
     vertex_data[0] = static_cast<int64_t>(global_state.path[global_state.current_step]);
@@ -311,7 +313,7 @@ TableFunction ShortestPath::GetFunction() {
     // Supports two signatures:
     // 1. shortest_path(start_id, end_id, edge_table_name) - uses catalog lookup
     // 2. shortest_path(start_id, end_id, graph_path, src=..., type=..., dst=...) - uses YAML path
-    TableFunction func("shortest_path", {LogicalType::BIGINT, LogicalType::BIGINT, LogicalType::VARCHAR}, Function,
+    TableFunction func(Identifier("shortest_path"), {LogicalType::BIGINT, LogicalType::BIGINT, LogicalType::VARCHAR}, Function,
                        Bind, InitGlobal);
     func.named_parameters["src"] = LogicalType::VARCHAR;
     func.named_parameters["type"] = LogicalType::VARCHAR;

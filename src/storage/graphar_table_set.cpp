@@ -56,7 +56,7 @@ optional_ptr<CatalogEntry> GraphArTableSet::CreateNewEntry(ClientContext& contex
 optional_ptr<CatalogEntry> GraphArTableSet::CreateNewEntry(ClientContext& context, Catalog& catalog,
                                                            GraphArSchemaEntry& schema, CreateViewInfo& info) {
     auto view = make_shared_ptr<ViewCatalogEntry>(catalog, schema, info);
-    const auto& view_name = info.view_name;
+    const auto& view_name = info.GetViewName().GetIdentifierName();
     view_entries[view_name] = view;
     DUCKDB_GRAPHAR_LOG_INFO("View was created with name " + view_name);
     return view.get();
@@ -72,7 +72,7 @@ GraphArTableSet::CreateTables(GraphArCatalog& graphar_catalog, const InfoVector&
         auto create_table_info = make_uniq<CreateTableInfo>();
         create_table_info->tags["type"] = (type == GraphArTableType::Vertex) ? "vertex" : "edge";
         auto file_name = GraphArFunctions::GetNameFromInfo(info);
-        create_table_info->table = file_name;
+        create_table_info->SetTableName(Identifier(file_name));
 
         auto bind_data = make_uniq<ReadBindData>();
         auto& graphar_catalog = catalog.Cast<GraphArCatalog>();
@@ -84,7 +84,7 @@ GraphArTableSet::CreateTables(GraphArCatalog& graphar_catalog, const InfoVector&
 
         vector<ColumnDefinition> columns;
         for (idx_t i = 0; i < bind_data->GetFlattenPropNames().size(); ++i) {
-            columns.emplace_back(bind_data->GetFlattenPropNames()[i],
+            columns.emplace_back(Identifier(bind_data->GetFlattenPropNames()[i]),
                                  GraphArFunctions::graphArT2duckT(bind_data->GetFlattenPropTypes()[i]));
         }
         create_table_info->columns = ColumnList(std::move(columns));
