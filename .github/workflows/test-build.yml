@@ -82,7 +82,8 @@ jobs:
 
       - name: Set up ccache
         run: |
-          echo "CCACHE_DIR=${{ matrix.ccache_dir }}" >> $GITHUB_ENV
+          mkdir -p ${{ runner.workspace }}/.ccache
+          echo "CCACHE_DIR=${{ runner.workspace }}/.ccache" >> $GITHUB_ENV
           if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
             echo "/usr/lib/ccache" >> $GITHUB_PATH
           elif [ "${{ matrix.os }}" = "macos-14" ]; then
@@ -98,13 +99,13 @@ jobs:
             ${{ runner.os }}-ccache-${{ hashFiles('Makefile', 'CMakeLists.txt', 'extension_config.cmake') }}
             ${{ runner.os }}-ccache-
 
-      - name: Cache Arrow and GraphAr
+      - name: Cache Arrow and GraphAr build
         id: cache-third-party
         uses: actions/cache@v4
         with:
           path: |
-            third_party/arrow/cpp/build
-            third_party/graphar/cpp/build
+            third_party/arrow/src/cpp/build
+            third_party/graphar/src/cpp/build
           key: ${{ runner.os }}-third-party-build-${{ hashFiles('Makefile') }}
           restore-keys: |
             ${{ runner.os }}-third-party-build-
