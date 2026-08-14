@@ -120,8 +120,8 @@ jobs:
           cd duckdb
           git fetch --tags origin
           cd ..
-          DUCKDB_GIT_VERSION=v1.5.0 make set_duckdb_version
-          cd duckdb && echo "duckdb_hash=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+          DUCKDB_GIT_VERSION=$(cat .github/duckdb_version) make set_duckdb_version
+          cd duckdb && echo "duckdb_hash=$(git rev-parse HEAD)"
 
       - name: Build
         run: |
