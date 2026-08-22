@@ -1,8 +1,8 @@
-name: Temp Pipeline for loadable
+name: Pipeline for build loadable extension
 
 on:
   push:
-    branches: [ main, by_template_static ]
+    branches: [ main ]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -125,21 +125,8 @@ jobs:
 
       - name: Build
         run: |
-          set -e
-          for i in {1..2}; do
-            if make release; then
-              echo "Build succeeded on attempt $i"
-              break
-            else
-              echo "Build failed on attempt $i"
-              if [ $i -eq 2 ]; then
-                echo "Build failed after 2 attempts. Exiting."
-                exit 1
-              fi
-              echo "Retrying build..."
-            fi
-          done
-
+          make release
+ 
       - name: Prepare Artifacts for Upload
         run: |
           mkdir -p upload-artifacts
