@@ -1,48 +1,12 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(duckdb_graphar)
+set(TARGET_NAME duckdb_graphar)
+set(EXTENSION_NAME ${TARGET_NAME}_extension)
+set(LOADABLE_EXTENSION_NAME ${TARGET_NAME}_loadable_extension)
 set(EXTENSION_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR} CACHE STRING "Extension root directory")
 
-# =============================================
-# Core Configuration
-# =============================================
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+project(${TARGET_NAME})
 
-if(UNIX AND NOT APPLE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libstdc++ -static-libgcc")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++ -static-libgcc")
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libstdc++ -static-libgcc")
-endif()
-
-include(FetchContent)
-include(GNUInstallDirs)
-include(ExternalProject)
-
-option(LOAD_TESTS "Build extension tests" OFF)
-option(SHOW_LOG_STAGES "Display progress logs for each stage" ON)
-option(ENABLE_UNIT_TESTS "Build unit tests" OFF)
-
-# =============================================
-# Progress Reporting Functions
-# =============================================
-function(log_stage MESSAGE)
-    if(SHOW_LOG_STAGES)
-        message(STATUS ">>> [${PROJECT_NAME}] ${MESSAGE}")
-    endif()
-endfunction()
-
-function(log_done)
-    if(SHOW_LOG_STAGES)
-        message(STATUS ">>> [${PROJECT_NAME}] Done.")
-    endif()
-endfunction()
-
-# =============================================
-# Dependency Management
-# =============================================
 # Get git commit hash for this extension
 find_package(Git)
 if(Git_FOUND)
@@ -73,157 +37,64 @@ add_definitions(-DEXTENSION_BUILD_TIMESTAMP="${BUILD_TIMESTAMP}")
 message(STATUS "Extension Git Commit: ${EXTENSION_GIT_COMMIT_HASH}")
 message(STATUS "Build Timestamp: ${BUILD_TIMESTAMP}")
 
-set(DEPS_INSTALL_DIR ${CMAKE_BINARY_DIR}/_deps)
-set(ARROW_INSTALL_DIR ${DEPS_INSTALL_DIR}/arrow-install)
-set(GRAPHAR_INSTALL_DIR ${DEPS_INSTALL_DIR}/graphar-install)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-set(ARROW_PREFIX_DIR ${DEPS_INSTALL_DIR}/arrow-prefix)
-set(GRAPHAR_PREFIX_DIR ${DEPS_INSTALL_DIR}/graphar-prefix)
-
-set(ARROW_LIB_DIR ${ARROW_INSTALL_DIR}/lib)
-set(GRAPHAR_LIB_DIR ${GRAPHAR_INSTALL_DIR}/lib)
-
-# Arrow
-log_stage("Configuring Apache Arrow...")
-
-ExternalProject_Add(
-  arrow
-  PREFIX ${ARROW_PREFIX_DIR}
-  GIT_REPOSITORY https://github.com/apache/arrow.git
-  GIT_TAG apache-arrow-19.0.1
-  SOURCE_SUBDIR cpp
-  CMAKE_ARGS
-    -DCMAKE_POSITION_INDEPENDENT_CODE=ON
-    -DBUILD_SHARED_LIBS=OFF
-    -DARROW_BUILD_STATIC=ON
-
-    -DARROW_BUILD_TESTS=OFF
-    -DARROW_BUILD_BENCHMARKS=OFF
-    -DARROW_BUILD_EXAMPLES=OFF
-    -DARROW_RPATH_ORIGIN=ON
-
-    -DARROW_COMPUTE=ON
-    -DARROW_S3=ON
-    -DARROW_CSV=ON
-    -DARROW_DATASET=ON
-    -DARROW_FILESYSTEM=ON
-    -DARROW_JSON=ON
-    -DARROW_ORC=ON
-    -DARROW_PARQUET=ON
-
-    -DARROW_WITH_SNAPPY=ON
-
-    -DARROW_GANDIVA=OFF
-    -DARROW_TESTING=OFF
-
-    -DARROW_DEPENDENCY_SOURCE=BUNDLED
-
-    -DARROW_BOOST_USE_SHARED=OFF
-    -DARROW_DEPENDENCY_USE_SHARED=OFF
-    -DARROW_LLVM_USE_SHARED=OFF
-    -DARROW_PROTOBUF_USE_SHARED=OFF
-    -DARROW_SNAPPY_USE_SHARED=OFF
-    -DARROW_THRIFT_USE_SHARED=OFF
-    -DARROW_UTF8PROC_USE_SHARED=OFF
-    -DARROW_WITH_LZ4=OFF
-    -DARROW_ZSTD_USE_SHARED=OFF
-
-    -DCMAKE_INSTALL_PREFIX=${ARROW_INSTALL_DIR}
-  BUILD_ALWAYS OFF
-  INSTALL_DIR ${ARROW_INSTALL_DIR}
-)
-
-add_library(arrow::arrow_shared SHARED IMPORTED GLOBAL)
-
-file(MAKE_DIRECTORY "${ARROW_INSTALL_DIR}/include")
-set_target_properties(arrow::arrow_shared PROPERTIES
-  IMPORTED_LOCATION "${ARROW_LIB_DIR}/libarrow${CMAKE_SHARED_LIBRARY_SUFFIX}"
-  INTERFACE_INCLUDE_DIRECTORIES ${ARROW_INSTALL_DIR}/include
-)
-
-add_dependencies(arrow::arrow_shared arrow)
-
-# GraphAr
-
-log_stage("Setting up GraphAR...")
-
-set(PATH_TO_LOCAL_GRAPHAR "" CACHE PATH "Path to local graphar source (leave empty to clone)")
-
-set(EP_ARGS)
-if(PATH_TO_LOCAL_GRAPHAR)
-  list(APPEND EP_ARGS SOURCE_DIR "${PATH_TO_LOCAL_GRAPHAR}")
-else()
-  list(APPEND EP_ARGS
-    GIT_REPOSITORY https://github.com/lithium-tech/incubator-graphar.git
-    GIT_TAG        2fc1fcf2faed6259a72fb47f14585a09cd162f32
-  )
+if(UNIX AND NOT APPLE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libstdc++ -static-libgcc")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++ -static-libgcc")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libstdc++ -static-libgcc")
+    # Temp fix dublicate arrow on linux
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--allow-multiple-definition")
 endif()
 
-ExternalProject_Add(
-  graphar
-  PREFIX ${GRAPHAR_PREFIX_DIR}
-  ${EP_ARGS}
-  SOURCE_SUBDIR cpp
-  CMAKE_ARGS
-    -DCMAKE_INSTALL_PREFIX=${GRAPHAR_INSTALL_DIR}
-    -DCMAKE_PREFIX_PATH=${ARROW_INSTALL_DIR}
-    -DProtobuf_INCLUDE_DIR=${ARROW_PREFIX_DIR}/src/arrow-build/protobuf_ep-install/include
-    -DProtobuf_LIBRARIES=${ARROW_PREFIX_DIR}/src/arrow-build/protobuf_ep-install/lib/libprotobuf.a
-  INSTALL_DIR ${GRAPHAR_INSTALL_DIR}
-  DEPENDS arrow
-)
-
-add_library(graphar::graphar_shared SHARED IMPORTED GLOBAL)
-
-set_target_properties(graphar::graphar_shared PROPERTIES
-  IMPORTED_LOCATION "${GRAPHAR_LIB_DIR}/libgraphar${CMAKE_SHARED_LIBRARY_SUFFIX}"
-)
-
-add_dependencies(graphar::graphar_shared graphar arrow)
-
-# Set paths for shared libraries
-if(APPLE)
-    set(RPATH_ORIGIN "@loader_path")
-else()
-    set(RPATH_ORIGIN "\$ORIGIN")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/extension_deps.cmake")
+    include("${CMAKE_CURRENT_SOURCE_DIR}/third_party/extension_deps.cmake")
 endif()
 
-set(CMAKE_BUILD_RPATH
-    "${RPATH_ORIGIN}"
-    "${GRAPHAR_LIB_DIR}"
-    "${ARROW_LIB_DIR}"
-)
+message("My roots: ${ARROW_ROOT} ${GRAPHAR_ROOT}")
+if(ARROW_ROOT)
+    list(APPEND CMAKE_PREFIX_PATH ${ARROW_ROOT})
+endif()
 
-set(CMAKE_INSTALL_RPATH
-    "${RPATH_ORIGIN}"
-    "${GRAPHAR_LIB_DIR}"
-    "${ARROW_LIB_DIR}"
-)
+if(GRAPHAR_ROOT)
+    list(APPEND CMAKE_PREFIX_PATH ${GRAPHAR_ROOT})
+endif()
 
-set(CMAKE_SKIP_BUILD_RPATH FALSE)
-set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+find_package(Arrow REQUIRED CONFIG)
+find_package(ArrowDataset REQUIRED CONFIG)
+find_package(ArrowAcero REQUIRED CONFIG)
+find_package(Parquet REQUIRED CONFIG)
 
-log_done()
+find_package(graphar REQUIRED CONFIG)
 
-# DuckDB
-set(DUCKDB_EXTENSION_CONFIGS "${CMAKE_CURRENT_SOURCE_DIR}/config/extension_config.cmake")
+include_directories(include)
 
-log_stage("Declaring DuckDB")
-set(ENABLE_SANITIZER OFF CACHE BOOL "")
-set(ENABLE_UBSAN OFF CACHE BOOL "")
-set(DISABLE_VPTR_SANITIZER ON CACHE BOOL "")
+# Add mini-yaml include path from GraphAr source
+if(GRAPHAR_SRC_DIR)
+    include_directories(${GRAPHAR_SRC_DIR}/cpp/thirdparty)
+elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/graphar/src")
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/graphar/src/cpp/thirdparty)
+endif()
 
-FetchContent_Declare(
-    duckdb
-    GIT_REPOSITORY https://github.com/duckdb/duckdb.git
-    GIT_TAG v1.5.1
-    GIT_SHALLOW TRUE
-    GIT_PROGRESS TRUE
-)
-log_done()
+file(GLOB_RECURSE EXTENSION_SOURCES CONFIGURE_DEPENDS "${EXTENSION_ROOT_DIR}/src/*.cpp")
 
-log_stage("Building DuckDB")
-FetchContent_MakeAvailable(duckdb)
-log_done()
+message(LOG "Building static extension")
+build_static_extension(${TARGET_NAME} ${EXTENSION_SOURCES})
 
-# Final build steps (DuckDB + extensions) is configured in config/CMakeLists.txt
+message(LOG "Building loadable extension")
+build_loadable_extension(${TARGET_NAME} " " ${EXTENSION_SOURCES})
+
+set(EXTENSION_LIBRARIES
+        graphar
+        Arrow::arrow_static)
+
+target_link_libraries(${EXTENSION_NAME} ${EXTENSION_LIBRARIES})
+target_link_libraries(${LOADABLE_EXTENSION_NAME} ${EXTENSION_LIBRARIES})
+
+install(TARGETS ${EXTENSION_NAME}
+        EXPORT "${DUCKDB_EXPORT_SET}"
+        LIBRARY DESTINATION "${INSTALL_LIB_DIR}"
+        ARCHIVE DESTINATION "${INSTALL_LIB_DIR}")

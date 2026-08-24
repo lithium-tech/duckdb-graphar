@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: Pipeline for build loadable extension
 
 on:
   push:
@@ -59,6 +59,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Install System Dependencies (Ubuntu)
         if: matrix.os == 'ubuntu-22.04'
@@ -80,84 +82,57 @@ jobs:
 
       - name: Set up ccache
         run: |
-          echo "CCACHE_DIR=${{ matrix.ccache_dir }}" >> $GITHUB_ENV
+          mkdir -p ${{ runner.workspace }}/.ccache
+          echo "CCACHE_DIR=${{ runner.workspace }}/.ccache" >> $GITHUB_ENV
           if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
             echo "/usr/lib/ccache" >> $GITHUB_PATH
           elif [ "${{ matrix.os }}" = "macos-14" ]; then
             echo "/usr/local/opt/ccache/libexec" >> $GITHUB_PATH
           fi
 
-      - name: Cache Dependencies
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.workspace }}/.ccache
+          key: ${{ runner.os }}-ccache-${{ hashFiles('Makefile', 'CMakeLists.txt', 'extension_config.cmake') }}
+          restore-keys: |
+            ${{ runner.os }}-ccache
+
+      - name: Cache Arrow and GraphAr
+        id: cache-third-party
         uses: actions/cache@v4
         with:
           path: |
-            ${{ matrix.ccache_dir }}
-            build/_deps
-          key: ${{ runner.os }}-deps-${{ hashFiles('CMakeLists.txt') }}
+            third_party/
+          key: ${{ runner.os }}-third-party-${{ hashFiles('Makefile') }}
           restore-keys: |
-            ${{ runner.os }}-deps
+            ${{ runner.os }}-third-party
 
-      - name: Configure CMake
+      - name: Skip Arrow/GraphAr build if cached
+        if: steps.cache-third-party.outputs.cache-hit == 'true'
         run: |
-          mkdir -p build
-          cd build
-          cmake -DCMAKE_BUILD_TYPE=Release -DLOAD_TESTS=ON -DENABLE_UNIT_TESTS=ON ..
+          echo "Arrow and GraphAr restored from cache"
+
+      - name: Set up DuckDB
+        id: duckdb-version
+        run: |
+          git submodule update --init --remote duckdb
+          cd duckdb
+          git fetch --tags origin
+          cd ..
+          DUCKDB_GIT_VERSION=$(cat .github/duckdb_version) make set_duckdb_version
+          cd duckdb && echo "duckdb_hash=$(git rev-parse HEAD)"
 
       - name: Build
         run: |
-          cd build
-          make -j$(getconf _NPROCESSORS_ONLN)
-
-      - name: Install GraphAr CLI and Generate Data
-        if: matrix.os == 'ubuntu-22.04'
-        run: |
-          pip3 install --upgrade pip
-          ./scripts/install-cli.sh || exit 1
-          ./scripts/generate-graphar-data.sh || exit 1
-
-      - name: Run Tests Extension via DuckDB Queries
-        if: matrix.os == 'ubuntu-22.04'
-        run: |
-          build/_deps/duckdb-build/test/unittest "[graphar]" --reporter console  || exit 1
-      
-      - name: Run Unittests for extension
-        run: |
-          build/_deps/duckdb-build/extension/duckdb_graphar/tests/unittest_graphar  --reporter console  || exit 1
-
+          make release
+ 
       - name: Prepare Artifacts for Upload
         run: |
           mkdir -p upload-artifacts
 
-          cp build/_deps/duckdb-build/duckdb upload-artifacts/
-          cp build/_deps/duckdb-build/extension/duckdb_graphar/duckdb_graphar.duckdb_extension upload-artifacts/
-
-          if [ "${{ matrix.os }}" == "macos-14" ]; then
-            cp ./build/_deps/arrow-install/lib/libarrow.1900.dylib upload-artifacts/
-            cp ./build/_deps/arrow-install/lib/libarrow_dataset.1900.dylib upload-artifacts/
-            cp ./build/_deps/arrow-install/lib/libarrow_acero.1900.dylib upload-artifacts/
-            cp ./build/_deps/arrow-install/lib/libparquet.1900.dylib upload-artifacts/
-
-            cp ./build/_deps/graphar-install/lib/libgraphar.dylib upload-artifacts/
-          else
-            cp ./build/_deps/arrow-install/lib/libarrow.so.1900 upload-artifacts/
-            cp ./build/_deps/arrow-install/lib/libarrow_dataset.so.1900 upload-artifacts/
-            cp ./build/_deps/arrow-install/lib/libarrow_acero.so.1900 upload-artifacts/
-            cp ./build/_deps/arrow-install/lib/libparquet.so.1900 upload-artifacts/
-
-            cp ./build/_deps/graphar-install/lib/libgraphar.so upload-artifacts/
-          fi
-
-          cat <<'EOF' > upload-artifacts/run_duckdb.sh
-          #!/bin/bash
-          SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
-          if [[ "$(uname)" == "Darwin" ]]; then
-            export DYLD_LIBRARY_PATH="$SCRIPT_DIR:$DYLD_LIBRARY_PATH"
-          else
-            export LD_LIBRARY_PATH="$SCRIPT_DIR:$LD_LIBRARY_PATH"
-          fi
-          "$SCRIPT_DIR/duckdb" "$@"
-          EOF
-          chmod +x upload-artifacts/run_duckdb.sh
+          cp build/release/duckdb upload-artifacts/
+          cp build/release/extension/duckdb_graphar/duckdb_graphar.duckdb_extension upload-artifacts/
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
