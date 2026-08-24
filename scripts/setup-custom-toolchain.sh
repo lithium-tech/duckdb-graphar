@@ -8,9 +8,3 @@
 
 # note that the $DUCKDB_PLATFORM environment variable can be used to discern between the platforms
 echo "This is the sample custom toolchain script running for architecture '$DUCKDB_PLATFORM' for the duckdb_graphar extension."
-
-if [[ $DUCKDB_PLATFORM == "linux-amd64" || $DUCKDB_PLATFORM == "linux-arm64" || $DUCKDB_PLATFORM == "linux-amd64-musl" ]]; then
-  source ./install-toolchain/ubuntu-20.sh
-elif [[ "$DUCKDB_PLATFORM" == "osx_amd64"  || "$DUCKDB_PLATFORM" == "osx_arm64" ]]; then
-  source ./install-toolchain/macos-14.sh
-fi
