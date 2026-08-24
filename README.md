@@ -25,22 +25,38 @@ This extension requires the following dependencies:
 - [Cppcheck](https://cppcheck.sourceforge.io/) - static analysis tool for C/C++ code
 - [PVS-Studio](https://pvs-studio.com/pvs-studio/?utm_source=website&utm_medium=github&utm_campaign=open_source) - static analyzer for C, C++, C#, and Java code.
 
-### Build extension:
+## Building From Source
 
-Development Build:
-
-```bash
-mkdir build && cd build
-cmake .. -DLOAD_TESTS=ON -DENABLE_UNIT_TESTS=ON
-make
+```shell
+# Clone the repo and its dependencies
+git clone --recurse-submodules git@github.com:lithium-tech/duckdb-graphar.git
 ```
 
-Run test:
+Initialize submodules before building:
+
+```shell
+git submodule update --init --recursive
+```
+
+### Build extension
+
+Build the extension:
+
+```shell
+make release
+```
+
+For a debug build:
+
+```shell
+make debug
+```
+
+```Run test:
 
 ```bash
 ./build/_deps/duckdb-build/test/unittest "[graphar]"
 ```
-
 Run Unittests for extension:
 
 ```bash
