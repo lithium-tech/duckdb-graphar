@@ -7,7 +7,7 @@ statement ok
 SET autoload_known_extensions=1;
 
 statement ok
-ATTACH '__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml' as test_db (type duckdb_graphar);
+ATTACH '__WORKING_DIRECTORY__/data/snap-musae-github/graphar/Git.graph.yaml' as test_db (type duckdb_graphar);
 
 ################################################################################
 # Test 1: Direct edge (1-hop path)
@@ -131,7 +131,7 @@ SELECT COUNT(*) AS path_length,
        MIN(_graphArVertexIndex) FILTER (WHERE step_number = 0) AS first_vertex,
        MIN(_graphArVertexIndex) FILTER (WHERE _graphArVertexIndex = 23977) AS end_vertex
 FROM shortest_path(0, 23977,
-    '__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml',
+    '__WORKING_DIRECTORY__/data/snap-musae-github/graphar/Git.graph.yaml',
     src='Person', type='knows', dst='Person');
 ----
 2	0	23977
@@ -141,7 +141,7 @@ FROM shortest_path(0, 23977,
 ################################################################################
 query II
 SELECT * FROM shortest_path(5, 5,
-    '__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml',
+    '__WORKING_DIRECTORY__/data/snap-musae-github/graphar/Git.graph.yaml',
     src='Person', type='knows', dst='Person');
 ----
 0	5
@@ -151,7 +151,7 @@ SELECT * FROM shortest_path(5, 5,
 ################################################################################
 query II
 SELECT * FROM shortest_path(37699, 0,
-    '__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml',
+    '__WORKING_DIRECTORY__/data/snap-musae-github/graphar/Git.graph.yaml',
     src='Person', type='knows', dst='Person');
 ----
 
@@ -160,7 +160,7 @@ SELECT * FROM shortest_path(37699, 0,
 ################################################################################
 statement error
 SELECT * FROM shortest_path(0, 5,
-    '__WORKING_DIRECTORY__/../data/snap-musae-github/graphar/Git.graph.yaml',
+    '__WORKING_DIRECTORY__/data/snap-musae-github/graphar/Git.graph.yaml',
     src='Person', type='nonexistent', dst='Person');
 ----
 Binder Error: Edges of this type are not found: Person_nonexistent_Person

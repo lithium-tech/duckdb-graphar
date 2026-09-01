@@ -52,13 +52,15 @@ For a debug build:
 make debug
 ```
 
-```Run test:
+### Run functional (SQLLogic) tests
 
 ```bash
-./build/_deps/duckdb-build/test/unittest "[graphar]"
+./build/release/test/unittest "[graphar]"
 ```
-Run Unittests for extension:
+
+The SQLLogicTests live in `test/sql/graphar/` and are registered with the
+`[graphar]` tag, so they can be run individually by path as well:
 
 ```bash
-./build/_deps/duckdb-build/extension/duckdb_graphar/tests/unittest_graphar
+./build/release/test/unittest "test/sql/graphar/*"
 ```
