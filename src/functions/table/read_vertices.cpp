@@ -88,7 +88,9 @@ BaseReaderPtr ReadVertices::GetBaseReader(ClientContext& context, ReadBaseGlobal
         throw InternalException("Failed to get vertex info");
     }
     const auto& prefix = gstate.graph_info->GetPrefix();
-    if (gstate.pgs[ind]->GetFileType() == graphar::FileType::PARQUET) {
+    const bool is_parquet = gstate.pgs[ind]->GetFileType() == graphar::FileType::PARQUET;
+    const bool use_duck = GraphArSettings::use_duck_reader(context, is_parquet);
+    if (use_duck) {
         DUCKDB_GRAPHAR_LOG_DEBUG("Making duckdb reader");
         return ConvertBaseReader(graphar::VertexPropertyChunkInfoReader::Make(vertex_info, gstate.pgs[ind], prefix),
                                  counter);
@@ -130,7 +132,9 @@ ReaderPtr ReadVertices::GetReader(ClientContext& context, ReadBaseGlobalTableFun
         throw InternalException("Failed to get vertex info");
     }
     const auto& prefix = gstate.graph_info->GetPrefix();
-    if (gstate.pgs[ind]->GetFileType() == graphar::FileType::PARQUET) {
+    const bool is_parquet = gstate.pgs[ind]->GetFileType() == graphar::FileType::PARQUET;
+    const bool use_duck = GraphArSettings::use_duck_reader(context, is_parquet);
+    if (use_duck) {
         DUCKDB_GRAPHAR_LOG_DEBUG("Making duckdb reader");
         std::vector<std::shared_ptr<graphar::TSVertexPropertyChunkInfoReader>> base_readers;
         base_readers.reserve(gstate.base_readers[ind].size());
