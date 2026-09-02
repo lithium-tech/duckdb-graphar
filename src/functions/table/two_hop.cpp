@@ -112,9 +112,9 @@ void TwoHop::Execute(ClientContext& context, TableFunctionInput& input, DataChun
 // GetFunction
 //-------------------------------------------------------------------
 TableFunctionSet TwoHop::GetFunctions() {
-    TableFunctionSet two_hop(GetFunctionName());
+    TableFunctionSet two_hop((Identifier(GetFunctionName())));
 
-    TableFunction two_hop_default({LogicalType::VARCHAR}, Execute, Bind);
+    TableFunction two_hop_default("", {LogicalType::VARCHAR}, Execute, Bind);
     SetTableFuncionParams(two_hop_default);
     two_hop.AddFunction(two_hop_default);
 

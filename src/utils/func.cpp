@@ -183,7 +183,6 @@ void ConvertArrowTableToDataChunk(const arrow::Table& table, DataChunk& output, 
     }
 
     const auto num_rows = table.num_rows();
-    output.SetCapacity(num_rows);
     output.SetCardinality(num_rows);
     for (idx_t col_idx = 0; col_idx < column_ids.size(); col_idx++) {
         auto& arrow_type = *arrow_table_schema.GetColumns().at(column_ids[col_idx]);

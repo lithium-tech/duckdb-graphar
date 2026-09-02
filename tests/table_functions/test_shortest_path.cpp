@@ -95,11 +95,11 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
     INFO("Execute test");
     REQUIRE_NOTHROW(shortest_path_func.function(*TestFixture::conn.context, func_input, tmp));
     while (tmp.size() > 0){
-        res.Append(tmp, true);
+        res.Append(tmp, VectorAppendMode::ALLOW_RESIZE);
         tmp.Reset();
         REQUIRE_NOTHROW(shortest_path_func.function(*TestFixture::conn.context, func_input, tmp));
     }
-    if(tmp.size() > 0) res.Append(tmp, true);
+    if(tmp.size() > 0) res.Append(tmp, VectorAppendMode::ALLOW_RESIZE);
 
     INFO("Checking results");
     REQUIRE(res.size() == 2); // step 0: vertex 1, step 1: vertex 2
@@ -164,11 +164,11 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
     INFO("Execute test");
     REQUIRE_NOTHROW(shortest_path_func.function(*TestFixture::conn.context, func_input, tmp));
     while (tmp.size() > 0){
-        res.Append(tmp, true);
+        res.Append(tmp, VectorAppendMode::ALLOW_RESIZE);
         tmp.Reset();
         REQUIRE_NOTHROW(shortest_path_func.function(*TestFixture::conn.context, func_input, tmp));
     }
-    if(tmp.size() > 0) res.Append(tmp, true);
+    if(tmp.size() > 0) res.Append(tmp, VectorAppendMode::ALLOW_RESIZE);
 
     INFO("Checking results");
     REQUIRE(res.size() == 3); // step 0: vertex 1, step 1: vertex 2, step 2: vertex 4
@@ -235,11 +235,11 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
     INFO("Execute test");
     REQUIRE_NOTHROW(shortest_path_func.function(*TestFixture::conn.context, func_input, tmp));
     while (tmp.size() > 0){
-        res.Append(tmp, true);
+        res.Append(tmp, VectorAppendMode::ALLOW_RESIZE);
         tmp.Reset();
         REQUIRE_NOTHROW(shortest_path_func.function(*TestFixture::conn.context, func_input, tmp));
     }
-    if(tmp.size() > 0) res.Append(tmp, true);
+    if(tmp.size() > 0) res.Append(tmp, VectorAppendMode::ALLOW_RESIZE);
 
     INFO("Checking results");
     REQUIRE(res.size() == 1); // step 0: vertex 1
@@ -302,11 +302,11 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
     INFO("Execute test");
     REQUIRE_NOTHROW(shortest_path_func.function(*TestFixture::conn.context, func_input, tmp));
     while (tmp.size() > 0){
-        res.Append(tmp, true);
+        res.Append(tmp, VectorAppendMode::ALLOW_RESIZE);
         tmp.Reset();
         REQUIRE_NOTHROW(shortest_path_func.function(*TestFixture::conn.context, func_input, tmp));
     }
-    if(tmp.size() > 0) res.Append(tmp, true);
+    if(tmp.size() > 0) res.Append(tmp, VectorAppendMode::ALLOW_RESIZE);
 
     INFO("Checking results");
     REQUIRE(res.size() == 0); // No path exists
@@ -363,11 +363,11 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
     INFO("Execute test");
     REQUIRE_NOTHROW(shortest_path_func.function(*TestFixture::conn.context, func_input, tmp));
     while (tmp.size() > 0){
-        res.Append(tmp, true);
+        res.Append(tmp, VectorAppendMode::ALLOW_RESIZE);
         tmp.Reset();
         REQUIRE_NOTHROW(shortest_path_func.function(*TestFixture::conn.context, func_input, tmp));
     }
-    if(tmp.size() > 0) res.Append(tmp, true);
+    if(tmp.size() > 0) res.Append(tmp, VectorAppendMode::ALLOW_RESIZE);
 
     INFO("Checking results");
     REQUIRE(res.size() == 0); // No path exists between disconnected components
@@ -423,11 +423,11 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
     INFO("Execute test");
     REQUIRE_NOTHROW(shortest_path_func.function(*TestFixture::conn.context, func_input, tmp));
     while (tmp.size() > 0){
-        res.Append(tmp, true);
+        res.Append(tmp, VectorAppendMode::ALLOW_RESIZE);
         tmp.Reset();
         REQUIRE_NOTHROW(shortest_path_func.function(*TestFixture::conn.context, func_input, tmp));
     }
-    if(tmp.size() > 0) res.Append(tmp, true);
+    if(tmp.size() > 0) res.Append(tmp, VectorAppendMode::ALLOW_RESIZE);
 
     INFO("Checking results");
     REQUIRE(res.size() == 3); // step 0: vertex 0, step 1: vertex 1, step 2: vertex 2
@@ -493,11 +493,11 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
     INFO("Execute test");
     REQUIRE_NOTHROW(shortest_path_func.function(*TestFixture::conn.context, func_input, tmp));
     while (tmp.size() > 0){
-        res.Append(tmp, true);
+        res.Append(tmp, VectorAppendMode::ALLOW_RESIZE);
         tmp.Reset();
         REQUIRE_NOTHROW(shortest_path_func.function(*TestFixture::conn.context, func_input, tmp));
     }
-    if(tmp.size() > 0) res.Append(tmp, true);
+    if(tmp.size() > 0) res.Append(tmp, VectorAppendMode::ALLOW_RESIZE);
 
     INFO("Checking results");
     REQUIRE(res.size() == 0);
@@ -552,11 +552,11 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
     INFO("Execute test");
     REQUIRE_NOTHROW(shortest_path_func.function(*TestFixture::conn.context, func_input, tmp));
     while (tmp.size() > 0){
-        res.Append(tmp, true);
+        res.Append(tmp, VectorAppendMode::ALLOW_RESIZE);
         tmp.Reset();
         REQUIRE_NOTHROW(shortest_path_func.function(*TestFixture::conn.context, func_input, tmp));
     }
-    if(tmp.size() > 0) res.Append(tmp, true);
+    if(tmp.size() > 0) res.Append(tmp, VectorAppendMode::ALLOW_RESIZE);
 
     INFO("Checking results");
     REQUIRE(res.size() == 0);
@@ -611,11 +611,11 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
     INFO("Execute test");
     REQUIRE_NOTHROW(shortest_path_func.function(*TestFixture::conn.context, func_input, tmp));
     while (tmp.size() > 0){
-        res.Append(tmp, true);
+        res.Append(tmp, VectorAppendMode::ALLOW_RESIZE);
         tmp.Reset();
         REQUIRE_NOTHROW(shortest_path_func.function(*TestFixture::conn.context, func_input, tmp));
     }
-    if(tmp.size() > 0) res.Append(tmp, true);
+    if(tmp.size() > 0) res.Append(tmp, VectorAppendMode::ALLOW_RESIZE);
 
     INFO("Checking results");
     REQUIRE(res.size() == 0);

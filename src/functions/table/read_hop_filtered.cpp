@@ -108,12 +108,12 @@ void ReadHopFiltered::PushdownComplexFilter(ClientContext& context, LogicalGet& 
 // GetFunction
 //-------------------------------------------------------------------
 TableFunctionSet ReadHopFiltered::GetFunctions() {
-    TableFunctionSet read_hop_filtered(GetFunctionName());
+    TableFunctionSet read_hop_filtered((Identifier(GetFunctionName())));
 
-    TableFunction read_hop_defalt({LogicalType::VARCHAR}, Execute, Bind);
+    TableFunction read_hop_default("", {LogicalType::VARCHAR}, Execute, Bind);
 
-    SetTableFuncionParams(read_hop_defalt);
-    read_hop_filtered.AddFunction(read_hop_defalt);
+    SetTableFuncionParams(read_hop_default);
+    read_hop_filtered.AddFunction(read_hop_default);
 
     return read_hop_filtered;
 }
@@ -121,7 +121,7 @@ TableFunctionSet ReadHopFiltered::GetFunctions() {
 // GetScanFunction
 //-------------------------------------------------------------------
 TableFunction ReadHopFiltered::GetScanFunction() {
-    TableFunction read_hop(GetFunctionName(), {}, Execute, Bind);
+    TableFunction read_hop("", {}, Execute, Bind);
     SetTableFuncionParams(read_hop);
 
     return read_hop;
@@ -386,7 +386,7 @@ void ReadHopFiltered::Execute(ClientContext& context, TableFunctionInput& input,
         }
     }
 
-    output.SetCapacity(num_rows);
+    output.SetChildCardinality(num_rows);
     output.SetCardinality(num_rows);
     gstate.total_rows += num_rows;
     gstate.chunk_count++;

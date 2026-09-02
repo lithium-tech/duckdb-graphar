@@ -8,6 +8,10 @@
 #include <duckdb/common/named_parameter_map.hpp>
 #include <duckdb/common/vector_size.hpp>
 #include <duckdb/function/table_function.hpp>
+#include <duckdb/planner/expression/bound_comparison_expression.hpp>
+#include <duckdb/planner/expression/bound_constant_expression.hpp>
+#include <duckdb/planner/filter/expression_filter.hpp>
+#include <duckdb/planner/table_filter_set.hpp>
 
 #include <graphar/api/high_level_reader.h>
 #include <graphar/graph_info.h>
@@ -93,21 +97,40 @@ unique_ptr<GlobalTableFunctionState> EdgesVertexGlobalTableFunctionState::Init(C
     if (input.filters) {
         DUCKDB_GRAPHAR_LOG_DEBUG("Found filters");
 
-        if (input.filters->filters.size() > 1) {
+        if (input.filters->FilterCount() > 1) {
             throw NotImplementedException("Multiple filters are not supported");
         }
-        auto filter_id = input.filters->filters.begin()->first;
+        auto& filter_entry = *input.filters->begin();
+        auto filter_id = filter_entry.GetIndex();
         auto filter_index = input.column_ids[filter_id];
-        auto& filter = input.filters->filters.begin()->second;
-        if (filter->filter_type != TableFilterType::CONSTANT_COMPARISON) {
-            throw NotImplementedException("Only constant filters are supported, but got " + filter->ToString(" "));
+        auto& filter = filter_entry.Filter();
+
+        // Check if it's an expression filter
+        if (filter.filter_type != TableFilterType::EXPRESSION_FILTER) {
+            throw NotImplementedException("Only expression filters are supported");
         }
-        auto filter_expr = filter->ToString(" ");
-        if (filter_expr[1] != '=') {
+
+        auto& expr_filter = ExpressionFilter::GetExpressionFilter(filter, "EdgesVertex");
+        auto& expr = expr_filter.expr;
+
+        // Check if it's a comparison expression
+        if (!BoundComparisonExpression::IsComparison(*expr)) {
+            throw NotImplementedException("Only comparison filters are supported");
+        }
+
+        auto& comparison = expr->Cast<BoundFunctionExpression>();
+        if (comparison.GetExpressionType() != ExpressionType::COMPARE_EQUAL) {
             throw NotImplementedException("Only equality filters are supported");
         }
 
-        auto filter_value = filter_expr.substr(2);
+        // Get the right side (constant value)
+        auto& right = BoundComparisonExpression::Right(comparison);
+        if (right.GetExpressionClass() != ExpressionClass::BOUND_CONSTANT) {
+            throw NotImplementedException("Only constant value comparisons are supported");
+        }
+
+        auto& constant_expr = right.Cast<BoundConstantExpression>();
+        auto filter_value = constant_expr.GetValue().ToString();
 
         if (filter_index + 1 == input.column_ids.size()) {
             DUCKDB_GRAPHAR_LOG_DEBUG("Filter by gid");
@@ -226,10 +249,8 @@ inline void EdgesVertex::Execute(ClientContext& context, TableFunctionInput& inp
         output.SetValue(1, i, static_cast<int64_t>(gstate.GetIter()));
     }
     if (end <= start) {
-        output.SetCapacity(0);
         output.SetCardinality(0);
     } else {
-        output.SetCapacity(end - start);
         output.SetCardinality(end - start);
     }
 

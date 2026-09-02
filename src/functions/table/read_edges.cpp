@@ -269,7 +269,7 @@ static void InitFunction(TableFunction& read_edges) {
 // GetFunction
 //-------------------------------------------------------------------
 TableFunction ReadEdges::GetFunction() {
-    TableFunction read_edges(GetFunctionName(), {LogicalType::VARCHAR}, Execute, Bind);
+    TableFunction read_edges(Identifier(GetFunctionName()), {LogicalType::VARCHAR}, Execute, Bind);
     InitFunction(read_edges);
 
     read_edges.named_parameters["src"] = LogicalType::VARCHAR;
@@ -282,7 +282,7 @@ TableFunction ReadEdges::GetFunction() {
 // GetScanFunction
 //-------------------------------------------------------------------
 TableFunction ReadEdges::GetScanFunction() {
-    TableFunction read_edges({}, Execute, Bind);
+    TableFunction read_edges("", {LogicalType::VARCHAR}, Execute, Bind);
     InitFunction(read_edges);
 
     return read_edges;
