@@ -116,8 +116,9 @@ jobs:
       - name: Set up DuckDB
         id: duckdb-version
         run: |
-          git submodule update --init --remote duckdb
+          git submodule update --init duckdb
           cd duckdb
+          git fetch origin
           git fetch --tags origin
           cd ..
           DUCKDB_GIT_VERSION=$(cat .github/duckdb_version) make set_duckdb_version
