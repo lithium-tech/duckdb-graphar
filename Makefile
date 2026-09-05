@@ -19,7 +19,7 @@ ARROW_BUILT = $(ARROW_DIR)/.built
 ARROW_INSTALLED = $(ARROW_DIR)/.installed
 
 GRAPHAR_REP=https://github.com/lithium-tech/incubator-graphar.git
-GRAPHAR_COMMIT=2fc1fcf2faed6259a72fb47f14585a09cd162f32
+GRAPHAR_COMMIT=8a4c3c9633b5e130812c5cb79171beebdcc4ad42
 GRAPHAR_DIR=$(THIRD_PARTY_DIR)/graphar
 GRAPHAR_INSTALL_DIR=$(GRAPHAR_DIR)/install
 GRAPHAR_SRC_DIR=$(GRAPHAR_DIR)/src
@@ -33,6 +33,33 @@ GRAPHAR_ROOT=$(GRAPHAR_INSTALL_DIR)
 
 # Include the Makefile from extension-ci-tools
 include extension-ci-tools/makefiles/duckdb_extension.Makefile
+
+# ---------------------------------------------------------------------------
+# Unit tests
+#
+# The extension has its own Catch2-based test binary `unittest_graphar` which
+# links against duckdb_static (so it does not need extension-loader symbols to
+# be exported from libduckdb.so). We build it via ENABLE_UNIT_TESTS=ON.
+#
+# DuckDB's generic `unittest` (built when BUILD_UNITTESTS=TRUE) links against
+# the shared libduckdb.so and fails to link in this configuration because the
+# extension-loader symbols are not exported from the shared library, so we
+# disable it (BUILD_UNITTESTS=FALSE) and run our own binary instead.
+# ---------------------------------------------------------------------------
+EXT_RELEASE_FLAGS += -DENABLE_UNIT_TESTS=ON -DBUILD_UNITTESTS=FALSE
+EXT_DEBUG_FLAGS += -DENABLE_UNIT_TESTS=ON -DBUILD_UNITTESTS=FALSE
+
+# Override the generic duckdb test runner with the extension's own binary.
+# The binary is placed under build/<config>/extension/duckdb_graphar/tests/
+# because tests/ is added as a subdirectory of the extension.
+test_release_internal:
+	./build/release/extension/duckdb_graphar/tests/unittest_graphar
+
+test_debug_internal:
+	./build/debug/extension/duckdb_graphar/tests/unittest_graphar
+
+test_reldebug_internal:
+	./build/reldebug/extension/duckdb_graphar/tests/unittest_graphar
 
 $(ARROW_CLONED):
 	@echo "Clone Apache Arrow"

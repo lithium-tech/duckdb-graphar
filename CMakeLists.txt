@@ -98,3 +98,31 @@ install(TARGETS ${EXTENSION_NAME}
         EXPORT "${DUCKDB_EXPORT_SET}"
         LIBRARY DESTINATION "${INSTALL_LIB_DIR}"
         ARCHIVE DESTINATION "${INSTALL_LIB_DIR}")
+
+# ---------------------------------------------------------------------------
+# Unit tests for the extension (own Catch2-based test binary `unittest_graphar`).
+# Disabled by default; enable with -DENABLE_UNIT_TESTS=ON.
+#
+# These tests link against duckdb_static + the generated extension loader +
+# the extension's static libs, so they do NOT depend on symbols being exported
+# from the shared libduckdb.so (which DuckDB's generic `unittest` would need).
+# ---------------------------------------------------------------------------
+option(ENABLE_UNIT_TESTS "Build extension unit tests" OFF)
+if(ENABLE_UNIT_TESTS)
+    # Paths used by tests/CMakeLists.txt and its subdirectories.
+    # Arrow / GraphAr install roots come from the Makefile-provided ARROW_ROOT /
+    # GRAPHAR_ROOT (also consumed via find_package above).
+    if(NOT DEFINED ARROW_ROOT)
+        set(ARROW_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/third_party/arrow/install")
+    endif()
+    if(NOT DEFINED GRAPHAR_ROOT)
+        set(GRAPHAR_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/third_party/graphar/install")
+    endif()
+    set(ARROW_INSTALL_DIR "${ARROW_ROOT}")
+    set(GRAPHAR_INSTALL_DIR "${GRAPHAR_ROOT}")
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/graphar/src/cpp/thirdparty")
+        set(GRAPHAR_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/graphar/src")
+    endif()
+
+    add_subdirectory(tests tests)
+endif()
