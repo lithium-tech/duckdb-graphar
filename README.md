@@ -52,13 +52,59 @@ For a debug build:
 make debug
 ```
 
-```Run test:
+### Run the extension
+
+After building, the `duckdb` binary (with the extension statically linked) is
+produced at `build/release/duckdb`. Launch it and attach to a GraphAr graph
+directory to query its vertex/edge tables:
 
 ```bash
-./build/_deps/duckdb-build/test/unittest "[graphar]"
+./build/release/duckdb -c "attach '/path/to/Graph.yaml' (type duckdb_graphar); select * from person limit 20;"
 ```
-Run Unittests for extension:
+
+Example data is available under `data/` (e.g. `data/snap-musae-github/graphar/Git.graph.yaml`).
+
+### S3 warning note
+
+When using S3-backed data, DuckDB may print the warning
+
+```
+arrow::fs::FinalizeS3 was not called even though S3 was initialized. This could
+lead to a segmentation fault at exit
+```
+
+This is a **known harmless** issue — it is not a bug (see AGENTS.md). However, if
+needed, you can prevent a possible segmentation fault on exit by calling the
+`duckdb_graphar_finalize_s3()` function (registered by this extension) to explicitly
+finalize the S3 filesystem before the process ends.
+
+### Run unit tests
+
+The extension has its own Catch2-based unit-test binary, `unittest_graphar`.
+It links against `duckdb_static` (plus the generated extension loader and the
+extension's static libraries), so it does not depend on symbols being exported
+from the shared `libduckdb.so`.
+
+The tests are built as part of the release/debug build (see the `ENABLE_UNIT_TESTS`
+option below). Run them with:
 
 ```bash
-./build/_deps/duckdb-build/extension/duckdb_graphar/tests/unittest_graphar
+make test
+```
+
+or invoke the binary directly:
+
+```bash
+./build/release/extension/duckdb_graphar/tests/unittest_graphar
+```
+
+#### Test configuration options
+
+Unit tests are enabled by default through the Makefile
+(`EXT_RELEASE_FLAGS`/`EXT_DEBUG_FLAGS` pass `-DENABLE_UNIT_TESTS=ON`).
+If you build with CMake directly and want to control this:
+
+```shell
+cmake ... -DENABLE_UNIT_TESTS=ON   # build the extension unit tests
+cmake ... -DENABLE_UNIT_TESTS=OFF  # skip the extension unit tests
 ```

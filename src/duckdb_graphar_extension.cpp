@@ -38,19 +38,26 @@ static void FinalizeS3(DataChunk& args, ExpressionState& state, Vector& result) 
 }
 
 static void LoadInternal(ExtensionLoader& loader) {
+    auto& config = DBConfig::GetConfig(loader.GetDatabaseInstance());
+
+    config.AddExtensionOption("graphar_time_logging", "Enable time logging for GraphAr requests.", LogicalType::BOOLEAN,
+                              Value::BOOLEAN(false));
+
+    config.AddExtensionOption("graphar_internal_reader_type",
+                              "Internal reader to use for reading graph data files: 'auto' (default, DuckDB for "
+                              "parquet, Arrow otherwise), 'duckdb' (always DuckDB, parquet only), 'arrow' (always "
+                              "Arrow).",
+                              LogicalType::VARCHAR, Value("auto"));
+
+    // Initialize GlobalLogManager before using any logging macros
+    GlobalLogManager::Initialize(loader.GetDatabaseInstance(), duckdb::LogLevel::LOG_WARNING);
+
     auto duckdb_graphar_scalar_function =
         ScalarFunction("duckdb_graphar", {LogicalType::VARCHAR}, LogicalType::VARCHAR, QuackScalarFun);
     loader.RegisterFunction(duckdb_graphar_scalar_function);
 
     auto finalize_s3_function = ScalarFunction("duckdb_graphar_finalize_s3", {}, LogicalType::VARCHAR, FinalizeS3);
     loader.RegisterFunction(finalize_s3_function);
-
-    auto& config = DBConfig::GetConfig(loader.GetDatabaseInstance());
-
-    config.AddExtensionOption("graphar_time_logging", "Enable time logging for GraphAr requests.", LogicalType::BOOLEAN,
-                              Value::BOOLEAN(false));
-
-    GlobalLogManager::Initialize(loader.GetDatabaseInstance(), duckdb::LogLevel::LOG_WARNING);
 
     ReadVertices::Register(loader);
     ReadEdges::Register(loader);

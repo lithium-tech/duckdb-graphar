@@ -116,7 +116,7 @@ jobs:
       - name: Set up DuckDB
         id: duckdb-version
         run: |
-          git submodule update --init --remote duckdb
+          git submodule update --init duckdb
           cd duckdb
           git fetch --tags origin
           cd ..

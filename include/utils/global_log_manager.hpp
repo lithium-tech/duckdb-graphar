@@ -4,22 +4,20 @@
 #include <duckdb/logging/logging.hpp>
 #include <duckdb/main/database.hpp>
 
-#include <optional>
-
 namespace duckdb {
 class GlobalLogManager {
 public:
     static void Initialize(DatabaseInstance& db, LogLevel log_level = LogLevel::LOG_INFO);
 
     static LogManager& GetLogManager() {
-        if (!log_manager.has_value()) {
+        if (!log_manager) {
             throw InternalException("LogManager is not initialized");
         }
-        return log_manager.value();
+        return *log_manager;
     }
 
 private:
-    static std::optional<std::reference_wrapper<LogManager>> log_manager;
+    static LogManager* log_manager;
 };
 };  // namespace duckdb
 

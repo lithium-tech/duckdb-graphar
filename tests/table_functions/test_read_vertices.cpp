@@ -72,7 +72,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadVertices Bind and Execute 
     REQUIRE_NOTHROW(read_vertices.function(*TestFixture::conn.context, func_input, tmp));
     while (tmp.size() > 0){
         INFO("Size of the result part: " << tmp.size());
-        REQUIRE_NOTHROW(res.Append(tmp, true));
+        REQUIRE_NOTHROW(res.Append(tmp, VectorAppendMode::ALLOW_RESIZE));
         tmp.Reset();
         REQUIRE_NOTHROW(read_vertices.function(*TestFixture::conn.context, func_input, tmp));
     }

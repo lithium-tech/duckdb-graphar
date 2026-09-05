@@ -37,12 +37,21 @@ public:
         DUCKDB_GRAPHAR_LOG_TRACE("TwoHopLocalTableFunctionState::MoveReader");
         std::lock_guard<std::mutex> lock(gstate.lock);
 
+        DUCKDB_GRAPHAR_LOG_DEBUG(
+            "TwoHopLocalTableFunctionState::MoveReader - vertexes size=" + std::to_string(gstate.vertexes.size()) +
+            " cur_idx=" + std::to_string(cur_idx) + " gstate.cur_idx=" + std::to_string(gstate.cur_idx) +
+            " next_hop_idx=" + std::to_string(gstate.next_hop_idx));
+
         if (!gstate.vertexes.empty()) {
             cur_idx = gstate.cur_idx++;
-            reader->SetVertex(gstate.vertexes.front());
+            auto vid = gstate.vertexes.front();
+            DUCKDB_GRAPHAR_LOG_DEBUG("TwoHopLocalTableFunctionState::MoveReader - processing vid=" +
+                                     std::to_string(vid));
+            reader->SetVertex(vid);
             gstate.vertexes.pop();
             in_progress = true;
         } else {
+            DUCKDB_GRAPHAR_LOG_DEBUG("TwoHopLocalTableFunctionState::MoveReader - no more vertexes, finishing");
             in_progress = false;
         }
     }

@@ -1,4 +1,3 @@
-log_stage("tablefunctions")
 add_library_unity(test_table_functions OBJECT test_read_vertices.cpp test_read_edges.cpp test_shortest_path.cpp)
 add_dependencies(test_table_functions graphar)
 target_include_directories(test_table_functions PRIVATE

@@ -25,7 +25,7 @@ protected:
     std::string folder_feature_graph;
     
     static duckdb::TableFunctionBindInput CreateMockBindInput(duckdb::vector<duckdb::Value> &inputs, duckdb::named_parameter_map_t &named_parameters, duckdb::vector<duckdb::LogicalType> &input_table_types) {
-        duckdb::vector<std::string> input_table_names;
+        duckdb::vector<duckdb::Identifier> input_table_names;
         duckdb::TableFunction table_function;
         duckdb::TableFunctionRef ref;
 

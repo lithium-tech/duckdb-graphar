@@ -87,9 +87,9 @@ ReaderPtr ReadHop::GetReader(ClientContext& context, ReadBaseGlobalTableFunction
 // GetFunction
 //-------------------------------------------------------------------
 TableFunctionSet ReadHop::GetFunctions() {
-    TableFunctionSet read_hop(GetFunctionName());
+    TableFunctionSet read_hop((Identifier(GetFunctionName())));
 
-    TableFunction read_hop_default({LogicalType::VARCHAR}, Execute, Bind);
+    TableFunction read_hop_default("", {LogicalType::VARCHAR}, Execute, Bind);
     SetTableFuncionParams(read_hop_default);
     read_hop.AddFunction(read_hop_default);
 
@@ -99,7 +99,7 @@ TableFunctionSet ReadHop::GetFunctions() {
 // GetScanFunction
 //-------------------------------------------------------------------
 TableFunction ReadHop::GetScanFunction() {
-    TableFunction read_hop(GetFunctionName(), {}, Execute, Bind);
+    TableFunction read_hop("", {}, Execute, Bind);
     SetTableFuncionParams(read_hop);
     return read_hop;
 }
@@ -254,7 +254,7 @@ void ReadHop::Execute(ClientContext& context, TableFunctionInput& input, DataChu
         }
     }
 
-    output.SetCapacity(num_rows);
+    output.SetChildCardinality(num_rows);
     output.SetCardinality(num_rows);
     gstate.total_rows += num_rows;
     gstate.chunk_count++;
