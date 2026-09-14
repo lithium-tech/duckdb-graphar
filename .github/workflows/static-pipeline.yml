@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Check PR Title
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           script: |
             const title = context.payload.pull_request.title;
@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install clang-format-19
         run: |
@@ -58,7 +58,7 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: true
 
@@ -91,7 +91,7 @@ jobs:
           fi
 
       - name: Cache ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ runner.workspace }}/.ccache
           key: ${{ runner.os }}-ccache-${{ hashFiles('Makefile', 'CMakeLists.txt', 'extension_config.cmake') }}
@@ -100,7 +100,7 @@ jobs:
 
       - name: Cache Arrow and GraphAr
         id: cache-third-party
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             third_party/
@@ -157,7 +157,7 @@ jobs:
           cp build/release/extension/duckdb_graphar/duckdb_graphar.duckdb_extension upload-artifacts/
 
       - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: duckdb-graphar-${{ matrix.os }}
           path: upload-artifacts
