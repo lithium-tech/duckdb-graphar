@@ -28,7 +28,7 @@ GraphArCatalog::GraphArCatalog(AttachedDatabase& db_p, const std::string& path_,
     CatalogSearchEntry entry(Identifier(database_name), Identifier("main"));
     client_data.catalog_search_path->Set({entry}, CatalogSetPathType::SET_DIRECTLY);
     analytics::usage_analytics::Tracker::GetInstance().emit(usage_analytics_session,
-                                                             analytics::usage_analytics::EventCode::Start);
+                                                            analytics::usage_analytics::EventCode::Start);
 }
 GraphArCatalog::~GraphArCatalog() = default;
 
@@ -40,7 +40,7 @@ void GraphArCatalog::Initialize(bool load_builtin) {
 
 void GraphArCatalog::OnDetach(ClientContext&) {
     analytics::usage_analytics::Tracker::GetInstance().emit(usage_analytics_session,
-                                                             analytics::usage_analytics::EventCode::End);
+                                                            analytics::usage_analytics::EventCode::End);
 }
 
 optional_ptr<CatalogEntry> GraphArCatalog::CreateSchema(CatalogTransaction transaction, CreateSchemaInfo& info) {

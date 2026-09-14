@@ -56,8 +56,7 @@ public:
         return empty_section;
     }
 
-    std::string GetParameter(const std::string& section_name,
-                             const std::string& parameter_name,
+    std::string GetParameter(const std::string& section_name, const std::string& parameter_name,
                              const std::string& default_value) const override {
         const std::string path = section_name.empty() ? parameter_name : section_name + "." + parameter_name;
         return config_.get<std::string>(path, default_value);
