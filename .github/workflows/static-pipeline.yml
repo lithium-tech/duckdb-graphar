@@ -61,6 +61,8 @@ jobs:
         uses: actions/checkout@v5
         with:
           submodules: true
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Install System Dependencies (Ubuntu)
         if: matrix.os == 'ubuntu-22.04'
@@ -112,17 +114,6 @@ jobs:
         if: steps.cache-third-party.outputs.cache-hit == 'true'
         run: |
           echo "Arrow and GraphAr restored from cache"
-
-      - name: Set up DuckDB
-        id: duckdb-version
-        run: |
-          git submodule update --init duckdb
-          cd duckdb
-          git fetch --unshallow origin
-          git fetch --tags origin
-          cd ..
-          DUCKDB_GIT_VERSION=$(cat .github/duckdb_version) make set_duckdb_version
-          cd duckdb && echo "duckdb_hash=$(git rev-parse HEAD)"
 
       - name: Build
         run: |
