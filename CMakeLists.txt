@@ -60,7 +60,7 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/extension_deps.cmake")
     include("${CMAKE_CURRENT_SOURCE_DIR}/third_party/extension_deps.cmake")
 endif()
 
-message("My roots: ${ARROW_ROOT} ${GRAPHAR_ROOT}")
+message("My roots: ${Boost_ROOT} ${ARROW_ROOT} ${GRAPHAR_ROOT}")
 if(ARROW_ROOT)
     list(APPEND CMAKE_PREFIX_PATH ${ARROW_ROOT})
 endif()
@@ -69,6 +69,7 @@ if(GRAPHAR_ROOT)
     list(APPEND CMAKE_PREFIX_PATH ${GRAPHAR_ROOT})
 endif()
 
+find_package(Boost COMPONENTS json thread random log filesystem REQUIRED)
 find_package(Arrow REQUIRED CONFIG)
 find_package(ArrowDataset REQUIRED CONFIG)
 find_package(ArrowAcero REQUIRED CONFIG)
@@ -97,17 +98,39 @@ elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/graphar/src")
     include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/graphar/src/cpp/thirdparty)
 endif()
 
+set(PROJECT_INC_DIR ${EXTENSION_ROOT_DIR}/include)
+add_subdirectory(analytics)
+
 file(GLOB_RECURSE EXTENSION_SOURCES CONFIGURE_DEPENDS "${EXTENSION_ROOT_DIR}/src/*.cpp")
+file(GLOB_RECURSE EXTENSION_SINK_SOURCES CONFIGURE_DEPENDS "${EXTENSION_ROOT_DIR}/src/sinks/*.cpp")
+list(REMOVE_ITEM EXTENSION_SOURCES ${EXTENSION_SINK_SOURCES})
 
 message(LOG "Building static extension")
 build_static_extension(${TARGET_NAME} ${EXTENSION_SOURCES})
+target_sources(${EXTENSION_NAME} PRIVATE $<TARGET_OBJECTS:product_usage_analytics_lib>)
+# Sink translation units are compiled directly by the final consumer so their
+# self-registration cannot be dropped when the static extension archive is linked.
+target_sources(${EXTENSION_NAME} INTERFACE "$<BUILD_INTERFACE:${EXTENSION_SINK_SOURCES}>")
+target_include_directories(${EXTENSION_NAME}
+    PRIVATE
+        ${EXTENSION_ROOT_DIR}/analytics/usage_analytics/include
+    INTERFACE
+        "$<BUILD_INTERFACE:${EXTENSION_ROOT_DIR}/include>"
+        "$<BUILD_INTERFACE:${EXTENSION_ROOT_DIR}/analytics/usage_analytics/include>"
+)
 
 message(LOG "Building loadable extension")
-build_loadable_extension(${TARGET_NAME} " " ${EXTENSION_SOURCES})
+build_loadable_extension(${TARGET_NAME} " " ${EXTENSION_SOURCES} ${EXTENSION_SINK_SOURCES})
+target_sources(${LOADABLE_EXTENSION_NAME} PRIVATE $<TARGET_OBJECTS:product_usage_analytics_lib>)
+target_include_directories(${LOADABLE_EXTENSION_NAME}
+    PRIVATE
+        ${EXTENSION_ROOT_DIR}/analytics/usage_analytics/include
+)
 
 set(EXTENSION_LIBRARIES
         graphar
-        Arrow::arrow_static)
+        Arrow::arrow_static
+        ${Boost_LIBRARIES})
 
 target_link_libraries(${EXTENSION_NAME} ${EXTENSION_LIBRARIES})
 target_link_libraries(${LOADABLE_EXTENSION_NAME} ${EXTENSION_LIBRARIES})

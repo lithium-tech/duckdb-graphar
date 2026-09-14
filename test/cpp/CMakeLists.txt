@@ -31,6 +31,7 @@ set(EXTENSION_INCLUDES
     $<BUILD_INTERFACE:${ARROW_INSTALL_DIR}/include>
 )
 
+add_subdirectory(analytics)
 add_subdirectory(table_functions)
 add_subdirectory(scalar_functions)
 add_subdirectory(storage)

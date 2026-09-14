@@ -27,14 +27,20 @@ GraphArCatalog::GraphArCatalog(AttachedDatabase& db_p, const std::string& path_,
     DUCKDB_GRAPHAR_LOG_TRACE("GraphArCatalog::GraphArCatalog");
     CatalogSearchEntry entry(Identifier(database_name), Identifier("main"));
     client_data.catalog_search_path->Set({entry}, CatalogSetPathType::SET_DIRECTLY);
+    analytics::usage_analytics::Tracker::GetInstance().emit(usage_analytics_session,
+                                                             analytics::usage_analytics::EventCode::Start);
 }
-
 GraphArCatalog::~GraphArCatalog() = default;
 
 void GraphArCatalog::Initialize(bool load_builtin) {
     DUCKDB_GRAPHAR_LOG_TRACE("GraphArCatalog::Initialize");
     CreateSchemaInfo info;
     main_schema = make_uniq<GraphArSchemaEntry>(*this, info);
+}
+
+void GraphArCatalog::OnDetach(ClientContext&) {
+    analytics::usage_analytics::Tracker::GetInstance().emit(usage_analytics_session,
+                                                             analytics::usage_analytics::EventCode::End);
 }
 
 optional_ptr<CatalogEntry> GraphArCatalog::CreateSchema(CatalogTransaction transaction, CreateSchemaInfo& info) {

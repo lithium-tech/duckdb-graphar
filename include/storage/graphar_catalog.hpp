@@ -1,5 +1,7 @@
 #pragma once
 
+#include "usage_analytics/usage_analytics.h"
+
 #include <duckdb/catalog/catalog.hpp>
 #include <duckdb/catalog/entry_lookup_info.hpp>
 #include <duckdb/common/common.hpp>
@@ -25,6 +27,7 @@ public:
 
 public:
     void Initialize(bool load_builtin) override;
+    void OnDetach(ClientContext& context) override;
     string GetCatalogType() override { return TYPE; }
 
     optional_ptr<CatalogEntry> CreateSchema(CatalogTransaction transaction, CreateSchemaInfo& info) override;
@@ -67,6 +70,7 @@ private:
     std::string database_name;
     unique_ptr<GraphArSchemaEntry> main_schema;
     bool in_memory = true;
+    analytics::usage_analytics::Session usage_analytics_session;
 };
 
 }  // namespace duckdb
