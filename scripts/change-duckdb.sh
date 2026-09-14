@@ -20,11 +20,7 @@ fi
 # Function to display current version
 show_current_version() {
     echo "Current DuckDB version:"
-    
-    if [ -f "$PROJECT_ROOT/.github/duckdb_version" ]; then
-        echo "  .github/duckdb_version: $(cat "$PROJECT_ROOT/.github/duckdb_version")"
-    fi
-    
+
     if [ -d "$PROJECT_ROOT/duckdb" ] && [ -e "$PROJECT_ROOT/duckdb/.git" ]; then
         cd "$PROJECT_ROOT/duckdb"
         duckdb_version=$(git describe --tags --always --match 'v*' 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || echo "unknown")
@@ -71,20 +67,8 @@ fi
 echo "=========================================="
 echo ""
 
-# Update .github/duckdb_version file
-echo "Step 1: Updating .github/duckdb_version file..."
-if [ -f "$PROJECT_ROOT/.github/duckdb_version" ]; then
-    echo "$NEW_VERSION" > "$PROJECT_ROOT/.github/duckdb_version"
-    echo "  ✓ Updated"
-else
-    mkdir -p "$PROJECT_ROOT/.github"
-    echo "$NEW_VERSION" > "$PROJECT_ROOT/.github/duckdb_version"
-    echo "  ✓ Created"
-fi
-echo ""
-
 # Update duckdb submodule
-echo "Step 2: Updating duckdb submodule..."
+echo "Step 1: Updating duckdb submodule..."
 if [ -d "$PROJECT_ROOT/duckdb" ] && [ -e "$PROJECT_ROOT/duckdb/.git" ]; then
     cd "$PROJECT_ROOT/duckdb"
     if [ "$FAST_MODE" = false ]; then
@@ -115,7 +99,7 @@ fi
 echo ""
 
 # Update extension-ci-tools submodule
-echo "Step 3: Updating extension-ci-tools submodule..."
+echo "Step 2: Updating extension-ci-tools submodule..."
 if [ -d "$PROJECT_ROOT/extension-ci-tools" ] && [ -e "$PROJECT_ROOT/extension-ci-tools/.git" ]; then
     cd "$PROJECT_ROOT/extension-ci-tools"
     if [ "$FAST_MODE" = false ]; then
