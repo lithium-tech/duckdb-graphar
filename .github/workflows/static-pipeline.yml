@@ -128,6 +128,16 @@ jobs:
         run: |
           make release
 
+      - name: Verify DuckDB build version
+        run: |
+          VERSION=$(build/release/duckdb --version)
+          echo "DuckDB version: $VERSION"
+          if echo "$VERSION" | grep -q 'v0\.0\.1'; then
+            echo "::warning::DuckDB build reports v0.0.1 (shallow clone or git describe failed). Expected a real version like v1.5.5. Manually verify this is intended."
+          else
+            echo "DuckDB version looks correct (not v0.0.1)."
+          fi
+
       - name: Install GraphAr CLI and Generate Data
         if: matrix.os == 'ubuntu-22.04'
         run: |
