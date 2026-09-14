@@ -157,7 +157,7 @@ jobs:
           cp build/release/extension/duckdb_graphar/duckdb_graphar.duckdb_extension upload-artifacts/
 
       - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: duckdb-graphar-${{ matrix.os }}
           path: upload-artifacts
