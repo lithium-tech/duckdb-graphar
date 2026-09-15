@@ -45,8 +45,8 @@ public:
                     directory = path;
                 }
 
-                rotation_size_bytes = config::ReadParameter<std::uint64_t>(
-                    cfg, section, "rotation_size_bytes", kDefaultRotationSizeBytes);
+                rotation_size_bytes = config::ReadParameter<std::uint64_t>(cfg, section, "rotation_size_bytes",
+                                                                           kDefaultRotationSizeBytes);
                 rotation_interval_seconds = config::ReadParameter<std::uint64_t>(
                     cfg, section, "rotation_interval_seconds", kDefaultRotationIntervalSeconds);
             }
