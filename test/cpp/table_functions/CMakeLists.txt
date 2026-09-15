@@ -5,6 +5,8 @@ target_include_directories(test_table_functions PRIVATE
     ${GRAPHAR_SOURCE_DIR}/cpp/thirdparty
     ${ARROW_INSTALL_DIR}/include
     ${EXTENSION_ROOT_DIR}/include
+    ${EXTENSION_ROOT_DIR}/analytics/usage_analytics/include
+    ${Boost_INCLUDE_DIRS}
     ${CATCH2_INCLUDE_DIRS}
     ${EXTENSION_ROOT_DIR}/test/cpp/fixture
 )

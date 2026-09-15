@@ -28,6 +28,7 @@ namespace duckdb {
 
 namespace {
 
+constexpr const char* kPuaEnabledOption = "graphar_pua_enabled";
 constexpr const char* kPuaSinkPathOption = "graphar_pua_sink_jsonl_file_path";
 constexpr const char* kPuaSinkRotationSizeOption = "graphar_pua_sink_jsonl_file_rotation_size_bytes";
 constexpr const char* kPuaSinkRotationIntervalOption = "graphar_pua_sink_jsonl_file_rotation_interval_seconds";
@@ -95,6 +96,8 @@ static void LoadInternal(ExtensionLoader& loader) {
                               "parquet, Arrow otherwise), 'duckdb' (always DuckDB, parquet only), 'arrow' (always "
                               "Arrow).",
                               LogicalType::VARCHAR, Value("auto"));
+    config.AddExtensionOption(kPuaEnabledOption, "Enable product usage analytics.", LogicalType::BOOLEAN,
+                              Value::BOOLEAN(false));
     config.AddExtensionOption(kPuaSinkPathOption, "Product usage analytics JSONL spool directory.",
                               LogicalType::VARCHAR, Value(""));
     config.AddExtensionOption(kPuaSinkRotationSizeOption, "Product usage analytics segment size in bytes.",
@@ -102,10 +105,16 @@ static void LoadInternal(ExtensionLoader& loader) {
     config.AddExtensionOption(kPuaSinkRotationIntervalOption, "Product usage analytics segment age in seconds.",
                               LogicalType::UBIGINT, Value::UBIGINT(24ULL * 60ULL * 60ULL));
 
-    DuckDBPuaConfig analytics_config(config);
+    Value pua_enabled_value;
+    config.TryGetCurrentSetting(kPuaEnabledOption, pua_enabled_value);
+    const bool pua_enabled = pua_enabled_value.IsNull() ? false : pua_enabled_value.GetValue<bool>();
+
     auto& tracker = analytics::usage_analytics::Tracker::GetInstance();
     tracker.set_module("duckdb_graphar");
-    tracker.init(std::cref(analytics_config));
+    if (pua_enabled) {
+        DuckDBPuaConfig analytics_config(config);
+        tracker.init(std::cref(analytics_config));
+    }
 
     // Initialize GlobalLogManager before using any logging macros
     GlobalLogManager::Initialize(loader.GetDatabaseInstance(), duckdb::LogLevel::LOG_WARNING);
