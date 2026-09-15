@@ -682,8 +682,8 @@ public:
             params.push_back(boost::json::value(param));
         }
         payload["params"] = std::move(params);
-        analytics::usage_analytics::Tracker::GetInstance().emit(
-            analytics::usage_analytics::EventCode::Event, std::move(payload));
+        analytics::usage_analytics::Tracker::GetInstance().emit(analytics::usage_analytics::EventCode::Event,
+                                                                std::move(payload));
 
         const auto prop_types_size = bind_data.prop_types.size();
         vector<idx_t> columns_pref_num(prop_types_size + 1);
