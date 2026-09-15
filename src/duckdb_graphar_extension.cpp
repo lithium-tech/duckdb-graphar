@@ -1,7 +1,8 @@
 #define DUCKDB_EXTENSION_MAIN
 
-#include "config/config_readable_iface.h"
 #include "duckdb_graphar_extension.hpp"
+
+#include "config/config_readable_iface.h"
 #include "functions/table/edges_vertex.hpp"
 #include "functions/table/graphar_info.hpp"
 #include "functions/table/read_edges.hpp"
@@ -14,11 +15,13 @@
 #include "usage_analytics/usage_analytics.h"
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
+
 #include <duckdb/common/exception.hpp>
 #include <duckdb/common/string_util.hpp>
 #include <duckdb/function/scalar_function.hpp>
 #include <duckdb/parser/parsed_data/create_scalar_function_info.hpp>
 #include <duckdb/planner/extension_callback.hpp>
+
 #include <duckdb.hpp>
 
 namespace duckdb {
