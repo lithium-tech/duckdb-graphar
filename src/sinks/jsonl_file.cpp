@@ -45,8 +45,8 @@ public:
                     directory = path;
                 }
 
-                rotation_size_bytes = config::ReadParameter<std::uint64_t>(
-                    cfg, section, "rotation_size_bytes", kDefaultRotationSizeBytes);
+                rotation_size_bytes =
+                    config::ReadParameter<std::uint64_t>(cfg, section, "rotation_size_bytes", kDefaultRotationSizeBytes);
                 rotation_interval_seconds = config::ReadParameter<std::uint64_t>(
                     cfg, section, "rotation_interval_seconds", kDefaultRotationIntervalSeconds);
             }
@@ -55,7 +55,8 @@ public:
             directory /= std::string{"pua_"} + kName;
             boost::filesystem::create_directories(directory);
 
-            backend_.emplace(boost::log::keywords::file_name = directory / (process_id + ".lock.jsonl"),
+            backend_ = std::make_unique<boost::log::sinks::text_file_backend>(
+                boost::log::keywords::file_name = directory / (process_id + ".lock.jsonl"),
                 boost::log::keywords::target_file_name = directory / (process_id + "-%5N.jsonl"));
             backend_->set_rotation_size(rotation_size_bytes);
             backend_->set_time_based_rotation(boost::log::sinks::file::rotation_at_time_interval(
@@ -93,7 +94,7 @@ public:
     }
 
 private:
-    std::optional<boost::log::sinks::text_file_backend> backend_;
+    std::unique_ptr<boost::log::sinks::text_file_backend> backend_;
     std::mutex emit_mutex_;
 };
 
