@@ -78,8 +78,9 @@ TEST_CASE("product usage analytics self registration and JSONL protocol") {
     // Minimal lifecycle protection: a valid emit after shutdown is ignored.
     tracker.emit(explicit_session, EventCode::Event, R"({"ignored":true})");
 
+    const auto sink_directory = directory / "grapher-analytics" / "pua_jsonl_file";
     std::vector<boost::json::object> events;
-    for (const auto& entry : boost::filesystem::directory_iterator(directory)) {
+    for (const auto& entry : boost::filesystem::directory_iterator(sink_directory)) {
         if (!boost::filesystem::is_regular_file(entry.path()) || entry.path().extension() != ".jsonl" ||
             entry.path().filename().string().find(".lock.jsonl") != std::string::npos) {
             continue;
