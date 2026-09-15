@@ -12,6 +12,16 @@ EXT_CONFIG=${PROJ_DIR}extension_config.cmake
 THIRD_PARTY_DIR=$(PROJ_DIR)third_party
 THIRD_PARTY_CMAKE=$(PROJ_DIR)third_party/extension_deps.cmake
 
+BOOST_VERSION=1.90.0
+BOOST_VERSION_UNDERSCORE=1_90_0
+BOOST_DIR=$(THIRD_PARTY_DIR)/boost
+BOOST_INSTALL_DIR=$(BOOST_DIR)/install
+BOOST_SRC_DIR=$(BOOST_DIR)/src
+BOOST_ARCHIVE=$(BOOST_DIR)/boost_$(BOOST_VERSION_UNDERSCORE).tar.gz
+BOOST_URL=https://archives.boost.io/release/$(BOOST_VERSION)/source/boost_$(BOOST_VERSION_UNDERSCORE).tar.gz
+BOOST_INSTALLED=$(BOOST_DIR)/.installed-$(BOOST_VERSION)
+BOOST_CMAKE_DIR=$(BOOST_INSTALL_DIR)/lib/cmake/Boost-$(BOOST_VERSION)
+
 ARROW_REP=https://github.com/apache/arrow.git
 ARROW_VERSION=23.0.0
 ARROW_DIR=$(THIRD_PARTY_DIR)/arrow
@@ -72,10 +82,30 @@ test-sql-reldebug:
 test-unit: test-unit-release
 test-unit-release:
 	./build/release/extension/duckdb_graphar/test/cpp/unittest_graphar
+	./build/release/extension/duckdb_graphar/test/cpp/analytics/unittest_product_usage_analytics
 test-unit-debug:
 	./build/debug/extension/duckdb_graphar/test/cpp/unittest_graphar
+	./build/debug/extension/duckdb_graphar/test/cpp/analytics/unittest_product_usage_analytics
 test-unit-reldebug:
 	./build/reldebug/extension/duckdb_graphar/test/cpp/unittest_graphar
+	./build/reldebug/extension/duckdb_graphar/test/cpp/analytics/unittest_product_usage_analytics
+
+$(BOOST_INSTALLED):
+	@echo "Build and install Boost $(BOOST_VERSION)"
+	rm -rf $(BOOST_DIR)
+	mkdir -p $(BOOST_SRC_DIR)
+	curl --fail --location --retry 3 --output $(BOOST_ARCHIVE) $(BOOST_URL)
+	tar -xzf $(BOOST_ARCHIVE) -C $(BOOST_SRC_DIR) --strip-components=1
+	cd $(BOOST_SRC_DIR) && ./bootstrap.sh \
+		--prefix=$(BOOST_INSTALL_DIR) \
+		--with-libraries=json,thread,random,log,filesystem
+	cd $(BOOST_SRC_DIR) && ./b2 \
+		-j$(MAKE_JOBS) \
+		link=static \
+		cxxflags=-fPIC \
+		install
+	@test -f $(BOOST_CMAKE_DIR)/BoostConfig.cmake
+	@touch $(BOOST_INSTALLED)
 
 $(ARROW_CLONED):
 	@echo "Clone Apache Arrow"
@@ -83,13 +113,17 @@ $(ARROW_CLONED):
 	git clone --branch apache-arrow-$(ARROW_VERSION) ${ARROW_REP} $(ARROW_SRC_DIR)
 	@touch $(ARROW_CLONED)
 
-$(ARROW_BUILT): $(ARROW_CLONED)
+$(ARROW_BUILT): $(ARROW_CLONED) $(BOOST_INSTALLED)
 	@echo "Build Apache Arrow"
 	rm -rf $(ARROW_BUILD_DIR)
 	mkdir -p $(ARROW_BUILD_DIR)
 	cd $(ARROW_BUILD_DIR) && \
 	cmake .. \
 		-DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+		-DBoost_SOURCE=SYSTEM \
+		-DBoost_ROOT=$(BOOST_INSTALL_DIR) \
+		-DBoost_DIR=$(BOOST_CMAKE_DIR) \
+		-DBoost_NO_SYSTEM_PATHS=ON \
 		-DARROW_BUILD_TESTS=OFF \
 		-DARROW_BUILD_BENCHMARKS=OFF \
 		-DARROW_BUILD_EXAMPLES=OFF \
@@ -114,6 +148,7 @@ $(ARROW_BUILT): $(ARROW_CLONED)
 		-DARROW_DEPENDENCY_SOURCE=BUNDLED \
 		-DARROW_DEPENDENCY_USE_SHARED=OFF \
 		-G Ninja
+	@grep -F "Boost_DIR" $(ARROW_BUILD_DIR)/CMakeCache.txt | grep -F "=$(BOOST_CMAKE_DIR)" >/dev/null
 	@touch $(ARROW_BUILT)
 
 $(ARROW_INSTALLED): $(ARROW_BUILT)
@@ -123,7 +158,6 @@ $(ARROW_INSTALLED): $(ARROW_BUILT)
 	ninja -j$(shell getconf _NPROCESSORS_ONLN) && \
 	ninja install
 	@touch $(ARROW_INSTALLED)
-
 
 $(GRAPHAR_CLONED): $(ARROW_INSTALLED)
 	@echo "Clone Apache GraphAr"
@@ -157,8 +191,10 @@ $(GRAPHAR_INSTALLED): $(GRAPHAR_BUILT)
 	ninja install
 	@touch $(GRAPHAR_INSTALLED)
 
-$(THIRD_PARTY_CMAKE): $(ARROW_INSTALLED) $(GRAPHAR_INSTALLED)
-	@echo 'set(ARROW_ROOT "$(ARROW_ROOT)" CACHE PATH "Path to Arrow")' > $(THIRD_PARTY_CMAKE)
+$(THIRD_PARTY_CMAKE): $(BOOST_INSTALLED) $(ARROW_INSTALLED) $(GRAPHAR_INSTALLED)
+	@echo 'set(Boost_ROOT "$(BOOST_INSTALL_DIR)" CACHE PATH "Path to Boost")' > $(THIRD_PARTY_CMAKE)
+	@echo 'set(Boost_DIR "$(BOOST_CMAKE_DIR)" CACHE PATH "Path to Boost CMake package")' >> $(THIRD_PARTY_CMAKE)
+	@echo 'set(ARROW_ROOT "$(ARROW_ROOT)" CACHE PATH "Path to Arrow")' >> $(THIRD_PARTY_CMAKE)
 	@echo 'set(GRAPHAR_ROOT "$(GRAPHAR_ROOT)" CACHE PATH "Path to GraphAr")' >> $(THIRD_PARTY_CMAKE)
 
 configure_ci: $(THIRD_PARTY_CMAKE)
