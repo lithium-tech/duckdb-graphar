@@ -15,6 +15,10 @@ namespace duckdb {
 struct ShortestPathBindData : public ReadBindData {
     ShortestPathBindData() : ReadBindData() {}
 
+    std::string table_name;
+
+    std::string GetTableName() const override { return table_name; }
+
     graphar::IdType start_id = 0;
     graphar::IdType end_id = 0;
     std::shared_ptr<graphar::EdgeInfo> edge_info;

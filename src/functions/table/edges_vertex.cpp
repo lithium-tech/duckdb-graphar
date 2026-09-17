@@ -1,5 +1,7 @@
 #include "functions/table/edges_vertex.hpp"
 
+#include "utils/pua_init.hpp"
+
 #include "utils/benchmark.hpp"
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
@@ -77,6 +79,8 @@ unique_ptr<GlobalTableFunctionState> EdgesVertexGlobalTableFunctionState::Init(C
     ScopedTimer t("StateInit");
 
     DUCKDB_GRAPHAR_LOG_TRACE("EdgesVertexGlobalTableFunctionState::Init");
+    auto& bind_data_ref = input.bind_data->Cast<EdgesVertexBindData>();
+    usage_analytics::EmitGraphOperationEvent(context, "edges_vertex", bind_data_ref.GetFilePath());
     DUCKDB_GRAPHAR_LOG_DEBUG("Cast BindData");
 
     auto bind_data = input.bind_data->Cast<EdgesVertexBindData>();

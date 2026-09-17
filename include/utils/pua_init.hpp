@@ -53,6 +53,13 @@ private:
 
 namespace usage_analytics {
 
+inline std::string GetActiveQueryId(ClientContext& context) {
+    if (context.transaction.HasActiveTransaction()) {
+        return std::to_string(context.transaction.GetActiveQuery());
+    }
+    return "no_transaction";
+}
+
 // Initializes the tracker lazily on first use, reading the current config from
 // the ClientContext at that moment. This allows users to SET the analytics
 // options before the first event (e.g. before attaching a graph), while changes
@@ -71,6 +78,20 @@ inline void EnsureInitialized(ClientContext& context) {
     DuckDBPuaConfig analytics_config(context);
     tracker.init(std::cref(analytics_config));
     initialized = true;
+}
+
+inline void EmitGraphOperationEvent(ClientContext& context, const std::string& function_name,
+                                    const std::string& table_name = "") {
+    EnsureInitialized(context);
+    auto& tracker = analytics::usage_analytics::Tracker::GetInstance();
+    const auto process_id = std::string(tracker.common_fields().at("process_id").as_string());
+    boost::json::object payload;
+    payload["function"] = function_name;
+    if (!table_name.empty()) {
+        payload["table"] = table_name;
+    }
+    tracker.emit(analytics::usage_analytics::MakeQuerySession(process_id, GetActiveQueryId(context)),
+                 analytics::usage_analytics::EventCode::Event, std::move(payload));
 }
 
 }  // namespace usage_analytics

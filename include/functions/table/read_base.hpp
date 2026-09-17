@@ -236,11 +236,15 @@ struct ColumnStats {
 class ReadBindData : public TableFunctionData {
 public:
     ReadBindData() = default;
+    virtual ~ReadBindData() = default;
     vector<std::string> GetParams() { return params; }
     const vector<std::string>& GetFlattenPropNames() const { return flatten_prop_names; }
     const vector<std::string>& GetFlattenPropTypes() const { return flatten_prop_types; }
     const std::shared_ptr<graphar::GraphInfo>& GetGraphInfo() const { return graph_info; }
     const std::unordered_map<std::string, ColumnStats>& GetStatsMap() const { return stats_map; }
+
+    virtual std::string GetTableName() const { return table_name_; }
+    void SetTableName(std::string table_name_) { this->table_name_ = std::move(table_name_); }
 
 private:
     vector<vector<std::string>> prop_names;
@@ -248,6 +252,7 @@ private:
     vector<vector<std::string>> prop_types;
     vector<std::string> flatten_prop_types;
     std::shared_ptr<graphar::GraphInfo> graph_info;
+    std::string table_name_;
     std::string function_name;
     vector<std::string> params;
     graphar::PropertyGroupVector pgs;
@@ -654,6 +659,8 @@ public:
 
         ScopedTimer t("StateInit");
 
+        auto& bind_data_ref = input.bind_data->Cast<ReadBindData>();
+        const auto table_name = bind_data_ref.GetTableName();
         auto bind_data = input.bind_data->Cast<ReadBindData>();
 
         DUCKDB_GRAPHAR_LOG_TRACE(bind_data.function_name + "::Init");
@@ -683,9 +690,14 @@ public:
             params.push_back(boost::json::value(param));
         }
         payload["params"] = std::move(params);
+        if (!table_name.empty()) {
+            payload["table"] = table_name;
+        }
         usage_analytics::EnsureInitialized(context);
-        analytics::usage_analytics::Tracker::GetInstance().emit(analytics::usage_analytics::EventCode::Event,
-                                                                std::move(payload));
+        auto& tracker = analytics::usage_analytics::Tracker::GetInstance();
+        const auto process_id = std::string(tracker.common_fields().at("process_id").as_string());
+        tracker.emit(analytics::usage_analytics::MakeQuerySession(process_id, usage_analytics::GetActiveQueryId(context)),
+                     analytics::usage_analytics::EventCode::Event, std::move(payload));
 
         const auto prop_types_size = bind_data.prop_types.size();
         vector<idx_t> columns_pref_num(prop_types_size + 1);

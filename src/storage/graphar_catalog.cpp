@@ -29,8 +29,10 @@ GraphArCatalog::GraphArCatalog(AttachedDatabase& db_p, const std::string& path_,
     CatalogSearchEntry entry(Identifier(database_name), Identifier("main"));
     client_data.catalog_search_path->Set({entry}, CatalogSetPathType::SET_DIRECTLY);
     usage_analytics::EnsureInitialized(context);
-    analytics::usage_analytics::Tracker::GetInstance().emit(usage_analytics_session,
-                                                            analytics::usage_analytics::EventCode::Start);
+    auto& tracker = analytics::usage_analytics::Tracker::GetInstance();
+    const auto process_id = std::string(tracker.common_fields().at("process_id").as_string());
+    tracker.emit(analytics::usage_analytics::MakeQuerySession(process_id, usage_analytics::GetActiveQueryId(context)),
+                 analytics::usage_analytics::EventCode::Start);
 }
 GraphArCatalog::~GraphArCatalog() = default;
 
@@ -40,9 +42,11 @@ void GraphArCatalog::Initialize(bool load_builtin) {
     main_schema = make_uniq<GraphArSchemaEntry>(*this, info);
 }
 
-void GraphArCatalog::OnDetach(ClientContext&) {
-    analytics::usage_analytics::Tracker::GetInstance().emit(usage_analytics_session,
-                                                            analytics::usage_analytics::EventCode::End);
+void GraphArCatalog::OnDetach(ClientContext& context) {
+    auto& tracker = analytics::usage_analytics::Tracker::GetInstance();
+    const auto process_id = std::string(tracker.common_fields().at("process_id").as_string());
+    tracker.emit(analytics::usage_analytics::MakeQuerySession(process_id, usage_analytics::GetActiveQueryId(context)),
+                 analytics::usage_analytics::EventCode::End);
 }
 
 optional_ptr<CatalogEntry> GraphArCatalog::CreateSchema(CatalogTransaction transaction, CreateSchemaInfo& info) {

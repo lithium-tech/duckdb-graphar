@@ -14,8 +14,13 @@ namespace analytics::usage_analytics {
 
 struct Session {
     Session();
+    explicit Session(std::string id) : id(std::move(id)) {}
     std::string id;
 };
+
+inline Session MakeQuerySession(const std::string& process_id, const std::string& query_id) {
+    return Session(process_id + ":" + query_id);
+}
 
 class Tracker : private boost::noncopyable {
 public:

@@ -70,7 +70,6 @@ private:
     std::string database_name;
     unique_ptr<GraphArSchemaEntry> main_schema;
     bool in_memory = true;
-    analytics::usage_analytics::Session usage_analytics_session;
 };
 
 }  // namespace duckdb

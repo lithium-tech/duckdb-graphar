@@ -64,6 +64,7 @@ unique_ptr<FunctionData> ReadEdges::Bind(ClientContext& context, TableFunctionBi
     DUCKDB_GRAPHAR_LOG_DEBUG("Fill bind data");
 
     SetBindData(graph_info, edge_info, bind_data);
+    bind_data->SetTableName(file_path);
 
     names = StringsToIdentifiers(bind_data->flatten_prop_names);
     std::transform(bind_data->flatten_prop_types.begin(), bind_data->flatten_prop_types.end(),

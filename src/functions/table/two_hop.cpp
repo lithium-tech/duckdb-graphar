@@ -6,6 +6,7 @@
 #include "utils/benchmark.hpp"
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
+#include "utils/pua_init.hpp"
 
 #include <duckdb/common/named_parameter_map.hpp>
 #include <duckdb/common/vector_size.hpp>
@@ -52,6 +53,7 @@ unique_ptr<GlobalTableFunctionState> TwoHop::Init(ClientContext& context, TableF
     DUCKDB_GRAPHAR_LOG_TRACE("TwoHop::Init");
 
     auto bind_data = input.bind_data->Cast<TwoHopBindData>();
+    usage_analytics::EmitGraphOperationEvent(context, "two_hop", bind_data.GetTableName());
 
     auto gstate_ptr = make_uniq<TwoHopGlobalTableFunctionState>();
     auto& gstate = *gstate_ptr;
