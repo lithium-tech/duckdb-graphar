@@ -1,10 +1,9 @@
 #include "functions/table/edges_vertex.hpp"
 
-#include "utils/pua_init.hpp"
-
 #include "utils/benchmark.hpp"
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
+#include "utils/pua_init.hpp"
 #include "utils/type_info.hpp"
 
 #include <duckdb/common/named_parameter_map.hpp>

@@ -696,8 +696,9 @@ public:
         usage_analytics::EnsureInitialized(context);
         auto& tracker = analytics::usage_analytics::Tracker::GetInstance();
         const auto process_id = std::string(tracker.common_fields().at("process_id").as_string());
-        tracker.emit(analytics::usage_analytics::MakeQuerySession(process_id, usage_analytics::GetActiveQueryId(context)),
-                     analytics::usage_analytics::EventCode::Event, std::move(payload));
+        tracker.emit(
+            analytics::usage_analytics::MakeQuerySession(process_id, usage_analytics::GetActiveQueryId(context)),
+            analytics::usage_analytics::EventCode::Event, std::move(payload));
 
         const auto prop_types_size = bind_data.prop_types.size();
         vector<idx_t> columns_pref_num(prop_types_size + 1);
