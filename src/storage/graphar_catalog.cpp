@@ -4,6 +4,7 @@
 #include "storage/graphar_table_entry.hpp"
 #include "storage/graphar_transaction.hpp"
 #include "utils/global_log_manager.hpp"
+#include "utils/pua_init.hpp"
 
 #include <duckdb/catalog/catalog_search_path.hpp>
 #include <duckdb/common/exception/transaction_exception.hpp>
@@ -27,6 +28,7 @@ GraphArCatalog::GraphArCatalog(AttachedDatabase& db_p, const std::string& path_,
     DUCKDB_GRAPHAR_LOG_TRACE("GraphArCatalog::GraphArCatalog");
     CatalogSearchEntry entry(Identifier(database_name), Identifier("main"));
     client_data.catalog_search_path->Set({entry}, CatalogSetPathType::SET_DIRECTLY);
+    usage_analytics::EnsureInitialized(context);
     analytics::usage_analytics::Tracker::GetInstance().emit(usage_analytics_session,
                                                             analytics::usage_analytics::EventCode::Start);
 }

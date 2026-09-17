@@ -91,23 +91,23 @@ finalize the S3 filesystem before the process ends.
 
 ## Telemetry
 
-The extension can log product-usage events (e.g. graph attach/detach and graph
-read operations) as JSONL files. It is disabled by default and controlled by
-these `SET` options:
+The extension always logs product-usage events (e.g. graph attach/detach and
+graph read operations) as JSONL files. It is always enabled and cannot be turned
+off. The JSONL spool directory and rotation behavior are controlled by these
+`SET` options:
 
-- `graphar_pua_enabled` - master on/off switch (default `false`).
 - `graphar_pua_sink_jsonl_file_path` - output directory for the JSONL files.
 - `graphar_pua_sink_jsonl_file_rotation_size_bytes` - file segment size (default 16 MB).
 - `graphar_pua_sink_jsonl_file_rotation_interval_seconds` - file segment age (default 24 h).
 
 ```sql
-SET graphar_pua_enabled = true;
 SET graphar_pua_sink_jsonl_file_path = '/path/to/analytics';
 ```
 
-The settings are read at extension load time, so when the extension is loaded
-statically they must be set before the process starts; when loaded dynamically,
-`SET` them before the first graph operation.
+These options are read lazily at the first telemetry event (the first graph
+attach or read), so you can `SET` them any time before performing the first
+graph operation. After the first event the settings are fixed for the rest of
+the process; changing them later has no effect.
 
 ## Running tests
 

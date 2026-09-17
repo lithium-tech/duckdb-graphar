@@ -8,6 +8,7 @@
 #include "utils/benchmark.hpp"
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
+#include "utils/pua_init.hpp"
 #include "utils/type_info.hpp"
 
 #include <arrow/c/bridge.h>
@@ -682,6 +683,7 @@ public:
             params.push_back(boost::json::value(param));
         }
         payload["params"] = std::move(params);
+        usage_analytics::EnsureInitialized(context);
         analytics::usage_analytics::Tracker::GetInstance().emit(analytics::usage_analytics::EventCode::Event,
                                                                 std::move(payload));
 
