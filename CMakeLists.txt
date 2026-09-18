@@ -52,8 +52,6 @@ if(UNIX AND NOT APPLE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libstdc++ -static-libgcc")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++ -static-libgcc")
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libstdc++ -static-libgcc")
-    # Temp fix dublicate arrow on linux
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--allow-multiple-definition")
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/extension_deps.cmake")
@@ -129,11 +127,18 @@ target_include_directories(${LOADABLE_EXTENSION_NAME}
 
 set(EXTENSION_LIBRARIES
         graphar
-        Arrow::arrow_static
         ${Boost_LIBRARIES})
 
 target_link_libraries(${EXTENSION_NAME} ${EXTENSION_LIBRARIES})
 target_link_libraries(${LOADABLE_EXTENSION_NAME} ${EXTENSION_LIBRARIES})
+
+if(TARGET Arrow::arrow_static)
+    get_target_property(_arrow_incdirs Arrow::arrow_static INTERFACE_INCLUDE_DIRECTORIES)
+    if(_arrow_incdirs)
+        target_include_directories(${EXTENSION_NAME} PRIVATE ${_arrow_incdirs})
+        target_include_directories(${LOADABLE_EXTENSION_NAME} PRIVATE ${_arrow_incdirs})
+    endif()
+endif()
 
 install(TARGETS ${EXTENSION_NAME}
         EXPORT "${DUCKDB_EXPORT_SET}"
