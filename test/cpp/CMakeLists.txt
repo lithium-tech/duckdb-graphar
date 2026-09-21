@@ -25,12 +25,14 @@ set(DUCKDB_INCLUDES "${CMAKE_SOURCE_DIR}/src/include")
 # third-party headers (mini-yaml etc.), as the extension itself is built with.
 set(EXTENSION_INCLUDES
     $<BUILD_INTERFACE:${EXTENSION_ROOT_DIR}/include>
+    $<BUILD_INTERFACE:${EXTENSION_ROOT_DIR}/analytics/usage_analytics/include>
     $<BUILD_INTERFACE:${GRAPHAR_INSTALL_DIR}/include>
     $<BUILD_INTERFACE:${GRAPHAR_SOURCE_DIR}/cpp/thirdparty>
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/include>
     $<BUILD_INTERFACE:${ARROW_INSTALL_DIR}/include>
 )
 
+add_subdirectory(analytics)
 add_subdirectory(table_functions)
 add_subdirectory(scalar_functions)
 add_subdirectory(storage)

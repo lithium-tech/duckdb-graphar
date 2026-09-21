@@ -1,5 +1,7 @@
 #pragma once
 
+#include "usage_analytics/usage_analytics.h"
+
 #include <duckdb/catalog/catalog.hpp>
 #include <duckdb/catalog/entry_lookup_info.hpp>
 #include <duckdb/common/common.hpp>
@@ -25,6 +27,7 @@ public:
 
 public:
     void Initialize(bool load_builtin) override;
+    void OnDetach(ClientContext& context) override;
     string GetCatalogType() override { return TYPE; }
 
     optional_ptr<CatalogEntry> CreateSchema(CatalogTransaction transaction, CreateSchemaInfo& info) override;

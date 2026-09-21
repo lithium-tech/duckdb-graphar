@@ -79,7 +79,7 @@ private:
 
 struct EdgesVertex {
     static unique_ptr<FunctionData> Bind(ClientContext& context, TableFunctionBindInput& input,
-                                         vector<LogicalType>& return_types, vector<string>& names);
+                                         vector<LogicalType>& return_types, vector<Identifier>& names);
     static graphar::Result<vector<std::pair<graphar::IdType, graphar::IdType>>> GetAdjListOffsetOfVertices(
         ClientContext& context, const std::shared_ptr<graphar::EdgeInfo>& edge_info, const std::string& prefix,
         graphar::AdjListType adj_list_type, idx_t start, idx_t end);

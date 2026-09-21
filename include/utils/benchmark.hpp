@@ -1,6 +1,7 @@
 #pragma once
 
 #include <duckdb/common/exception.hpp>
+#include <duckdb/common/identifier.hpp>
 #include <duckdb/common/types.hpp>
 #include <duckdb/common/types/value.hpp>
 
@@ -26,7 +27,7 @@ struct GraphArSettings {
     template <typename T>
     static T get(const ClientContext& context, const std::string& name) {
         Value result;
-        (void)context.TryGetCurrentSetting(name, result);
+        (void)context.TryGetCurrentSetting(Identifier(name), result);
         if (!result.IsNull()) {
             return !result.IsNull() && result.GetValue<T>();
         }
@@ -41,7 +42,7 @@ struct GraphArSettings {
     // "arrow" forces Arrow (works for all file types).
     static std::string internal_reader_type(const ClientContext& context) {
         Value result;
-        (void)context.TryGetCurrentSetting("graphar_internal_reader_type", result);
+        (void)context.TryGetCurrentSetting(Identifier("graphar_internal_reader_type"), result);
         if (!result.IsNull()) {
             auto str = result.GetValue<std::string>();
             if (str == "auto" || str == "duckdb" || str == "arrow") {

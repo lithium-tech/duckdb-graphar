@@ -8,11 +8,11 @@ A [DuckDB](https://duckdb.org/) extension that enables reading data stored in th
 [Apache GraphAr](https://graphar.apache.org) format.
 It allows you to query vertex and edge tables using SQL, with support for simple filtering.
 
-### DeepWiki
+## DeepWiki
 
 A high-level introduction to the DuckDB GraphAr extension, explaining its architecture and key components, as well as a description of the overall system design, major subsystems, and how they integrate to enable SQL querying of Apache GraphAr data through DuckDB is contained in the [DeepWiki](https://deepwiki.com/lithium-tech/duckdb-graphar)
 
-### Dependencies
+## Dependencies
 
 This extension requires the following dependencies:
 
@@ -38,8 +38,6 @@ Initialize submodules before building:
 git submodule update --init --recursive
 ```
 
-### Build extension
-
 Build the extension:
 
 ```shell
@@ -52,7 +50,7 @@ For a debug build:
 make debug
 ```
 
-### Run the extension
+## Run the extension
 
 After building, the `duckdb` binary (with the extension statically linked) is
 produced at `build/release/duckdb`. Launch it and attach to a GraphAr graph
@@ -78,7 +76,7 @@ runs:
 After running these, example graphs are available under
 `data/<graph>/graphar/` (e.g. `data/snap-musae-github/graphar/Git.graph.yaml`).
 
-### S3 warning note
+## S3 warning note
 
 When using S3-backed data, DuckDB may print the warning
 
@@ -91,7 +89,27 @@ To avoid a possible segmentation fault on exit, call the
 `duckdb_graphar_finalize_s3()` function (registered by this extension) to explicitly
 finalize the S3 filesystem before the process ends.
 
-### Running tests
+## Telemetry
+
+The extension always logs product-usage events (e.g. graph attach/detach and
+graph read operations) as JSONL files. It is always enabled and cannot be turned
+off. The JSONL spool directory and rotation behavior are controlled by these
+`SET` options:
+
+- `graphar_pua_sink_jsonl_file_path` - output directory for the JSONL files.
+- `graphar_pua_sink_jsonl_file_rotation_size_bytes` - file segment size (default 16 MB).
+- `graphar_pua_sink_jsonl_file_rotation_interval_seconds` - file segment age (default 24 h).
+
+```sql
+SET graphar_pua_sink_jsonl_file_path = '/path/to/analytics';
+```
+
+These options are read lazily at the first telemetry event (the first graph
+attach or read), so you can `SET` them any time before performing the first
+graph operation. After the first event the settings are fixed for the rest of
+the process; changing them later has no effect.
+
+## Running tests
 
 The extension has two test suites, both built by default: SQL end-to-end
 [SQLLogicTests](https://duckdb.org/dev/sqllogictest/intro.html) under

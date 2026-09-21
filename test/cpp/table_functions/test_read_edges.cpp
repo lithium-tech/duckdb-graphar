@@ -18,7 +18,7 @@ TEST_CASE("ReadEdges GetFunction basic test", "[read_edges]") {
     TableFunction read_edges;
     REQUIRE_NOTHROW(read_edges = ReadEdges::GetFunction());
     
-    REQUIRE(read_edges.name == "read_edges");
+    REQUIRE(read_edges.GetName() == "read_edges");
     REQUIRE(read_edges.arguments.size() == 1);
     REQUIRE(read_edges.named_parameters.size() == 3);
     CHECK(read_edges.filter_pushdown == false);
@@ -40,7 +40,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadEdges Bind function invali
     auto input = TestFixture::CreateMockBindInput(inputs, named_parameters, input_table_types);    
         
     vector<LogicalType> return_types;
-    vector<std::string> names;
+    vector<Identifier> names;
     INFO("Finish mocking");
     
     TableFunction read_edges = ReadEdges::GetFunction();
@@ -60,7 +60,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadEdges Bind and Execute fun
     auto input = TestFixture::CreateMockBindInput(inputs, named_parameters, input_table_types);    
     
     vector<LogicalType> return_types;
-    vector<std::string> names;
+    vector<Identifier> names;
     INFO("Finish mocking");
 
     TableFunction read_edges = ReadEdges::GetFunction();
@@ -71,7 +71,9 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadEdges Bind and Execute fun
 
     REQUIRE(bind_data != nullptr);
     REQUIRE(return_types == vector<LogicalType> ({LogicalType::BIGINT, LogicalType::BIGINT}));
-    REQUIRE(names == vector<std::string> ({SRC_GID_COLUMN, DST_GID_COLUMN}));
+    REQUIRE(names.size() == 2);
+    REQUIRE(names[0].GetIdentifierName() == SRC_GID_COLUMN);
+    REQUIRE(names[1].GetIdentifierName() == DST_GID_COLUMN);
     INFO("Finish bind test");
 
     TableFunctionInitInput func_init_input(bind_data.get(), vector<column_t>(), {}, nullptr);
@@ -116,7 +118,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadEdges GetStatistics test",
     auto input = TestFixture::CreateMockBindInput(inputs, named_parameters, input_table_types);
     
     vector<LogicalType> return_types;
-    vector<std::string> names;
+    vector<Identifier> names;
     INFO("Finish mocking");
 
     TableFunction read_edges = ReadEdges::GetFunction();

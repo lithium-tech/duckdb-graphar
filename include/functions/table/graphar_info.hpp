@@ -17,7 +17,7 @@ public:
 class GraphArInfo : public TableFunction {
 public:
     static unique_ptr<FunctionData> Bind(ClientContext& context, TableFunctionBindInput& input,
-                                         vector<LogicalType>& return_types, vector<string>& names);
+                                         vector<LogicalType>& return_types, vector<Identifier>& names);
     static unique_ptr<GlobalTableFunctionState> Init(ClientContext& context, TableFunctionInitInput& input);
     static void Execute(ClientContext& context, TableFunctionInput& input, DataChunk& output);
     static TableFunctionSet GetFunctions();

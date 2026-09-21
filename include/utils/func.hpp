@@ -7,6 +7,7 @@
 #include <arrow/filesystem/s3fs.h>
 #include <arrow/scalar.h>
 
+#include <duckdb/common/identifier.hpp>
 #include <duckdb/common/types.hpp>
 #include <duckdb/common/types/data_chunk.hpp>
 #include <duckdb/common/types/value.hpp>

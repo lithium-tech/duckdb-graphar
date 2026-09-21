@@ -4,6 +4,7 @@
 #include "storage/graphar_table_information.hpp"
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
+#include "utils/pua_init.hpp"
 #include "utils/type_info.hpp"
 
 #include <duckdb/catalog/catalog.hpp>
@@ -16,7 +17,7 @@
 namespace duckdb {
 
 unique_ptr<FunctionData> ShortestPath::Bind(ClientContext& context, TableFunctionBindInput& input,
-                                            vector<LogicalType>& return_types, vector<string>& names) {
+                                            vector<LogicalType>& return_types, vector<Identifier>& names) {
     DUCKDB_GRAPHAR_LOG_TRACE("ShortestPath::Bind");
 
     auto bind_data = make_uniq<ShortestPathBindData>();
@@ -43,6 +44,7 @@ unique_ptr<FunctionData> ShortestPath::Bind(ClientContext& context, TableFunctio
             throw IOException("Failed to load graph info from path: %s", file_path);
         }
         bind_data->graph_info = maybe_graph_info.value();
+        bind_data->table_name = file_path;
 
         // Get edge info by type names
         auto edge_info = bind_data->graph_info->GetEdgeInfo(src_type, e_type, dst_type);
@@ -72,7 +74,6 @@ unique_ptr<FunctionData> ShortestPath::Bind(ClientContext& context, TableFunctio
     } else {
         // Old signature: table_name - use catalog lookup
         auto table_name = input.inputs[2].GetValue<string>();
-
         DUCKDB_GRAPHAR_LOG_DEBUG("ShortestPath parameters: start=" + std::to_string(bind_data->start_id) +
                                  ", end=" + std::to_string(bind_data->end_id) + ", table=" + table_name);
 
@@ -81,7 +82,7 @@ unique_ptr<FunctionData> ShortestPath::Bind(ClientContext& context, TableFunctio
         auto schema_name = qname.Schema();
         Binder::BindSchemaOrCatalog(context, catalog_name, schema_name);
 
-        auto& entry = Catalog::GetEntry(context, CatalogType::TABLE_ENTRY, catalog_name, schema_name, qname.Name());
+        auto& entry = Catalog::GetEntry(context, CatalogType::TABLE_ENTRY, qname);
 
         auto& table_entry = entry.template Cast<GraphArTableEntry>();
         auto table_info = table_entry.GetTableInfo();
@@ -96,6 +97,9 @@ unique_ptr<FunctionData> ShortestPath::Bind(ClientContext& context, TableFunctio
 
         bind_data->edge_info = std::get<std::shared_ptr<graphar::EdgeInfo>>(type_info);
         bind_data->graph_info = table_info->GetCatalog().GetGraphInfo();
+
+        bind_data->table_name = table_info->GetCatalog().GetName().GetIdentifierName() + "." +
+                                table_info->GetEntry().ParentSchema().name.GetIdentifierName() + "." + table_name;
 
         auto src_type = bind_data->edge_info->GetSrcType();
         auto dst_type = bind_data->edge_info->GetDstType();
@@ -128,6 +132,7 @@ unique_ptr<GlobalTableFunctionState> ShortestPath::InitGlobal(ClientContext& con
 
     auto global_state = make_uniq<ShortestPathGlobalState>();
     const auto& bind_data = input.bind_data->Cast<ShortestPathBindData>();
+    usage_analytics::EmitGraphOperationEvent(context, "shortest_path", bind_data.GetTableName());
 
     global_state->start_id = bind_data.start_id;
     global_state->end_id = bind_data.end_id;

@@ -6,6 +6,7 @@
 #include "utils/benchmark.hpp"
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
+#include "utils/pua_init.hpp"
 
 #include <duckdb/common/named_parameter_map.hpp>
 #include <duckdb/common/vector_size.hpp>
@@ -22,7 +23,7 @@ namespace duckdb {
 // Bind
 //-------------------------------------------------------------------
 unique_ptr<FunctionData> TwoHop::Bind(ClientContext& context, TableFunctionBindInput& input,
-                                      vector<LogicalType>& return_types, vector<string>& names) {
+                                      vector<LogicalType>& return_types, vector<Identifier>& names) {
     DUCKDB_GRAPHAR_LOG_TRACE("TwoHop::Bind");
 
     const bool is_catalog_mode = HopBase::IsCatalogMode(input);
@@ -38,9 +39,9 @@ unique_ptr<FunctionData> TwoHop::Bind(ClientContext& context, TableFunctionBindI
     HopBase::SetBindDataVids(input, *bind_data);
 
     return_types.push_back(LogicalType::BIGINT);
-    names.push_back(SRC_GID_COLUMN);
+    names.push_back(Identifier(SRC_GID_COLUMN));
     return_types.push_back(LogicalType::BIGINT);
-    names.push_back(DST_GID_COLUMN);
+    names.push_back(Identifier(DST_GID_COLUMN));
     bind_data->dst_column_idx = 1;
 
     return std::move(bind_data);
@@ -52,6 +53,7 @@ unique_ptr<GlobalTableFunctionState> TwoHop::Init(ClientContext& context, TableF
     DUCKDB_GRAPHAR_LOG_TRACE("TwoHop::Init");
 
     auto bind_data = input.bind_data->Cast<TwoHopBindData>();
+    usage_analytics::EmitGraphOperationEvent(context, "two_hop", bind_data.GetTableName());
 
     auto gstate_ptr = make_uniq<TwoHopGlobalTableFunctionState>();
     auto& gstate = *gstate_ptr;

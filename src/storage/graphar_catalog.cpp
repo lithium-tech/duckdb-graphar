@@ -4,6 +4,7 @@
 #include "storage/graphar_table_entry.hpp"
 #include "storage/graphar_transaction.hpp"
 #include "utils/global_log_manager.hpp"
+#include "utils/pua_init.hpp"
 
 #include <duckdb/catalog/catalog_search_path.hpp>
 #include <duckdb/common/exception/transaction_exception.hpp>
@@ -27,14 +28,27 @@ GraphArCatalog::GraphArCatalog(AttachedDatabase& db_p, const std::string& path_,
     DUCKDB_GRAPHAR_LOG_TRACE("GraphArCatalog::GraphArCatalog");
     CatalogSearchEntry entry(Identifier(database_name), Identifier("main"));
     client_data.catalog_search_path->Set({entry}, CatalogSetPathType::SET_DIRECTLY);
+    usage_analytics::EnsureInitialized(context);
+    auto& tracker = analytics::usage_analytics::Tracker::GetInstance();
+    const auto process_id = std::string(tracker.common_fields().at("process_id").as_string());
+    boost::json::object payload;
+    payload["path"] = path;
+    tracker.emit(analytics::usage_analytics::MakeQuerySession(process_id, usage_analytics::GetActiveQueryId(context)),
+                 analytics::usage_analytics::EventCode::Start, std::move(payload));
 }
-
 GraphArCatalog::~GraphArCatalog() = default;
 
 void GraphArCatalog::Initialize(bool load_builtin) {
     DUCKDB_GRAPHAR_LOG_TRACE("GraphArCatalog::Initialize");
     CreateSchemaInfo info;
     main_schema = make_uniq<GraphArSchemaEntry>(*this, info);
+}
+
+void GraphArCatalog::OnDetach(ClientContext& context) {
+    auto& tracker = analytics::usage_analytics::Tracker::GetInstance();
+    const auto process_id = std::string(tracker.common_fields().at("process_id").as_string());
+    tracker.emit(analytics::usage_analytics::MakeQuerySession(process_id, usage_analytics::GetActiveQueryId(context)),
+                 analytics::usage_analytics::EventCode::End);
 }
 
 optional_ptr<CatalogEntry> GraphArCatalog::CreateSchema(CatalogTransaction transaction, CreateSchemaInfo& info) {

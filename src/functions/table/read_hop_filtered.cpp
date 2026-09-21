@@ -27,7 +27,7 @@ namespace duckdb {
 // Bind
 //-------------------------------------------------------------------
 unique_ptr<FunctionData> ReadHopFiltered::Bind(ClientContext& context, TableFunctionBindInput& input,
-                                               vector<LogicalType>& return_types, vector<string>& names) {
+                                               vector<LogicalType>& return_types, vector<Identifier>& names) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadHopFiltered::Bind");
     const bool is_catalog_mode = HopBase::IsCatalogMode(input);
 
@@ -49,7 +49,7 @@ unique_ptr<FunctionData> ReadHopFiltered::Bind(ClientContext& context, TableFunc
                           {SRC_GID_COLUMN, DST_GID_COLUMN});
     bind_data.reset(static_cast<ReadHopFilteredBindData*>(base_bind_data.release()));
 
-    names = bind_data->GetFlattenPropNames();
+    names = StringsToIdentifiers(bind_data->GetFlattenPropNames());
     const auto& fpt = bind_data->GetFlattenPropTypes();
     std::transform(fpt.begin(), fpt.end(), std::back_inserter(return_types),
                    [](const auto& return_type) { return GraphArFunctions::graphArT2duckT(return_type); });

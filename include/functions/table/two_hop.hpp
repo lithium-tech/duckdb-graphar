@@ -64,13 +64,13 @@ public:
 class TwoHop {
 public:
     static unique_ptr<FunctionData> Bind(ClientContext& context, TableFunctionBindInput& input,
-                                         vector<LogicalType>& return_types, vector<string>& names);
+                                         vector<LogicalType>& return_types, vector<Identifier>& names);
     static unique_ptr<FunctionData> BindEdgeTable(ClientContext& context, TableFunctionBindInput& input,
-                                                  vector<LogicalType>& return_types, vector<string>& names);
+                                                  vector<LogicalType>& return_types, vector<Identifier>& names);
     static unique_ptr<FunctionData> BindGraphInfoPath(ClientContext& context, TableFunctionBindInput& input,
-                                                      vector<LogicalType>& return_types, vector<string>& names);
+                                                      vector<LogicalType>& return_types, vector<Identifier>& names);
     static unique_ptr<FunctionData> BindFinish(ClientContext& context, TableFunctionBindInput& input,
-                                               vector<LogicalType>& return_types, vector<string>& names,
+                                               vector<LogicalType>& return_types, vector<Identifier>& names,
                                                unique_ptr<TwoHopBindData> bind_data);
     static unique_ptr<GlobalTableFunctionState> Init(ClientContext& context, TableFunctionInitInput& input);
     static unique_ptr<LocalTableFunctionState> InitLocal(ExecutionContext& context, TableFunctionInitInput& input,

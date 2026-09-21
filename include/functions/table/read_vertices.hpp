@@ -19,7 +19,7 @@ public:
     static void SetBindData(std::shared_ptr<graphar::GraphInfo> graph_info,
                             std::shared_ptr<graphar::VertexInfo> vertex_info, unique_ptr<ReadBindData>& bind_data);
     static unique_ptr<FunctionData> Bind(ClientContext& context, TableFunctionBindInput& input,
-                                         vector<LogicalType>& return_types, vector<string>& names);
+                                         vector<LogicalType>& return_types, vector<Identifier>& names);
 
     static BaseReaderPtr GetBaseReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate, idx_t ind,
                                        const std::string& filter_column,

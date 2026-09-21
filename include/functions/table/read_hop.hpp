@@ -105,7 +105,7 @@ private:
 class ReadHop : public ReadBase<ReadHop> {
 public:
     static unique_ptr<FunctionData> Bind(ClientContext& context, TableFunctionBindInput& input,
-                                         vector<LogicalType>& return_types, vector<string>& names);
+                                         vector<LogicalType>& return_types, vector<Identifier>& names);
     static BaseReaderPtr GetBaseReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate, idx_t ind,
                                        const std::string& filter_column,
                                        std::shared_ptr<graphar::SharedChunkCounter> counter = nullptr);

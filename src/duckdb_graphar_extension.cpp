@@ -13,6 +13,7 @@
 #include "storage/graphar_storage.hpp"
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
+#include "utils/pua_init.hpp"
 
 #include <duckdb/common/exception.hpp>
 #include <duckdb/common/string_util.hpp>
@@ -48,6 +49,14 @@ static void LoadInternal(ExtensionLoader& loader) {
                               "parquet, Arrow otherwise), 'duckdb' (always DuckDB, parquet only), 'arrow' (always "
                               "Arrow).",
                               LogicalType::VARCHAR, Value("auto"));
+    config.AddExtensionOption("graphar_pua_sink_jsonl_file_path", "Product usage analytics JSONL spool directory.",
+                              LogicalType::VARCHAR, Value(""));
+    config.AddExtensionOption("graphar_pua_sink_jsonl_file_rotation_size_bytes",
+                              "Product usage analytics segment size in bytes.", LogicalType::UBIGINT,
+                              Value::UBIGINT(16ULL * 1024ULL * 1024ULL));
+    config.AddExtensionOption("graphar_pua_sink_jsonl_file_rotation_interval_seconds",
+                              "Product usage analytics segment age in seconds.", LogicalType::UBIGINT,
+                              Value::UBIGINT(24ULL * 60ULL * 60ULL));
 
     // Initialize GlobalLogManager before using any logging macros
     GlobalLogManager::Initialize(loader.GetDatabaseInstance(), duckdb::LogLevel::LOG_WARNING);
@@ -84,7 +93,6 @@ std::string DuckdbGrapharExtension::Version() const {
 }
 
 }  // namespace duckdb
-
 extern "C" {
 DUCKDB_CPP_EXTENSION_ENTRY(duckdb_graphar, loader) { duckdb::LoadInternal(loader); }
 }

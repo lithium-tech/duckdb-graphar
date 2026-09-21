@@ -18,7 +18,7 @@ TEST_CASE("ReadVertices GetFunction basic test", "[read_vertices]") {
     TableFunction read_vertices;
     REQUIRE_NOTHROW(read_vertices = ReadVertices::GetFunction());
     
-    REQUIRE(read_vertices.name == "read_vertices");
+    REQUIRE(read_vertices.GetName() == "read_vertices");
     REQUIRE(read_vertices.arguments.size() == 1);
     REQUIRE(read_vertices.named_parameters.size() == 1);
     CHECK(read_vertices.filter_pushdown == false);
@@ -35,7 +35,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadVertices Bind and Execute 
     auto input = TestFixture::CreateMockBindInput(inputs, named_parameters, input_table_types);
 
     vector<LogicalType> return_types;
-    vector<std::string> names;
+    vector<Identifier> names;
     INFO("Finish mocking");
     
     TableFunction read_vertices = ReadVertices::GetFunction();
@@ -46,7 +46,9 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadVertices Bind and Execute 
 
     REQUIRE(bind_data != nullptr);
     REQUIRE(return_types == vector<LogicalType>({LogicalType::BIGINT, LogicalType::INTEGER}));
-    REQUIRE(names == vector<std::string>({GID_COLUMN_INTERNAL, "hash_phone_no"}));
+    REQUIRE(names.size() == 2);
+    REQUIRE(names[0].GetIdentifierName() == GID_COLUMN_INTERNAL);
+    REQUIRE(names[1].GetIdentifierName() == "hash_phone_no");
     INFO("Finish bind test");
 
     TableFunctionInitInput func_init_input(bind_data.get(), vector<column_t>(), {}, nullptr);
@@ -91,7 +93,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadVertices Bind function inv
     auto input = TestFixture::CreateMockBindInput(inputs, named_parameters, input_table_types);
 
     vector<LogicalType> return_types;
-    vector<std::string> names;
+    vector<Identifier> names;
     INFO("Finish mocking");
 
     TableFunction read_vertices = ReadVertices::GetFunction();
@@ -107,7 +109,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadVertices GetStatistics tes
     auto input = TestFixture::CreateMockBindInput(inputs, named_parameters, input_table_types);
 
     vector<LogicalType> return_types;
-    vector<std::string> names;
+    vector<Identifier> names;
     INFO("Finish mocking");
     
     TableFunction read_vertices = ReadVertices::GetFunction();

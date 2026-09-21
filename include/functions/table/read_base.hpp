@@ -4,9 +4,11 @@
 #include "readers/duck_arrow_chunk_reader.hpp"
 #include "readers/duck_chunk_reader.hpp"
 #include "readers/duck_read_edges_reader.hpp"
+#include "usage_analytics/usage_analytics.h"
 #include "utils/benchmark.hpp"
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
+#include "utils/pua_init.hpp"
 #include "utils/type_info.hpp"
 
 #include <arrow/c/bridge.h>
@@ -234,11 +236,15 @@ struct ColumnStats {
 class ReadBindData : public TableFunctionData {
 public:
     ReadBindData() = default;
+    virtual ~ReadBindData() = default;
     vector<std::string> GetParams() { return params; }
     const vector<std::string>& GetFlattenPropNames() const { return flatten_prop_names; }
     const vector<std::string>& GetFlattenPropTypes() const { return flatten_prop_types; }
     const std::shared_ptr<graphar::GraphInfo>& GetGraphInfo() const { return graph_info; }
     const std::unordered_map<std::string, ColumnStats>& GetStatsMap() const { return stats_map; }
+
+    virtual std::string GetTableName() const { return table_name_; }
+    void SetTableName(std::string table_name) { this->table_name_ = std::move(table_name); }
 
 private:
     vector<vector<std::string>> prop_names;
@@ -246,6 +252,7 @@ private:
     vector<vector<std::string>> prop_types;
     vector<std::string> flatten_prop_types;
     std::shared_ptr<graphar::GraphInfo> graph_info;
+    std::string table_name_;
     std::string function_name;
     vector<std::string> params;
     graphar::PropertyGroupVector pgs;
@@ -589,7 +596,7 @@ public:
     }
 
     static unique_ptr<FunctionData> Bind(ClientContext& context, TableFunctionBindInput& input,
-                                         vector<LogicalType>& return_types, vector<string>& names) {
+                                         vector<LogicalType>& return_types, vector<Identifier>& names) {
         return ReadFinal::Bind(context, input, return_types, names);
     }
 
@@ -652,6 +659,8 @@ public:
 
         ScopedTimer t("StateInit");
 
+        auto& bind_data_ref = input.bind_data->Cast<ReadBindData>();
+        const auto table_name = bind_data_ref.GetTableName();
         auto bind_data = input.bind_data->Cast<ReadBindData>();
 
         DUCKDB_GRAPHAR_LOG_TRACE(bind_data.function_name + "::Init");
@@ -673,6 +682,23 @@ public:
         gstate.type_info = bind_data.type_info;
         gstate.graph_info = bind_data.graph_info;
         gstate.params = bind_data.params;
+
+        boost::json::object payload;
+        payload["function"] = bind_data.function_name;
+        boost::json::array params;
+        for (const auto& param : bind_data.params) {
+            params.push_back(boost::json::value(param));
+        }
+        payload["params"] = std::move(params);
+        if (!table_name.empty()) {
+            payload["table"] = table_name;
+        }
+        usage_analytics::EnsureInitialized(context);
+        auto& tracker = analytics::usage_analytics::Tracker::GetInstance();
+        const auto process_id = std::string(tracker.common_fields().at("process_id").as_string());
+        tracker.emit(
+            analytics::usage_analytics::MakeQuerySession(process_id, usage_analytics::GetActiveQueryId(context)),
+            analytics::usage_analytics::EventCode::Event, std::move(payload));
 
         const auto prop_types_size = bind_data.prop_types.size();
         vector<idx_t> columns_pref_num(prop_types_size + 1);

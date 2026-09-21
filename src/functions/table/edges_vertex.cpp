@@ -3,6 +3,7 @@
 #include "utils/benchmark.hpp"
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
+#include "utils/pua_init.hpp"
 #include "utils/type_info.hpp"
 
 #include <duckdb/common/named_parameter_map.hpp>
@@ -24,7 +25,7 @@ namespace duckdb {
 // Bind
 //-------------------------------------------------------------------
 unique_ptr<FunctionData> EdgesVertex::Bind(ClientContext& context, TableFunctionBindInput& input,
-                                           vector<LogicalType>& return_types, vector<string>& names) {
+                                           vector<LogicalType>& return_types, vector<Identifier>& names) {
     bool time_logging = GraphArSettings::is_time_logging(context);
 
     ScopedTimer t("Bind");
@@ -58,7 +59,7 @@ unique_ptr<FunctionData> EdgesVertex::Bind(ClientContext& context, TableFunction
     return_types.push_back(LogicalType::BIGINT);
     names.push_back("degree");
     return_types.push_back(LogicalTypeId::BIGINT);
-    names.push_back(GID_COLUMN);
+    names.push_back(Identifier(GID_COLUMN));
 
     DUCKDB_GRAPHAR_LOG_DEBUG("Bind finish");
     if (time_logging) {
@@ -77,6 +78,8 @@ unique_ptr<GlobalTableFunctionState> EdgesVertexGlobalTableFunctionState::Init(C
     ScopedTimer t("StateInit");
 
     DUCKDB_GRAPHAR_LOG_TRACE("EdgesVertexGlobalTableFunctionState::Init");
+    auto& bind_data_ref = input.bind_data->Cast<EdgesVertexBindData>();
+    usage_analytics::EmitGraphOperationEvent(context, "edges_vertex", bind_data_ref.GetFilePath());
     DUCKDB_GRAPHAR_LOG_DEBUG("Cast BindData");
 
     auto bind_data = input.bind_data->Cast<EdgesVertexBindData>();

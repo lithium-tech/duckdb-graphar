@@ -93,8 +93,10 @@ IncludeCategories:
     Priority: 3
   - Regex: '^<graphar/.*'
     Priority: 4
-  - Regex: '^<.*'
+  - Regex: '^<boost/.*'
     Priority: 5
+  - Regex: '^<.*'
+    Priority: 6
 IncludeIsMainRegex: '([-_](test|unittest))?$'
 IndentAccessModifiers: false
 IndentCaseLabels: true

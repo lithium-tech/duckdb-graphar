@@ -27,6 +27,14 @@ public:
         return "";
     }
 
+    std::string GetTableName() const override {
+        auto full = GetFullTableName();
+        if (!full.empty()) {
+            return full;
+        }
+        return graph_path;
+    }
+
     std::string GetSrcName() const {
         switch (direction_type) {
             case DirectionType::DIRECTED:
@@ -54,6 +62,7 @@ public:
     std::string catalog_name;
     std::string schema_name;
     std::string table_name;
+    std::string graph_path;
 
     DirectionType direction_type = DirectionType::DIRECTED;
     column_t dst_column_idx;
@@ -115,7 +124,8 @@ public:
                 "Use either:\n"
                 "  %s('path.yaml', src='...', dst='...', type='...')\n"
                 "  %s('table_name', catalog='...')",
-                input.table_function.name, input.table_function.name, input.table_function.name);
+                input.table_function.GetName().GetIdentifierName(), input.table_function.GetName().GetIdentifierName(),
+                input.table_function.GetName().GetIdentifierName());
         }
 
         return !is_path_mode;
@@ -160,6 +170,7 @@ public:
         DUCKDB_GRAPHAR_LOG_TRACE("HopBase::SetBindDataByGraphPath");
 
         const auto file_path = StringValue::Get(input.inputs[0]);
+        bind_data.graph_path = file_path;
         const auto src_type = StringValue::Get(input.named_parameters.at("src"));
         std::string dst_type;
         auto dst_entry = input.named_parameters.find("dst");
@@ -222,11 +233,11 @@ public:
         bind_data.filter_column = bind_data.GetSrcName();
     }
 
-    static void SetBindDataDstIdx(vector<string>& names, HopBaseBindData& bind_data) {
+    static void SetBindDataDstIdx(vector<Identifier>& names, HopBaseBindData& bind_data) {
         DUCKDB_GRAPHAR_LOG_TRACE("HopBase::SetBindDataDstIdx");
         auto dst_col = bind_data.GetDstName();
         for (size_t i = 0; i < names.size(); ++i) {
-            if (names[i] == dst_col) {
+            if (names[i].GetIdentifierName() == dst_col) {
                 bind_data.dst_column_idx = i;
                 break;
             }

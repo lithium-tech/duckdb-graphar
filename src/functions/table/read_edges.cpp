@@ -34,7 +34,7 @@ void ReadEdges::SetBindData(std::shared_ptr<graphar::GraphInfo> graph_info,
 // Bind
 //-------------------------------------------------------------------
 unique_ptr<FunctionData> ReadEdges::Bind(ClientContext& context, TableFunctionBindInput& input,
-                                         vector<LogicalType>& return_types, vector<string>& names) {
+                                         vector<LogicalType>& return_types, vector<Identifier>& names) {
     bool time_logging = GraphArSettings::is_time_logging(context);
 
     ScopedTimer t("Bind");
@@ -64,8 +64,9 @@ unique_ptr<FunctionData> ReadEdges::Bind(ClientContext& context, TableFunctionBi
     DUCKDB_GRAPHAR_LOG_DEBUG("Fill bind data");
 
     SetBindData(graph_info, edge_info, bind_data);
+    bind_data->SetTableName(file_path);
 
-    names = bind_data->flatten_prop_names;
+    names = StringsToIdentifiers(bind_data->flatten_prop_names);
     std::transform(bind_data->flatten_prop_types.begin(), bind_data->flatten_prop_types.end(),
                    std::back_inserter(return_types),
                    [](const auto& return_type) { return GraphArFunctions::graphArT2duckT(return_type); });

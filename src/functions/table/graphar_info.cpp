@@ -1,13 +1,14 @@
 #include "functions/table/graphar_info.hpp"
 
 #include "utils/func.hpp"
+#include "utils/pua_init.hpp"
 
 #include <cstdint>
 
 namespace duckdb {
 
 unique_ptr<FunctionData> GraphArInfo::Bind(ClientContext& context, TableFunctionBindInput& input,
-                                           vector<LogicalType>& return_types, vector<string>& names) {
+                                           vector<LogicalType>& return_types, vector<Identifier>& names) {
     DUCKDB_GRAPHAR_LOG_TRACE("GraphArInfo::Bind");
     names.emplace_back("extension_commit");
     return_types.emplace_back(GraphArFunctions::graphArT2duckT("string"));
@@ -18,6 +19,7 @@ unique_ptr<FunctionData> GraphArInfo::Bind(ClientContext& context, TableFunction
 
 unique_ptr<GlobalTableFunctionState> GraphArInfo::Init(ClientContext& context, TableFunctionInitInput& input) {
     DUCKDB_GRAPHAR_LOG_TRACE("GraphArInfo::Init");
+    usage_analytics::EmitGraphOperationEvent(context, "graphar_info");
     return make_uniq<GraphArVersionData>();
 }
 
