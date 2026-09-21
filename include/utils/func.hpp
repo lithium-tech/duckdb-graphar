@@ -34,7 +34,7 @@ const std::vector<graphar::AdjListType> all_adj_list_types = {
     graphar::AdjListType::unordered_by_source, graphar::AdjListType::unordered_by_dest};
 
 struct GraphArFunctions {
-    static LogicalTypeId graphArT2duckT(const std::string& name);
+    static LogicalType graphArT2duckT(const std::string& name);
 
     static std::shared_ptr<arrow::DataType> graphArT2arrowT(const std::string& name);
 

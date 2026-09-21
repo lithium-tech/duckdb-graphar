@@ -639,7 +639,7 @@ public:
         auto& c_stats = stats_map.at(column_name);
         auto stats = BaseStatistics::CreateUnknown(duck_type);
 
-        if (c_stats.has_min_max && LogicalType::IsNumeric(duck_type)) {
+        if (c_stats.has_min_max && duck_type.IsNumeric()) {
             stats = NumericStats::CreateEmpty(duck_type);
             NumericStats::SetMin(stats, c_stats.min_val);
             NumericStats::SetMax(stats, c_stats.max_val);

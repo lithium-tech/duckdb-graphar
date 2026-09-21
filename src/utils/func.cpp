@@ -20,22 +20,32 @@
 
 namespace duckdb {
 
-LogicalTypeId GraphArFunctions::graphArT2duckT(const std::string& name) {
-    if (name == "bool") return LogicalTypeId::BOOLEAN;
-    if (name == "int16") return LogicalTypeId::SMALLINT;
-    if (name == "int32") return LogicalTypeId::INTEGER;
-    if (name == "int64") return LogicalTypeId::BIGINT;
-    if (name == "float") return LogicalTypeId::FLOAT;
-    if (name == "double") return LogicalTypeId::DOUBLE;
-    if (name == "string") return LogicalTypeId::VARCHAR;
-    if (name == "date") return LogicalTypeId::DATE;
-    if (name == "timestamp") return LogicalTypeId::TIMESTAMP;
-    if (name == "timestamp_tz") return LogicalTypeId::TIMESTAMP_TZ;
+LogicalType GraphArFunctions::graphArT2duckT(const std::string& name) {
+    // Nested list types: list<child>
+    if (name.rfind("list<", 0) == 0 && name.back() == '>') {
+        auto child_name = name.substr(5, name.size() - 6);
+        return LogicalType::LIST(graphArT2duckT(child_name));
+    }
+    if (name == "bool") return LogicalType(LogicalTypeId::BOOLEAN);
+    if (name == "int16") return LogicalType(LogicalTypeId::SMALLINT);
+    if (name == "int32") return LogicalType(LogicalTypeId::INTEGER);
+    if (name == "int64") return LogicalType(LogicalTypeId::BIGINT);
+    if (name == "float") return LogicalType(LogicalTypeId::FLOAT);
+    if (name == "double") return LogicalType(LogicalTypeId::DOUBLE);
+    if (name == "string") return LogicalType(LogicalTypeId::VARCHAR);
+    if (name == "date") return LogicalType(LogicalTypeId::DATE);
+    if (name == "timestamp") return LogicalType(LogicalTypeId::TIMESTAMP);
+    if (name == "timestamp_tz") return LogicalType(LogicalTypeId::TIMESTAMP_TZ);
 
     throw NotImplementedException("Unsupported type for conversion to duck: " + name);
 }
 
 std::shared_ptr<arrow::DataType> GraphArFunctions::graphArT2arrowT(const std::string& name) {
+    // Nested list types: list<child>. GraphAr uses large_list for lists.
+    if (name.rfind("list<", 0) == 0 && name.back() == '>') {
+        auto child_name = name.substr(5, name.size() - 6);
+        return arrow::large_list(graphArT2arrowT(child_name));
+    }
     if (name == "bool") return arrow::boolean();
     if (name == "int16") return arrow::int16();
     if (name == "int32") return arrow::int32();

@@ -1,13 +1,13 @@
-#include <catch2/catch_test_macros.hpp>
-
 #include "utils/func.hpp"
+
+#include <arrow/api.h>
+#include <arrow/compute/api.h>
 
 #include <duckdb/common/exception.hpp>
 
 #include <graphar/expression.h>
 
-#include <arrow/compute/api.h>
-#include <arrow/api.h>
+#include <catch2/catch_test_macros.hpp>
 
 using namespace duckdb;
 
@@ -15,13 +15,13 @@ using namespace duckdb;
 // down to GraphAr as an Arrow filter. It must support every property type that
 // the extension can map (see graphArT2duckT / graphArT2arrowT), including the
 // int16 and bool types added when int16 support landed.
-TEST_CASE("GraphArFunctions::GetFilter supports int16", "[graphar_func]") {
+TEST_CASE ("GraphArFunctions::GetFilter supports int16", "[graphar_func]") {
     auto filter = GraphArFunctions::GetFilter("int16", "42", "age");
     REQUIRE(filter != nullptr);
     REQUIRE_FALSE(filter->Evaluate().has_error());
 }
 
-TEST_CASE("GraphArFunctions::GetFilter supports bool", "[graphar_func]") {
+TEST_CASE ("GraphArFunctions::GetFilter supports bool", "[graphar_func]") {
     auto filter_true = GraphArFunctions::GetFilter("bool", "true", "active");
     REQUIRE(filter_true != nullptr);
     REQUIRE_FALSE(filter_true->Evaluate().has_error());
@@ -31,18 +31,44 @@ TEST_CASE("GraphArFunctions::GetFilter supports bool", "[graphar_func]") {
     REQUIRE_FALSE(filter_false->Evaluate().has_error());
 }
 
-TEST_CASE("GraphArFunctions::GetFilter rejects invalid bool value", "[graphar_func]") {
+TEST_CASE ("GraphArFunctions::GetFilter rejects invalid bool value", "[graphar_func]") {
     REQUIRE_THROWS_AS(GraphArFunctions::GetFilter("bool", "yes", "active"), InvalidInputException);
 }
 
-TEST_CASE("GraphArFunctions::GetFilter rejects unsupported type", "[graphar_func]") {
+TEST_CASE ("GraphArFunctions::GetFilter rejects unsupported type", "[graphar_func]") {
     REQUIRE_THROWS_AS(GraphArFunctions::GetFilter("not_a_type", "1", "col"), NotImplementedException);
 }
 
 // int16 is promoted to int32 (graphar::_Literal has no int16 overload). Verify
 // that the produced Arrow filter compares the "age" property against an int32
 // literal (not, e.g., int64 or a mangled value).
-TEST_CASE("GraphArFunctions::GetFilter int16 promotes to int32 literal", "[graphar_func]") {
+// List types are parsed recursively: "list<T>" maps to DuckDB LogicalType::LIST
+// and to Arrow large_list. These must cover every list element type GraphAr
+// supports (see graphArT2duckT / graphArT2arrowT).
+TEST_CASE ("GraphArFunctions::graphArT2duckT supports list types", "[graphar_func]") {
+    REQUIRE(GraphArFunctions::graphArT2duckT("list<int16>") == LogicalType::LIST(LogicalType(LogicalTypeId::SMALLINT)));
+    REQUIRE(GraphArFunctions::graphArT2duckT("list<int32>") == LogicalType::LIST(LogicalType(LogicalTypeId::INTEGER)));
+    REQUIRE(GraphArFunctions::graphArT2duckT("list<int64>") == LogicalType::LIST(LogicalType(LogicalTypeId::BIGINT)));
+    REQUIRE(GraphArFunctions::graphArT2duckT("list<float>") == LogicalType::LIST(LogicalType(LogicalTypeId::FLOAT)));
+    REQUIRE(GraphArFunctions::graphArT2duckT("list<double>") == LogicalType::LIST(LogicalType(LogicalTypeId::DOUBLE)));
+    REQUIRE(GraphArFunctions::graphArT2duckT("list<string>") == LogicalType::LIST(LogicalType(LogicalTypeId::VARCHAR)));
+}
+
+TEST_CASE ("GraphArFunctions::graphArT2arrowT supports list types", "[graphar_func]") {
+    REQUIRE(GraphArFunctions::graphArT2arrowT("list<int16>")->Equals(*arrow::large_list(arrow::int16())));
+    REQUIRE(GraphArFunctions::graphArT2arrowT("list<int32>")->Equals(*arrow::large_list(arrow::int32())));
+    REQUIRE(GraphArFunctions::graphArT2arrowT("list<int64>")->Equals(*arrow::large_list(arrow::int64())));
+    REQUIRE(GraphArFunctions::graphArT2arrowT("list<float>")->Equals(*arrow::large_list(arrow::float32())));
+    REQUIRE(GraphArFunctions::graphArT2arrowT("list<double>")->Equals(*arrow::large_list(arrow::float64())));
+    REQUIRE(GraphArFunctions::graphArT2arrowT("list<string>")->Equals(*arrow::large_list(arrow::utf8())));
+}
+
+TEST_CASE ("GraphArFunctions::graphArT2duckT rejects malformed list type", "[graphar_func]") {
+    REQUIRE_THROWS_AS(GraphArFunctions::graphArT2duckT("list<"), NotImplementedException);
+    REQUIRE_THROWS_AS(GraphArFunctions::graphArT2duckT("list<list<"), NotImplementedException);
+}
+
+TEST_CASE ("GraphArFunctions::GetFilter int16 promotes to int32 literal", "[graphar_func]") {
     auto filter = GraphArFunctions::GetFilter("int16", "42", "age");
     auto expr_result = filter->Evaluate();
     REQUIRE_FALSE(expr_result.has_error());
