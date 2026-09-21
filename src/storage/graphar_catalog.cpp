@@ -31,8 +31,10 @@ GraphArCatalog::GraphArCatalog(AttachedDatabase& db_p, const std::string& path_,
     usage_analytics::EnsureInitialized(context);
     auto& tracker = analytics::usage_analytics::Tracker::GetInstance();
     const auto process_id = std::string(tracker.common_fields().at("process_id").as_string());
+    boost::json::object payload;
+    payload["path"] = path;
     tracker.emit(analytics::usage_analytics::MakeQuerySession(process_id, usage_analytics::GetActiveQueryId(context)),
-                 analytics::usage_analytics::EventCode::Start);
+                 analytics::usage_analytics::EventCode::Start, std::move(payload));
 }
 GraphArCatalog::~GraphArCatalog() = default;
 
