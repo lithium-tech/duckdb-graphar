@@ -244,7 +244,7 @@ public:
     const std::unordered_map<std::string, ColumnStats>& GetStatsMap() const { return stats_map; }
 
     virtual std::string GetTableName() const { return table_name_; }
-    void SetTableName(std::string table_name_) { this->table_name_ = std::move(table_name_); }
+    void SetTableName(std::string table_name) { this->table_name_ = std::move(table_name); }
 
 private:
     vector<vector<std::string>> prop_names;

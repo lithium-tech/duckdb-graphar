@@ -74,8 +74,6 @@ unique_ptr<FunctionData> ShortestPath::Bind(ClientContext& context, TableFunctio
     } else {
         // Old signature: table_name - use catalog lookup
         auto table_name = input.inputs[2].GetValue<string>();
-        bind_data->table_name = table_name;
-
         DUCKDB_GRAPHAR_LOG_DEBUG("ShortestPath parameters: start=" + std::to_string(bind_data->start_id) +
                                  ", end=" + std::to_string(bind_data->end_id) + ", table=" + table_name);
 
