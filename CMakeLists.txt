@@ -67,6 +67,14 @@ if(GRAPHAR_ROOT)
     list(APPEND CMAKE_PREFIX_PATH ${GRAPHAR_ROOT})
 endif()
 
+if(LIBUV_ROOT)
+    list(APPEND CMAKE_PREFIX_PATH ${LIBUV_ROOT})
+endif()
+
+if(UVW_ROOT)
+    list(APPEND CMAKE_PREFIX_PATH ${UVW_ROOT})
+endif()
+
 find_package(Boost COMPONENTS json thread random log filesystem REQUIRED)
 find_package(Arrow REQUIRED CONFIG)
 find_package(ArrowDataset REQUIRED CONFIG)
@@ -74,6 +82,8 @@ find_package(ArrowAcero REQUIRED CONFIG)
 find_package(Parquet REQUIRED CONFIG)
 
 find_package(graphar REQUIRED CONFIG)
+find_package(libuv REQUIRED CONFIG)
+find_package(uvw REQUIRED CONFIG)
 
 # GraphAr's target carries `-Wl,--exclude-libs,ALL`, which would hide the
 # generated-extension-loader symbols in libduckdb.so that `unittest` needs to
@@ -127,7 +137,9 @@ target_include_directories(${LOADABLE_EXTENSION_NAME}
 
 set(EXTENSION_LIBRARIES
         graphar
-        ${Boost_LIBRARIES})
+        ${Boost_LIBRARIES}
+        libuv::uv_a
+        uvw::uvw)
 
 target_link_libraries(${EXTENSION_NAME} ${EXTENSION_LIBRARIES})
 target_link_libraries(${LOADABLE_EXTENSION_NAME} ${EXTENSION_LIBRARIES})

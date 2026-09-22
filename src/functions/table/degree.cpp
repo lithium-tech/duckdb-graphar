@@ -3,6 +3,7 @@
 #include "utils/benchmark.hpp"
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
+#include "utils/pua_init.hpp"
 #include "utils/type_info.hpp"
 
 #include <duckdb/common/named_parameter_map.hpp>
@@ -69,6 +70,8 @@ unique_ptr<FunctionData> Degree::Bind(ClientContext& context, TableFunctionBindI
     names.push_back("out_degree");
     return_types.push_back(LogicalType::BIGINT);
     names.push_back("in_degree");
+
+    usage_analytics::EmitGraphOperationEvent(context, "degree", bind_data->file_path);
 
     DUCKDB_GRAPHAR_LOG_DEBUG("Degree::Bind finish");
     if (time_logging) {

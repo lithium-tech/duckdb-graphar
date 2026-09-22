@@ -4,6 +4,7 @@
 #include "readers/duck_arrow_chunk_reader.hpp"
 #include "readers/duck_chunk_reader.hpp"
 #include "readers/duck_read_edges_reader.hpp"
+#include "usage_analytics/system_info.h"
 #include "usage_analytics/usage_analytics.h"
 #include "utils/benchmark.hpp"
 #include "utils/func.hpp"
@@ -693,6 +694,7 @@ public:
         if (!table_name.empty()) {
             payload["table"] = table_name;
         }
+        analytics::usage_analytics::AddSystemInfo(payload);
         usage_analytics::EnsureInitialized(context);
         auto& tracker = analytics::usage_analytics::Tracker::GetInstance();
         const auto process_id = std::string(tracker.common_fields().at("process_id").as_string());

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "config/config_readable_iface.h"
+#include "usage_analytics/system_info.h"
 #include "usage_analytics/usage_analytics.h"
 
 #include <duckdb/main/client_context.hpp>
@@ -90,6 +91,7 @@ inline void EmitGraphOperationEvent(ClientContext& context, const std::string& f
     if (!table_name.empty()) {
         payload["table"] = table_name;
     }
+    analytics::usage_analytics::AddSystemInfo(payload);
     tracker.emit(analytics::usage_analytics::MakeQuerySession(process_id, GetActiveQueryId(context)),
                  analytics::usage_analytics::EventCode::Event, std::move(payload));
 }
