@@ -45,7 +45,6 @@ struct DegreeGlobalState {
     std::vector<int64_t> projection;
     size_t cur_range = 0;
     int64_t iter = 0;
-    int64_t end_iter = 0;
     idx_t chunk_count = 0;
     DegreeOffsetCache src_cache;
     DegreeOffsetCache dst_cache;
@@ -74,6 +73,12 @@ struct Degree {
                                                                 graphar::IdType vid);
     static std::vector<int64_t> ReadDegrees(DegreeGlobalState& state, graphar::AdjListType adj_list_type,
                                             graphar::IdType start, graphar::IdType end);
+
+    // Computes degree = offset[i+1] - offset[i] for i in [local_start, local_end).
+    // The offset column is a CSR offset array (cumulative counts); consecutive
+    // slices of the same column must carry `prev` across arrow-chunk boundaries.
+    static std::vector<int64_t> DiffOffsets(const std::shared_ptr<arrow::ChunkedArray>& column, int64_t local_start,
+                                            int64_t local_end);
 
     static void Register(ExtensionLoader& loader);
     static TableFunction GetFunction();

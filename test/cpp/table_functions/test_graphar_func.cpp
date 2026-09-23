@@ -1,9 +1,11 @@
+#include "functions/table/degree.hpp"
 #include "utils/func.hpp"
 
 #include <arrow/api.h>
 #include <arrow/compute/api.h>
 
 #include <duckdb/common/exception.hpp>
+#include <duckdb/common/vector.hpp>
 
 #include <graphar/expression.h>
 
@@ -66,6 +68,47 @@ TEST_CASE ("GraphArFunctions::graphArT2arrowT supports list types", "[graphar_fu
 TEST_CASE ("GraphArFunctions::graphArT2duckT rejects malformed list type", "[graphar_func]") {
     REQUIRE_THROWS_AS(GraphArFunctions::graphArT2duckT("list<"), NotImplementedException);
     REQUIRE_THROWS_AS(GraphArFunctions::graphArT2duckT("list<list<"), NotImplementedException);
+}
+
+namespace {
+
+std::shared_ptr<arrow::Int64Array> MakeInt64Array(const std::vector<int64_t>& values) {
+    arrow::NumericBuilder<arrow::Int64Type> builder;
+    for (const auto v : values) {
+        (void)builder.Append(v);
+    }
+    auto result = builder.Finish();
+    return std::static_pointer_cast<arrow::Int64Array>(result.ValueOrDie());
+}
+
+}  // namespace
+
+TEST_CASE ("Degree::DiffOffsets is correct across arrow-chunk boundaries", "[graphar_func]") {
+    // Simulate an offset (CSR cumulative-count) column split across two arrow
+    // chunks. Degrees are offset[i+1] - offset[i]; the diff must not reset when
+    // crossing from one arrow chunk to the next.
+    std::vector<int64_t> chunk1_offsets = {10, 13, 15};
+    std::vector<int64_t> chunk2_offsets = {18, 20, 25};
+
+    auto chunked = std::make_shared<arrow::ChunkedArray>(
+        arrow::ArrayVector{MakeInt64Array(chunk1_offsets), MakeInt64Array(chunk2_offsets)});
+
+    // Whole column (6 vertices).
+    auto degrees = duckdb::Degree::DiffOffsets(chunked, 0, chunk1_offsets.size() + chunk2_offsets.size() - 1);
+    REQUIRE(degrees.size() == 5);
+    std::vector<int64_t> expected = {3, 2, 3, 2, 5};
+    for (size_t i = 0; i < expected.size(); ++i) {
+        REQUIRE(degrees[i] == expected[i]);
+    }
+
+    // A sub-range that starts in chunk 1 and ends in chunk 2 (i.e. the requested
+    // slice spans the boundary), which is the case the reset bug dropped.
+    auto mid = duckdb::Degree::DiffOffsets(chunked, 1, 4);
+    REQUIRE(mid.size() == 3);
+    std::vector<int64_t> expected_mid = {2, 3, 2};
+    for (size_t i = 0; i < expected_mid.size(); ++i) {
+        REQUIRE(mid[i] == expected_mid[i]);
+    }
 }
 
 TEST_CASE ("GraphArFunctions::GetFilter int16 promotes to int32 literal", "[graphar_func]") {

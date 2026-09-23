@@ -113,6 +113,37 @@ std::shared_ptr<arrow::ChunkedArray> Degree::GetOffsetColumn(DegreeGlobalState& 
     return cache.column;
 }
 //-------------------------------------------------------------------
+// DiffOffsets
+//-------------------------------------------------------------------
+std::vector<int64_t> Degree::DiffOffsets(const std::shared_ptr<arrow::ChunkedArray>& column, int64_t local_start,
+                                         int64_t local_end) {
+    std::vector<int64_t> result;
+    result.reserve(local_end - local_start);
+
+    // Slice includes one extra offset element (offset[local_end]) so that the
+    // degree of the last vertex in the slice can be computed.
+    auto slice = column->Slice(local_start, (local_end - local_start) + 1);
+
+    // The offset column is a CSR cumulative-count array. Degree of vertex i is
+    // offset[i+1] - offset[i]. `prev` must be carried across arrow-chunk
+    // boundaries within a single column so that the value at a boundary is not
+    // dropped and the diff remains cumulative-global correct.
+    int64_t prev = 0;
+    bool have_prev = false;
+    for (const auto& chunk : slice->chunks()) {
+        auto arr = std::static_pointer_cast<arrow::Int64Array>(chunk);
+        const auto* raw = arr->raw_values();
+        for (int64_t i = 0; i < arr->length(); ++i) {
+            if (have_prev) {
+                result.push_back(raw[i] - prev);
+            }
+            prev = raw[i];
+            have_prev = true;
+        }
+    }
+    return result;
+}
+//-------------------------------------------------------------------
 // ReadDegrees
 //-------------------------------------------------------------------
 std::vector<int64_t> Degree::ReadDegrees(DegreeGlobalState& state, graphar::AdjListType adj_list_type,
@@ -145,20 +176,8 @@ std::vector<int64_t> Degree::ReadDegrees(DegreeGlobalState& state, graphar::AdjL
         if (local_end <= local_start) {
             continue;
         }
-        auto slice = column->Slice(local_start, (local_end - local_start) + 1);
-        int64_t prev = 0;
-        bool have_prev = false;
-        for (const auto& chunk : slice->chunks()) {
-            auto arr = std::static_pointer_cast<arrow::Int64Array>(chunk);
-            const auto* raw = arr->raw_values();
-            for (int64_t i = 0; i < arr->length(); ++i) {
-                if (have_prev) {
-                    result.push_back(raw[i] - prev);
-                }
-                prev = raw[i];
-                have_prev = true;
-            }
-        }
+        auto degrees = DiffOffsets(column, local_start, local_end);
+        result.insert(result.end(), degrees.begin(), degrees.end());
     }
     return result;
 }
@@ -206,7 +225,6 @@ unique_ptr<GlobalTableFunctionState> DegreeGlobalTableFunctionState::Init(Client
         }
     }
     gstate.iter = gstate.ranges.front().first;
-    gstate.end_iter = gstate.ranges.front().second;
 
     auto state = make_uniq<DegreeGlobalTableFunctionState>();
     state->state = std::move(gstate);

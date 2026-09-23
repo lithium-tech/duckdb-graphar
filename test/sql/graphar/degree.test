@@ -85,3 +85,4 @@ query I
 SELECT max(in_degree) FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person');
 ----
 7470
+
