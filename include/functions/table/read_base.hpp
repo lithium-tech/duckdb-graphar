@@ -761,7 +761,19 @@ public:
 
         if (has_filter) {
             DUCKDB_GRAPHAR_LOG_TRACE("Filters found");
-            const auto vertex_num = GetCountClass::GetCount(gstate.type_info, bind_data.GetGraphInfo()->GetPrefix());
+            // The upper bound for a valid vid is the vertex count of the filtered
+            // type, not the edge count. For edge tables pick the src/dst vertex type.
+            const auto& prefix = bind_data.GetGraphInfo()->GetPrefix();
+            int64_t vertex_num = 0;
+            if (filter_column == GID_COLUMN_INTERNAL) {
+                vertex_num = GetCountClass::GetCount(gstate.type_info, prefix);
+            } else {
+                auto edge_info = *std::get_if<std::shared_ptr<graphar::EdgeInfo>>(&gstate.type_info);
+                vertex_num =
+                    (filter_column == SRC_GID_COLUMN)
+                        ? GetCountClass::GetCount(gstate.graph_info->GetVertexInfo(edge_info->GetSrcType()), prefix)
+                        : GetCountClass::GetCount(gstate.graph_info->GetVertexInfo(edge_info->GetDstType()), prefix);
+            }
             graphar::IdType zero = 0;
             for (idx_t r = 0; r < num_ranges; ++r) {
                 vid_ranges[r].first = std::max(zero, vid_ranges[r].first);
