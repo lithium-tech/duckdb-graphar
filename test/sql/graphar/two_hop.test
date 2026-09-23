@@ -21,12 +21,12 @@ SELECT COUNT(*) FROM two_hop('{WORKING_DIRECTORY}/data/snap-musae-github/graphar
 
 # Direct EdgeInfo.yaml path (no src/type/dst) must be routed to path mode
 query I
-SELECT COUNT(*) FROM two_hop('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Person_knows_Person.edge.yml', vid=10);
+SELECT COUNT(*) FROM two_hop('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Person_knows_Person.edge.yaml', vid=10);
 ----
 17457
 
 query I
-SELECT COUNT(*) FROM two_hop('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Person_knows_Person.edge.yml', vids=[1, 10]);
+SELECT COUNT(*) FROM two_hop('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Person_knows_Person.edge.yaml', vids=[1, 10]);
 ----
 18247
 

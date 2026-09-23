@@ -9,62 +9,63 @@ SET autoload_known_extensions=1;
 statement ok
 LOAD parquet;
 
-# Basic select over the git dataset: one row per vertex, 3 columns.
+# Basic select over the generated snap-musae-github graph: one row per vertex, 3 columns.
 query III
-SELECT * FROM degree('{WORKING_DIRECTORY}/data/git/Git.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex=5;
+SELECT * FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex=5;
 ----
 5
 1
-1
+0
 
 query III
-SELECT * FROM degree('{WORKING_DIRECTORY}/data/git/Git.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex=42;
+SELECT * FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex=42;
 ----
 42
 55
-55
+0
 
 query I
-SELECT COUNT(*) FROM degree('{WORKING_DIRECTORY}/data/git/Git.yaml', src='Person', type='knows', dst='Person');
+SELECT COUNT(*) FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person');
 ----
 37700
 
 # Projection pushdown: only out_degree requested (dst offset file not read).
 query I
-SELECT out_degree FROM degree('{WORKING_DIRECTORY}/data/git/Git.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex=10;
+SELECT out_degree FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex=10;
 ----
 66
 
+# Projection pushdown: only in_degree requested (src offset file not read).
 query I
-SELECT in_degree FROM degree('{WORKING_DIRECTORY}/data/git/Git.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex=10;
+SELECT in_degree FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex=18710;
 ----
-66
+32
 
 query I
-SELECT _graphArVertexIndex FROM degree('{WORKING_DIRECTORY}/data/git/Git.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex=7;
+SELECT _graphArVertexIndex FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex=7;
 ----
 7
 
 # Single equality filter pushdown.
 query III
-SELECT * FROM degree('{WORKING_DIRECTORY}/data/git/Git.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex=5;
+SELECT * FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex=18710;
 ----
-5
-1
-1
+18710
+33
+32
 
 # Batch filter pushdown (IN).
 query II
-SELECT _graphArVertexIndex, out_degree FROM degree('{WORKING_DIRECTORY}/data/git/Git.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex IN (5, 42) ORDER BY _graphArVertexIndex;
+SELECT _graphArVertexIndex, out_degree FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex IN (5, 18710) ORDER BY _graphArVertexIndex;
 ----
 5
 1
-42
-55
+18710
+33
 
 # Batch filter pushdown (list_contains).
 query II
-SELECT _graphArVertexIndex, out_degree FROM degree('{WORKING_DIRECTORY}/data/git/Git.yaml', src='Person', type='knows', dst='Person') WHERE list_contains([3, 10, 22], _graphArVertexIndex) ORDER BY _graphArVertexIndex;
+SELECT _graphArVertexIndex, out_degree FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE list_contains([3, 10, 22], _graphArVertexIndex) ORDER BY _graphArVertexIndex;
 ----
 3
 5
@@ -75,12 +76,12 @@ SELECT _graphArVertexIndex, out_degree FROM degree('{WORKING_DIRECTORY}/data/git
 
 # max(out_degree).
 query I
-SELECT max(out_degree) FROM degree('{WORKING_DIRECTORY}/data/git/Git.yaml', src='Person', type='knows', dst='Person');
+SELECT max(out_degree) FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person');
 ----
-9458
+6809
 
 # max(in_degree).
 query I
-SELECT max(in_degree) FROM degree('{WORKING_DIRECTORY}/data/git/Git.yaml', src='Person', type='knows', dst='Person');
+SELECT max(in_degree) FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person');
 ----
-9458
+7470
