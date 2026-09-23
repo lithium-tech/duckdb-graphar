@@ -7,6 +7,7 @@
 #include "utils/type_info.hpp"
 
 #include <duckdb/common/named_parameter_map.hpp>
+#include <duckdb/common/vector/flat_vector.hpp>
 #include <duckdb/execution/expression_executor.hpp>
 #include <duckdb/function/table_function.hpp>
 #include <duckdb/planner/expression/bound_comparison_expression.hpp>
@@ -254,6 +255,20 @@ void Degree::Execute(ClientContext& context, TableFunctionInput& input, DataChun
         }
     }
 
+    // Flat-vector write targets. A column whose adj-list type is unavailable is
+    // present but all-NULL; we keep a null flag for that case instead of a data
+    // pointer.
+    int64_t *data_vid = nullptr, *data_out = nullptr, *data_in = nullptr;
+    if (proj_vid >= 0) {
+        data_vid = FlatVector::GetDataMutable<int64_t>(output.data[proj_vid]);
+    }
+    if (proj_out >= 0 && gstate.read_src) {
+        data_out = FlatVector::GetDataMutable<int64_t>(output.data[proj_out]);
+    }
+    if (proj_in >= 0 && gstate.read_dst) {
+        data_in = FlatVector::GetDataMutable<int64_t>(output.data[proj_in]);
+    }
+
     idx_t written = 0;
     while (written < STANDARD_VECTOR_SIZE) {
         if (gstate.cur_range >= gstate.ranges.size()) {
@@ -279,22 +294,19 @@ void Degree::Execute(ClientContext& context, TableFunctionInput& input, DataChun
         }
 
         for (idx_t i = 0; i < n; ++i) {
-            if (proj_vid >= 0) {
-                output.SetValue(proj_vid, written + i, static_cast<int64_t>(gstate.iter + i));
+            const idx_t row = written + i;
+            if (data_vid) {
+                data_vid[row] = static_cast<int64_t>(gstate.iter + i);
             }
-            if (proj_out >= 0) {
-                if (gstate.read_src) {
-                    output.SetValue(proj_out, written + i, out_degs[i]);
-                } else {
-                    output.SetValue(proj_out, written + i, Value());
-                }
+            if (data_out) {
+                data_out[row] = out_degs[i];
+            } else if (proj_out >= 0) {
+                FlatVector::SetNull(output.data[proj_out], row, true);
             }
-            if (proj_in >= 0) {
-                if (gstate.read_dst) {
-                    output.SetValue(proj_in, written + i, in_degs[i]);
-                } else {
-                    output.SetValue(proj_in, written + i, Value());
-                }
+            if (data_in) {
+                data_in[row] = in_degs[i];
+            } else if (proj_in >= 0) {
+                FlatVector::SetNull(output.data[proj_in], row, true);
             }
         }
 
