@@ -2,7 +2,7 @@
 
 #include "duckdb_graphar_extension.hpp"
 
-#include "functions/table/edges_vertex.hpp"
+#include "functions/table/degree.hpp"
 #include "functions/table/graphar_info.hpp"
 #include "functions/table/read_edges.hpp"
 #include "functions/table/read_hop.hpp"
@@ -70,7 +70,7 @@ static void LoadInternal(ExtensionLoader& loader) {
 
     ReadVertices::Register(loader);
     ReadEdges::Register(loader);
-    EdgesVertex::Register(loader);
+    Degree::Register(loader);
     TwoHop::Register(loader);
     ReadHop::Register(loader);
     ReadHopFiltered::Register(loader);

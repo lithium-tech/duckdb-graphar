@@ -20,22 +20,32 @@
 
 namespace duckdb {
 
-LogicalTypeId GraphArFunctions::graphArT2duckT(const std::string& name) {
-    if (name == "bool") return LogicalTypeId::BOOLEAN;
-    if (name == "int16") return LogicalTypeId::SMALLINT;
-    if (name == "int32") return LogicalTypeId::INTEGER;
-    if (name == "int64") return LogicalTypeId::BIGINT;
-    if (name == "float") return LogicalTypeId::FLOAT;
-    if (name == "double") return LogicalTypeId::DOUBLE;
-    if (name == "string") return LogicalTypeId::VARCHAR;
-    if (name == "date") return LogicalTypeId::DATE;
-    if (name == "timestamp") return LogicalTypeId::TIMESTAMP;
-    if (name == "timestamp_tz") return LogicalTypeId::TIMESTAMP_TZ;
+LogicalType GraphArFunctions::graphArT2duckT(const std::string& name) {
+    // Nested list types: list<child>
+    if (name.rfind("list<", 0) == 0 && name.back() == '>') {
+        auto child_name = name.substr(5, name.size() - 6);
+        return LogicalType::LIST(graphArT2duckT(child_name));
+    }
+    if (name == "bool") return LogicalType(LogicalTypeId::BOOLEAN);
+    if (name == "int16") return LogicalType(LogicalTypeId::SMALLINT);
+    if (name == "int32") return LogicalType(LogicalTypeId::INTEGER);
+    if (name == "int64") return LogicalType(LogicalTypeId::BIGINT);
+    if (name == "float") return LogicalType(LogicalTypeId::FLOAT);
+    if (name == "double") return LogicalType(LogicalTypeId::DOUBLE);
+    if (name == "string") return LogicalType(LogicalTypeId::VARCHAR);
+    if (name == "date") return LogicalType(LogicalTypeId::DATE);
+    if (name == "timestamp") return LogicalType(LogicalTypeId::TIMESTAMP);
+    if (name == "timestamp_tz") return LogicalType(LogicalTypeId::TIMESTAMP_TZ);
 
     throw NotImplementedException("Unsupported type for conversion to duck: " + name);
 }
 
 std::shared_ptr<arrow::DataType> GraphArFunctions::graphArT2arrowT(const std::string& name) {
+    // Nested list types: list<child>. GraphAr uses large_list for lists.
+    if (name.rfind("list<", 0) == 0 && name.back() == '>') {
+        auto child_name = name.substr(5, name.size() - 6);
+        return arrow::large_list(graphArT2arrowT(child_name));
+    }
     if (name == "bool") return arrow::boolean();
     if (name == "int16") return arrow::int16();
     if (name == "int32") return arrow::int32();
@@ -164,9 +174,16 @@ std::shared_ptr<graphar::Expression> GraphArFunctions::GetFilter(const std::stri
 
 std::string GetYamlContent(const std::string& path) {
     std::string no_url_path;
-    auto fs = graphar::FileSystemFromUriOrPath(path, &no_url_path).value();
-    std::string yaml_content = fs->ReadFileToValue<std::string>(no_url_path).value();
-    return yaml_content;
+    auto fs_result = graphar::FileSystemFromUriOrPath(path, &no_url_path);
+    if (fs_result.has_error()) {
+        throw IOException("Failed to open file system for path %s: %s", path, fs_result.error().message());
+    }
+    auto fs = fs_result.value();
+    auto content_result = fs->ReadFileToValue<std::string>(no_url_path);
+    if (content_result.has_error()) {
+        throw IOException("Failed to read yaml file %s: %s", path, content_result.error().message());
+    }
+    return content_result.value();
 }
 
 void ConvertArrowTableToDataChunk(const arrow::Table& table, DataChunk& output, const std::vector<column_t>& column_ids,

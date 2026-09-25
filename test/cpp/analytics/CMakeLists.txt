@@ -16,6 +16,8 @@ target_link_libraries(unittest_product_usage_analytics
         product_usage_analytics_lib
         Boost::log
         Boost::filesystem
+        libuv::uv_a
+        uvw::uvw
         Catch2::Catch2WithMain
 )
 

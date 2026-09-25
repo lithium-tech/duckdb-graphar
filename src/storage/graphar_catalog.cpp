@@ -3,6 +3,7 @@
 #include "storage/graphar_schema_entry.hpp"
 #include "storage/graphar_table_entry.hpp"
 #include "storage/graphar_transaction.hpp"
+#include "usage_analytics/system_info.h"
 #include "utils/global_log_manager.hpp"
 #include "utils/pua_init.hpp"
 
@@ -33,6 +34,7 @@ GraphArCatalog::GraphArCatalog(AttachedDatabase& db_p, const std::string& path_,
     const auto process_id = std::string(tracker.common_fields().at("process_id").as_string());
     boost::json::object payload;
     payload["path"] = path;
+    analytics::usage_analytics::AddSystemInfo(payload);
     tracker.emit(analytics::usage_analytics::MakeQuerySession(process_id, usage_analytics::GetActiveQueryId(context)),
                  analytics::usage_analytics::EventCode::Start, std::move(payload));
 }

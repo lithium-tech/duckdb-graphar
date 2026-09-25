@@ -45,6 +45,26 @@ GRAPHAR_INSTALLED = $(GRAPHAR_DIR)/.installed
 ARROW_ROOT=$(ARROW_INSTALL_DIR)
 GRAPHAR_ROOT=$(GRAPHAR_INSTALL_DIR)
 
+UVW_VERSION=3.4.0_libuv_v1.48
+LIBUV_VERSION=1.48.0
+UVW_DIR=$(THIRD_PARTY_DIR)/uvw
+LIBUV_DIR=$(THIRD_PARTY_DIR)/libuv
+LIBUV_INSTALL_DIR=$(LIBUV_DIR)/install
+LIBUV_SRC_DIR=$(LIBUV_DIR)/src
+LIBUV_BUILD_DIR=$(LIBUV_SRC_DIR)/build
+LIBUV_CLONED = $(LIBUV_DIR)/.cloned
+LIBUV_BUILT = $(LIBUV_DIR)/.built
+LIBUV_INSTALLED = $(LIBUV_DIR)/.installed
+UVW_SRC_DIR=$(UVW_DIR)/src
+UVW_INSTALL_DIR=$(UVW_DIR)/install
+UVW_BUILD_DIR=$(UVW_DIR)/build
+UVW_CLONED = $(UVW_DIR)/.cloned
+UVW_BUILT = $(UVW_DIR)/.built
+UVW_INSTALLED = $(UVW_DIR)/.installed
+
+LIBUV_ROOT=$(LIBUV_INSTALL_DIR)
+UVW_ROOT=$(UVW_INSTALL_DIR)
+
 # Include the Makefile from extension-ci-tools
 include extension-ci-tools/makefiles/duckdb_extension.Makefile
 
@@ -192,11 +212,65 @@ $(GRAPHAR_INSTALLED): $(GRAPHAR_BUILT)
 	ninja install
 	@touch $(GRAPHAR_INSTALLED)
 
-$(THIRD_PARTY_CMAKE): $(BOOST_INSTALLED) $(ARROW_INSTALLED) $(GRAPHAR_INSTALLED)
+$(LIBUV_CLONED):
+	@echo "Clone libuv"
+	rm -rf $(LIBUV_SRC_DIR)
+	mkdir -p $(LIBUV_SRC_DIR)
+	git clone --branch v$(LIBUV_VERSION) --depth 1 https://github.com/libuv/libuv.git $(LIBUV_SRC_DIR)
+	@touch $(LIBUV_CLONED)
+
+$(LIBUV_BUILT): $(LIBUV_CLONED)
+	@echo "Build libuv"
+	rm -rf $(LIBUV_BUILD_DIR)
+	mkdir -p $(LIBUV_BUILD_DIR)
+	cd $(LIBUV_BUILD_DIR) && \
+	cmake $(LIBUV_SRC_DIR) \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+		-DLIBUV_BUILD_SHARED=OFF \
+		-DLIBUV_BUILD_TESTS=OFF \
+		-DLIBUV_BUILD_BENCH=OFF \
+		-DCMAKE_INSTALL_PREFIX=$(LIBUV_INSTALL_DIR) \
+		-G Ninja
+	@touch $(LIBUV_BUILT)
+
+$(LIBUV_INSTALLED): $(LIBUV_BUILT)
+	@echo "Install libuv"
+	rm -rf $(LIBUV_INSTALL_DIR)
+	cd $(LIBUV_BUILD_DIR) && \
+	ninja -j$(shell getconf _NPROCESSORS_ONLN) && \
+	ninja install
+	@touch $(LIBUV_INSTALLED)
+
+$(UVW_CLONED):
+	@echo "Clone uvw"
+	rm -rf $(UVW_SRC_DIR)
+	mkdir -p $(UVW_SRC_DIR)
+	git clone --branch v$(UVW_VERSION) --depth 1 https://github.com/skypjack/uvw.git $(UVW_SRC_DIR)
+	@touch $(UVW_CLONED)
+
+# uvw is header-only; configure+install to produce the uvwConfig.cmake package.
+$(UVW_INSTALLED): $(UVW_CLONED)
+	@echo "Configure and install uvw"
+	rm -rf $(UVW_BUILD_DIR) $(UVW_INSTALL_DIR)
+	mkdir -p $(UVW_BUILD_DIR)
+	cd $(UVW_BUILD_DIR) && \
+	cmake $(UVW_SRC_DIR) \
+		-DBUILD_UVW_LIBS=OFF \
+		-DUSE_LIBCPP=OFF \
+		-DCMAKE_INSTALL_PREFIX=$(UVW_INSTALL_DIR) \
+		-G Ninja
+	cd $(UVW_BUILD_DIR) && ninja install
+	@test -f $(UVW_INSTALL_DIR)/lib/cmake/uvw/uvwConfig.cmake
+	@touch $(UVW_INSTALLED)
+
+$(THIRD_PARTY_CMAKE): $(BOOST_INSTALLED) $(ARROW_INSTALLED) $(GRAPHAR_INSTALLED) $(LIBUV_INSTALLED) $(UVW_INSTALLED)
 	@echo 'set(Boost_ROOT "$(BOOST_INSTALL_DIR)" CACHE PATH "Path to Boost")' > $(THIRD_PARTY_CMAKE)
 	@echo 'set(Boost_DIR "$(BOOST_CMAKE_DIR)" CACHE PATH "Path to Boost CMake package")' >> $(THIRD_PARTY_CMAKE)
 	@echo 'set(ARROW_ROOT "$(ARROW_ROOT)" CACHE PATH "Path to Arrow")' >> $(THIRD_PARTY_CMAKE)
 	@echo 'set(GRAPHAR_ROOT "$(GRAPHAR_ROOT)" CACHE PATH "Path to GraphAr")' >> $(THIRD_PARTY_CMAKE)
+	@echo 'set(LIBUV_ROOT "$(LIBUV_ROOT)" CACHE PATH "Path to libuv")' >> $(THIRD_PARTY_CMAKE)
+	@echo 'set(UVW_ROOT "$(UVW_ROOT)" CACHE PATH "Path to uvw")' >> $(THIRD_PARTY_CMAKE)
 
 configure_ci: $(THIRD_PARTY_CMAKE)
 
@@ -208,12 +282,12 @@ configure_ci: $(THIRD_PARTY_CMAKE)
 .PHONY: release debug
 release: $(THIRD_PARTY_CMAKE) $(EXTENSION_CONFIG_STEP)
 	mkdir -p build/release
-	@test -f build/release/CMakeCache.txt || cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_RELEASE_FLAGS) $(VCPKG_MANIFEST_FLAGS) -DCMAKE_BUILD_TYPE=Release -S $(DUCKDB_SRCDIR) -B build/release
-	cmake -S $(DUCKDB_SRCDIR) -B build/release
+	@test -f build/release/CMakeCache.txt || cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_RELEASE_FLAGS) $(VCPKG_MANIFEST_FLAGS) -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=20 -S $(DUCKDB_SRCDIR) -B build/release
+	cmake -S $(DUCKDB_SRCDIR) -B build/release -DCMAKE_CXX_STANDARD=20
 	cmake --build build/release --config Release
 
 debug: $(THIRD_PARTY_CMAKE) $(EXTENSION_CONFIG_STEP)
 	mkdir -p build/debug
-	@test -f build/debug/CMakeCache.txt || cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_DEBUG_FLAGS) $(VCPKG_MANIFEST_FLAGS) -DCMAKE_BUILD_TYPE=Debug -S $(DUCKDB_SRCDIR) -B build/debug
-	cmake -S $(DUCKDB_SRCDIR) -B build/debug
+	@test -f build/debug/CMakeCache.txt || cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_DEBUG_FLAGS) $(VCPKG_MANIFEST_FLAGS) -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_STANDARD=20 -S $(DUCKDB_SRCDIR) -B build/debug
+	cmake -S $(DUCKDB_SRCDIR) -B build/debug -DCMAKE_CXX_STANDARD=20
 	cmake --build build/debug --config Debug

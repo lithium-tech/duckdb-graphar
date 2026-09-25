@@ -1,11 +1,11 @@
 #include "config/config_readable_iface.h"
+#include "usage_analytics/system_info.h"
 #include "usage_analytics/usage_analytics.h"
 
 #include <boost/filesystem.hpp>
 #include <boost/json/parse.hpp>
 
 #include <catch2/catch_test_macros.hpp>
-
 #include <fstream>
 #include <vector>
 
@@ -34,8 +34,7 @@ public:
         return empty_section;
     }
 
-    std::string GetParameter(const std::string& section_name,
-                             const std::string& parameter_name,
+    std::string GetParameter(const std::string& section_name, const std::string& parameter_name,
                              const std::string& default_value) const override {
         const std::string path = section_name.empty() ? parameter_name : section_name + "." + parameter_name;
         return config_.get<std::string>(path, default_value);
@@ -45,12 +44,11 @@ private:
     config::config_tree_type config_;
 };
 
-
 }  // namespace
 
-TEST_CASE("product usage analytics self registration and JSONL protocol") {
-    const auto directory = boost::filesystem::temp_directory_path() /
-                           boost::filesystem::unique_path("duckdb-graphar-pua-%%%%-%%%%-%%%%");
+TEST_CASE ("product usage analytics self registration and JSONL protocol") {
+    const auto directory =
+        boost::filesystem::temp_directory_path() / boost::filesystem::unique_path("duckdb-graphar-pua-%%%%-%%%%-%%%%");
     TestConfig config(directory);
 
     auto& tracker = Tracker::GetInstance();
@@ -119,4 +117,43 @@ TEST_CASE("product usage analytics self registration and JSONL protocol") {
 
     boost::system::error_code ec;
     boost::filesystem::remove_all(directory, ec);
+}
+
+TEST_CASE ("product usage analytics system info enrichment") {
+    boost::json::object payload;
+    payload["kind"] = "test";
+
+    analytics::usage_analytics::AddSystemInfo(payload);
+
+    REQUIRE(payload.contains("user"));
+    const auto& user = payload.at("user").as_object();
+    REQUIRE(user.contains("username"));
+    REQUIRE(user.at("username").as_string().size() > 0);
+    REQUIRE(user.contains("uid"));
+
+    REQUIRE(payload.contains("hostname"));
+    REQUIRE(payload.at("hostname").as_string().size() > 0);
+
+    REQUIRE(payload.contains("os"));
+    const auto& os = payload.at("os").as_object();
+    REQUIRE(os.contains("sysname"));
+    REQUIRE(os.contains("release"));
+    REQUIRE(os.contains("version"));
+    REQUIRE(os.contains("machine"));
+
+    REQUIRE(payload.contains("cpu"));
+    const auto& cpu = payload.at("cpu").as_object();
+    REQUIRE(cpu.contains("count"));
+    REQUIRE(cpu.at("count").is_uint64());
+    REQUIRE(cpu.at("count").as_uint64() >= 1);
+    REQUIRE(cpu.contains("available_parallelism"));
+    REQUIRE(cpu.at("available_parallelism").is_uint64());
+    REQUIRE(cpu.at("available_parallelism").as_uint64() >= 1);
+
+    REQUIRE(payload.contains("memory"));
+    const auto& memory = payload.at("memory").as_object();
+    REQUIRE(memory.contains("total"));
+    REQUIRE(memory.contains("available"));
+
+    REQUIRE(payload.at("kind").as_string() == "test");
 }

@@ -60,3 +60,9 @@ query I
 SELECT COUNT(*) FROM 'Person' WHERE _graphArVertexIndex IN [100, 11, 5];
 ----
 3
+
+# IN with a non-constant RHS member keeps the whole filter (id == vertex index for all rows).
+query I
+SELECT COUNT(*) FROM read_vertices('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', type='Person') WHERE _graphArVertexIndex IN (0, id);
+----
+37700
