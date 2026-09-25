@@ -101,14 +101,29 @@ std::shared_ptr<arrow::ChunkedArray> Degree::GetOffsetColumn(DegreeGlobalState& 
         return cache.column;
     }
 
-    auto offset_file_path = state.edge_info->GetAdjListOffsetFilePath(chunk_index, adj_list_type).value();
+    auto offset_file_result = state.edge_info->GetAdjListOffsetFilePath(chunk_index, adj_list_type);
+    if (offset_file_result.has_error()) {
+        throw IOException("Failed to get adj list offset file path for chunk %lld: %s", (long long)chunk_index,
+                          offset_file_result.error().message());
+    }
+    auto offset_file_path = offset_file_result.value();
+
     std::string out_prefix;
-    auto fs = graphar::FileSystemFromUriOrPath(state.prefix, &out_prefix).value();
+    auto fs_result = graphar::FileSystemFromUriOrPath(state.prefix, &out_prefix);
+    if (fs_result.has_error()) {
+        throw IOException("Failed to open file system for prefix %s: %s", state.prefix, fs_result.error().message());
+    }
+    auto fs = fs_result.value();
+
     auto adjacent_list = state.edge_info->GetAdjacentList(adj_list_type);
     auto file_type = adjacent_list->GetFileType();
     std::string path = out_prefix + offset_file_path;
     DUCKDB_GRAPHAR_LOG_DEBUG("Opening offset file: " + path);
-    auto table = fs->ReadFileToTable(path, file_type).value();
+    auto table_result = fs->ReadFileToTable(path, file_type);
+    if (table_result.has_error()) {
+        throw IOException("Failed to read offset file %s: %s", path, table_result.error().message());
+    }
+    auto table = table_result.value();
 
     cache.chunk_index = chunk_index;
     cache.column = table->column(0);
