@@ -5,6 +5,7 @@
 #include "utils/global_log_manager.hpp"
 #include "utils/pua_init.hpp"
 #include "utils/type_info.hpp"
+#include "utils/vid_filter.hpp"
 
 #include <duckdb/common/named_parameter_map.hpp>
 #include <duckdb/common/vector/flat_vector.hpp>
@@ -345,177 +346,15 @@ void Degree::PushdownComplexFilter(ClientContext& context, LogicalGet& get, Func
 
     auto validate = [](const std::string& col, const Value& val) -> bool { return col == GID_COLUMN_INTERNAL; };
 
-    std::set<int64_t> vids;
-    vector<unique_ptr<Expression>> filters_new;
-    bool already_pushed = false;
-
-    auto validate_wrapper = [&](const std::string& col, const Value& val) -> bool {
-        if (validate(col, val)) {
-            if (!val.IsNull()) {
-                vids.insert(val.GetValue<int64_t>());
-            }
-            return true;
-        }
-        return false;
-    };
-
-    for (auto& filter : filters) {
-        if (already_pushed) {
-            filters_new.push_back(std::move(filter));
-            continue;
-        }
-
-        bool can_pushdown = false;
-
-        // Case 0: equality comparison (col = value)
-        if (filter->GetExpressionClass() == ExpressionClass::BOUND_FUNCTION &&
-            BoundComparisonExpression::IsComparison(*filter)) {
-            auto& comp_expr = filter->Cast<BoundFunctionExpression>();
-            if (comp_expr.GetExpressionType() == ExpressionType::COMPARE_EQUAL) {
-                auto& left = BoundComparisonExpression::Left(comp_expr);
-                auto& right = BoundComparisonExpression::Right(comp_expr);
-                bool left_is_scalar = left.IsFoldable();
-                bool right_is_scalar = right.IsFoldable();
-                if (left_is_scalar || right_is_scalar) {
-                    bool column_on_left = left.GetExpressionClass() == ExpressionClass::BOUND_COLUMN_REF;
-                    auto column_name = column_on_left ? left.ToString() : right.ToString();
-                    Value val;
-                    auto& scalar_expr = column_on_left ? right : left;
-                    if (!ExpressionExecutor::TryEvaluateScalar(context, scalar_expr, val)) {
-                        continue;
-                    }
-                    if (validate_wrapper(column_name, val)) {
-                        can_pushdown = true;
-                    }
-                }
-            }
-        }
-
-        // Case 1: list_contains([1, 2, 3], col)
-        if (!can_pushdown && filter->GetExpressionClass() == ExpressionClass::BOUND_FUNCTION) {
-            auto& op_expr = filter->Cast<BoundFunctionExpression>();
-            const auto& fname = op_expr.Function().GetName().GetIdentifierName();
-            if (fname == "contains" || fname == "list_contains" || fname == "array_contains" || fname == "list_has" ||
-                fname == "array_has") {
-                auto& children = op_expr.GetChildren();
-                if (children.size() == 2 && children[0]->GetExpressionClass() == ExpressionClass::BOUND_CONSTANT) {
-                    auto& const_expr = children[0]->Cast<BoundConstantExpression>();
-                    auto column_name = children[1]->ToString();
-                    auto& list_value = const_expr.GetValue();
-                    if (list_value.type().id() == LogicalTypeId::LIST) {
-                        auto list_children = ListValue::GetChildren(list_value);
-                        bool any = false;
-                        for (const auto& child : list_children) {
-                            if (validate_wrapper(column_name, child)) {
-                                any = true;
-                            }
-                        }
-                        if (any) {
-                            can_pushdown = true;
-                        }
-                    }
-                }
-            }
-        }
-
-        // Case 2: col IN (1, 2, 3). Only consume the filter when every RHS member is a constant.
-        if (!can_pushdown && filter->GetExpressionClass() == ExpressionClass::BOUND_OPERATOR &&
-            filter->GetExpressionType() == ExpressionType::COMPARE_IN) {
-            auto& op_expr = filter->Cast<BoundOperatorExpression>();
-            auto& children = op_expr.GetChildren();
-            if (children[0]->GetExpressionClass() == ExpressionClass::BOUND_COLUMN_REF) {
-                auto column_name = children[0]->ToString();
-                bool all_const = true;
-                for (idx_t i = 1; i < children.size(); i++) {
-                    if (children[i]->GetExpressionClass() != ExpressionClass::BOUND_CONSTANT) {
-                        all_const = false;
-                        break;
-                    }
-                }
-                if (all_const) {
-                    bool any = false;
-                    for (idx_t i = 1; i < children.size(); i++) {
-                        auto& cv = children[i]->Cast<BoundConstantExpression>().GetValue();
-                        if (validate_wrapper(column_name, cv)) {
-                            any = true;
-                        }
-                    }
-                    if (any) {
-                        can_pushdown = true;
-                    }
-                }
-            }
-        }
-
-        // Case 3: col = v1 OR col = v2 OR ... (small IN lists rewritten)
-        if (!can_pushdown && filter->GetExpressionClass() == ExpressionClass::BOUND_CONJUNCTION &&
-            filter->GetExpressionType() == ExpressionType::CONJUNCTION_OR) {
-            auto& conj = filter->Cast<BoundConjunctionExpression>();
-            std::string column_name;
-            std::vector<Value> local_vals;
-            bool valid = true;
-            for (auto& child : conj.GetChildren()) {
-                if (child->GetExpressionClass() != ExpressionClass::BOUND_FUNCTION ||
-                    !BoundComparisonExpression::IsComparison(*child) ||
-                    child->GetExpressionType() != ExpressionType::COMPARE_EQUAL) {
-                    valid = false;
-                    break;
-                }
-                auto& comp_expr = child->Cast<BoundFunctionExpression>();
-                std::string col;
-                Value val;
-                auto& left = BoundComparisonExpression::Left(comp_expr);
-                auto& right = BoundComparisonExpression::Right(comp_expr);
-                if (left.GetExpressionClass() == ExpressionClass::BOUND_COLUMN_REF &&
-                    right.GetExpressionClass() == ExpressionClass::BOUND_CONSTANT) {
-                    col = left.ToString();
-                    val = right.Cast<BoundConstantExpression>().GetValue();
-                } else if (right.GetExpressionClass() == ExpressionClass::BOUND_COLUMN_REF &&
-                           left.GetExpressionClass() == ExpressionClass::BOUND_CONSTANT) {
-                    col = right.ToString();
-                    val = left.Cast<BoundConstantExpression>().GetValue();
-                } else {
-                    valid = false;
-                    break;
-                }
-                if (column_name.empty()) {
-                    column_name = col;
-                } else if (column_name != col) {
-                    valid = false;
-                    break;
-                }
-                local_vals.push_back(val);
-            }
-            if (valid && !column_name.empty()) {
-                bool any = false;
-                for (auto& v : local_vals) {
-                    if (validate_wrapper(column_name, v)) {
-                        any = true;
-                    }
-                }
-                if (any) {
-                    can_pushdown = true;
-                }
-            }
-        }
-
-        if (!can_pushdown) {
-            filters_new.push_back(std::move(filter));
-        } else {
-            already_pushed = true;
-        }
-    }
-
-    if (already_pushed) {
+    auto pushdown = ExtractVidFilterPushdown(context, filters, validate);
+    if (pushdown.consumed) {
         degree_bind_data->filter_pushed = true;
-        for (const auto& vid : vids) {
+        for (const auto& vid : pushdown.vids) {
             if (0 <= vid && vid < degree_bind_data->vertex_count) {
                 degree_bind_data->vid_ranges.push_back({vid, vid + 1});
             }
         }
     }
-
-    filters = std::move(filters_new);
 }
 //-------------------------------------------------------------------
 // GetFunction
