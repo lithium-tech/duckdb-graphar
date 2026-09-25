@@ -174,9 +174,16 @@ std::shared_ptr<graphar::Expression> GraphArFunctions::GetFilter(const std::stri
 
 std::string GetYamlContent(const std::string& path) {
     std::string no_url_path;
-    auto fs = graphar::FileSystemFromUriOrPath(path, &no_url_path).value();
-    std::string yaml_content = fs->ReadFileToValue<std::string>(no_url_path).value();
-    return yaml_content;
+    auto fs_result = graphar::FileSystemFromUriOrPath(path, &no_url_path);
+    if (fs_result.has_error()) {
+        throw IOException("Failed to open file system for path %s: %s", path, fs_result.error().message());
+    }
+    auto fs = fs_result.value();
+    auto content_result = fs->ReadFileToValue<std::string>(no_url_path);
+    if (content_result.has_error()) {
+        throw IOException("Failed to read yaml file %s: %s", path, content_result.error().message());
+    }
+    return content_result.value();
 }
 
 void ConvertArrowTableToDataChunk(const arrow::Table& table, DataChunk& output, const std::vector<column_t>& column_ids,
