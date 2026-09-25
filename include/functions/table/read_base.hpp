@@ -982,23 +982,30 @@ public:
                 }
             }
 
-            // Case 2: col IN (1, 2, 3) -- SQL IN operator
+            // Case 2: col IN (1, 2, 3). Only consume the filter when every RHS member is a constant.
             if (!can_pushdown && filter->GetExpressionClass() == ExpressionClass::BOUND_OPERATOR &&
                 filter->GetExpressionType() == ExpressionType::COMPARE_IN) {
                 auto& op_expr = filter->Cast<BoundOperatorExpression>();
                 auto& children = op_expr.GetChildren();
                 if (children[0]->GetExpressionClass() == ExpressionClass::BOUND_COLUMN_REF) {
                     auto column_name = children[0]->ToString();
-                    bool any = false;
+                    bool all_const = true;
                     for (idx_t i = 1; i < children.size(); i++) {
-                        if (children[i]->GetExpressionClass() == ExpressionClass::BOUND_CONSTANT) {
+                        if (children[i]->GetExpressionClass() != ExpressionClass::BOUND_CONSTANT) {
+                            all_const = false;
+                            break;
+                        }
+                    }
+                    if (all_const) {
+                        bool any = false;
+                        for (idx_t i = 1; i < children.size(); i++) {
                             auto& cv = children[i]->Cast<BoundConstantExpression>().GetValue();
                             if (validate_wrapper(column_name, cv)) any = true;
                         }
-                    }
-                    if (any) {
-                        read_bind_data.filter_column = column_name;
-                        can_pushdown = true;
+                        if (any) {
+                            read_bind_data.filter_column = column_name;
+                            can_pushdown = true;
+                        }
                     }
                 }
             }

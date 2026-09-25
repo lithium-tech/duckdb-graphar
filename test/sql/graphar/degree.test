@@ -74,6 +74,37 @@ SELECT _graphArVertexIndex, out_degree FROM degree('{WORKING_DIRECTORY}/data/sna
 22
 7
 
+# Non-existent indices return empty tables.
+query III
+SELECT * FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex=-1;
+----
+
+query III
+SELECT * FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex=999999;
+----
+
+# Batch filters with only non-existent indices return empty; mixed return valid rows only.
+query II
+SELECT _graphArVertexIndex, out_degree FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex IN (-1, 999999) ORDER BY _graphArVertexIndex;
+----
+
+query II
+SELECT _graphArVertexIndex, out_degree FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex IN (5, -1, 999999) ORDER BY _graphArVertexIndex;
+----
+5
+1
+
+# IN with a non-constant RHS member keeps the whole filter.
+query II
+SELECT _graphArVertexIndex, out_degree FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex IN (5, out_degree) ORDER BY _graphArVertexIndex;
+----
+5
+1
+6
+6
+8
+8
+
 # max(out_degree).
 query I
 SELECT max(out_degree) FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person');

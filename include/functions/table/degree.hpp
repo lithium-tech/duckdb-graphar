@@ -24,6 +24,7 @@ public:
     bool has_src = false;
     bool has_dst = false;
     std::vector<std::pair<int64_t, int64_t>> vid_ranges;
+    bool filter_pushed = false;
 };
 
 struct DegreeOffsetCache {

@@ -214,7 +214,11 @@ unique_ptr<GlobalTableFunctionState> DegreeGlobalTableFunctionState::Init(Client
     }
 
     if (bind_data.vid_ranges.empty()) {
-        gstate.ranges.push_back({0, bind_data.vertex_count});
+        if (bind_data.filter_pushed) {
+            gstate.ranges.push_back({0, 0});
+        } else {
+            gstate.ranges.push_back({0, bind_data.vertex_count});
+        }
     } else {
         for (const auto& r : bind_data.vid_ranges) {
             if (r.first >= 0 && r.first < bind_data.vertex_count) {
@@ -414,24 +418,31 @@ void Degree::PushdownComplexFilter(ClientContext& context, LogicalGet& get, Func
             }
         }
 
-        // Case 2: col IN (1, 2, 3)
+        // Case 2: col IN (1, 2, 3). Only consume the filter when every RHS member is a constant.
         if (!can_pushdown && filter->GetExpressionClass() == ExpressionClass::BOUND_OPERATOR &&
             filter->GetExpressionType() == ExpressionType::COMPARE_IN) {
             auto& op_expr = filter->Cast<BoundOperatorExpression>();
             auto& children = op_expr.GetChildren();
             if (children[0]->GetExpressionClass() == ExpressionClass::BOUND_COLUMN_REF) {
                 auto column_name = children[0]->ToString();
-                bool any = false;
+                bool all_const = true;
                 for (idx_t i = 1; i < children.size(); i++) {
-                    if (children[i]->GetExpressionClass() == ExpressionClass::BOUND_CONSTANT) {
+                    if (children[i]->GetExpressionClass() != ExpressionClass::BOUND_CONSTANT) {
+                        all_const = false;
+                        break;
+                    }
+                }
+                if (all_const) {
+                    bool any = false;
+                    for (idx_t i = 1; i < children.size(); i++) {
                         auto& cv = children[i]->Cast<BoundConstantExpression>().GetValue();
                         if (validate_wrapper(column_name, cv)) {
                             any = true;
                         }
                     }
-                }
-                if (any) {
-                    can_pushdown = true;
+                    if (any) {
+                        can_pushdown = true;
+                    }
                 }
             }
         }
@@ -496,6 +507,7 @@ void Degree::PushdownComplexFilter(ClientContext& context, LogicalGet& get, Func
     }
 
     if (already_pushed) {
+        degree_bind_data->filter_pushed = true;
         for (const auto& vid : vids) {
             if (0 <= vid && vid < degree_bind_data->vertex_count) {
                 degree_bind_data->vid_ranges.push_back({vid, vid + 1});
