@@ -9,10 +9,12 @@ int64_t GetCountClass::GetCount(const TypeInfoPtr& type_info, const std::string&
     std::lock_guard<std::mutex> lock(count_cache_mutex);
     DUCKDB_GRAPHAR_LOG_TRACE("GetCount");
     auto name = std::visit([&](auto& t) { return GraphArFunctions::GetNameFromInfo(t); }, type_info);
-    if (count_cache.find(name) != count_cache.end()) {
-        return count_cache[name];
+    // Scope the cache by graph so counts from two graphs sharing type names do not collide.
+    const auto cache_key = graph_prefix + name;
+    if (count_cache.find(cache_key) != count_cache.end()) {
+        return count_cache[cache_key];
     }
-    return count_cache[name] = std::visit(
+    return count_cache[cache_key] = std::visit(
                [&graph_prefix](auto& type_info) {
                    std::string parsed_prefix;
                    GAR_ASSIGN_OR_RAISE_ERROR(auto fs, graphar::FileSystemFromUriOrPath(graph_prefix, &parsed_prefix));

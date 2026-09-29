@@ -8,7 +8,7 @@
 |-------------------------------------------|--------------------------------------------------------|
 | [read_vertices](#read_vertices)           | Returns a Table of Vertices by Type                    |
 | [read_edges](#read_edges)                 | Returns a Table of Edges by Type of src, edge, dst     |
-| [edges_vertex](#edges_vertex)             | Returns a Table with Degree of vertex for src vertices |
+| [degree](#degree)                         | Returns a Table with in/out degree of vertices         |
 | [two_hop](#two_hop)                       | Returns a Table with 2-hop edges of vertex             |
 | [read_hop](#read_hop)                     | Returns 1-hop edges from a vertex with optional 2-hop expansion |
 | [read_hop_filtered](#read_hop_filtered)   | Returns 1-hop edges with filter pushdown optimization  |
@@ -65,26 +65,45 @@ FROM read_edges('test/data/git/Git.yaml', src='Person', type='knows', dst='Perso
 -- Table -  1-hop neighbors of vertex with GraphAr ID = 42
 ```
 
-### edges_vertex
+### degree
 
 #### Signatures
 ```sql
-TABLE edges_vertex(VARCHAR edge_path);
+TABLE degree(VARCHAR graph_path, VARCHAR src, VARCHAR type, VARCHAR dst);
 ```
 
 #### DESCRIPTION
-Returns a vertex degree table based on the provided edge data.
+Returns the in-degree and out-degree of every vertex of the given source vertex type, computed directly from the edge adjacency-list offset (CSR) files.
 
-`edge_path` - Path to the GraphAr YAML schema file describing the **edge**.
+`graph_path` - Path to the GraphAr YAML schema file describing the **graph**. \
+`src` - The name of the source vertex type. \
+`type` - The name of the edge type to load (as defined in the schema). \
+`dst` - The name of the destination vertex type.
 
-This function scans the edge data and computes the out-degree (number of outgoing edges) for each source vertex.
-The result is a table containing one row per source vertex with its corresponding degree.
+The function returns one row per vertex with three columns:
+
+| Column               | Type     | Description                                            |
+|----------------------|----------|--------------------------------------------------------|
+| `_graphArVertexIndex`| `BIGINT` | The vertex id                                          |
+| `out_degree`         | `BIGINT` | Out-degree; `NULL` if the edge has no `ordered_by_source` adj-list |
+| `in_degree`          | `BIGINT` | In-degree; `NULL` if the edge has no `ordered_by_dest` adj-list    |
+
+Filtering on `_graphArVertexIndex` (equality or `IN`/`list_contains` of a batch of ids) is pushed down so that only the requested vertices are read from the offset files. Projection pushdown ensures only the degree columns that are actually requested are computed (and the corresponding offset file is not opened otherwise).
 
 #### Examples
 ```sql
-SELECT * 
-FROM edges_vertex('test/data/git/Person_knows_Person.yaml');
--- Table ;
+SELECT *
+FROM degree('test/data/git/Git.yaml', src='Person', type='knows', dst='Person');
+-- One row per vertex: _graphArVertexIndex, out_degree, in_degree
+
+SELECT _graphArVertexIndex, out_degree
+FROM degree('test/data/git/Git.yaml', src='Person', type='knows', dst='Person')
+WHERE _graphArVertexIndex = 42;
+-- Out-degree of vertex 42
+
+SELECT max(out_degree)
+FROM degree('test/data/git/Git.yaml', src='Person', type='knows', dst='Person');
+-- Maximum out-degree among all vertices
 ```
 
 ### two_hop

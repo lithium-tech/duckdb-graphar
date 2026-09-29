@@ -2,6 +2,8 @@ set(USAGE_ANALYTICS_DIR ${CMAKE_CURRENT_LIST_DIR})
 set(USAGE_ANALYTICS_INCLUDE_DIR ${USAGE_ANALYTICS_DIR}/include)
 
 find_package(Boost REQUIRED COMPONENTS json thread random)
+find_package(libuv REQUIRED CONFIG)
+find_package(uvw REQUIRED CONFIG)
 
 file(GLOB_RECURSE USAGE_ANALYTICS_SOURCES CONFIGURE_DEPENDS
     ${USAGE_ANALYTICS_DIR}/src/*.cpp
@@ -16,8 +18,12 @@ target_include_directories(product_usage_analytics_lib PUBLIC
 
 target_include_directories(product_usage_analytics_lib PRIVATE
     ${PROJECT_INC_DIR}
+    $<TARGET_PROPERTY:uvw::uvw,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:libuv::uv_a,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 target_link_libraries(product_usage_analytics_lib PUBLIC
     ${Boost_LIBRARIES}
+    libuv::uv_a
+    uvw::uvw
 )

@@ -69,3 +69,9 @@ query I
 SELECT COUNT(*) FROM 'Person_knows_Person' WHERE _graphArSrcIndex IN [100, 11];
 ----
 2
+
+# IN with a non-constant RHS member keeps the whole filter (16 rows, as OR-form).
+query I
+SELECT COUNT(*) FROM read_edges('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArSrcIndex IN (0, _graphArDstIndex - 5);
+----
+16

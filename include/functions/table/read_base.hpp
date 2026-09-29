@@ -4,12 +4,14 @@
 #include "readers/duck_arrow_chunk_reader.hpp"
 #include "readers/duck_chunk_reader.hpp"
 #include "readers/duck_read_edges_reader.hpp"
+#include "usage_analytics/system_info.h"
 #include "usage_analytics/usage_analytics.h"
 #include "utils/benchmark.hpp"
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
 #include "utils/pua_init.hpp"
 #include "utils/type_info.hpp"
+#include "utils/vid_filter.hpp"
 
 #include <arrow/c/bridge.h>
 
@@ -639,7 +641,7 @@ public:
         auto& c_stats = stats_map.at(column_name);
         auto stats = BaseStatistics::CreateUnknown(duck_type);
 
-        if (c_stats.has_min_max && LogicalType::IsNumeric(duck_type)) {
+        if (c_stats.has_min_max && duck_type.IsNumeric()) {
             stats = NumericStats::CreateEmpty(duck_type);
             NumericStats::SetMin(stats, c_stats.min_val);
             NumericStats::SetMax(stats, c_stats.max_val);
@@ -693,6 +695,7 @@ public:
         if (!table_name.empty()) {
             payload["table"] = table_name;
         }
+        analytics::usage_analytics::AddSystemInfo(payload);
         usage_analytics::EnsureInitialized(context);
         auto& tracker = analytics::usage_analytics::Tracker::GetInstance();
         const auto process_id = std::string(tracker.common_fields().at("process_id").as_string());
@@ -759,7 +762,19 @@ public:
 
         if (has_filter) {
             DUCKDB_GRAPHAR_LOG_TRACE("Filters found");
-            const auto vertex_num = GetCountClass::GetCount(gstate.type_info, bind_data.GetGraphInfo()->GetPrefix());
+            // The upper bound for a valid vid is the vertex count of the filtered
+            // type, not the edge count. For edge tables pick the src/dst vertex type.
+            const auto& prefix = bind_data.GetGraphInfo()->GetPrefix();
+            int64_t vertex_num = 0;
+            if (filter_column == GID_COLUMN_INTERNAL) {
+                vertex_num = GetCountClass::GetCount(gstate.type_info, prefix);
+            } else {
+                auto edge_info = *std::get_if<std::shared_ptr<graphar::EdgeInfo>>(&gstate.type_info);
+                vertex_num =
+                    (filter_column == SRC_GID_COLUMN)
+                        ? GetCountClass::GetCount(gstate.graph_info->GetVertexInfo(edge_info->GetSrcType()), prefix)
+                        : GetCountClass::GetCount(gstate.graph_info->GetVertexInfo(edge_info->GetDstType()), prefix);
+            }
             graphar::IdType zero = 0;
             for (idx_t r = 0; r < num_ranges; ++r) {
                 vid_ranges[r].first = std::max(zero, vid_ranges[r].first);
@@ -890,167 +905,9 @@ public:
         if (!read_bind_data.vid_ranges.empty()) {
             return;
         }
-        std::set<int64_t> vids;
-        vector<unique_ptr<Expression>> filters_new;
-        bool already_pushed = false;
-
-        // Wrapper lambda that captures vids by reference
-        auto validate_wrapper = [&](const std::string& col, const Value& val) -> bool {
-            if (validate_and_extract(col, val)) {
-                if (!val.IsNull()) {
-                    vids.insert(val.GetValue<int64_t>());
-                }
-                return true;
-            }
-            return false;
-        };
-
-        for (auto& filter : filters) {
-            if (already_pushed) {
-                filters_new.push_back(std::move(filter));
-                continue;
-            }
-
-            bool can_pushdown = false;
-
-            // Case 0: equality comparison (col = value)
-            if (filter->GetExpressionClass() == ExpressionClass::BOUND_FUNCTION &&
-                BoundComparisonExpression::IsComparison(*filter)) {
-                auto& comp_expr = filter->Cast<BoundFunctionExpression>();
-                if (comp_expr.GetExpressionType() == ExpressionType::COMPARE_EQUAL) {
-                    auto& left = BoundComparisonExpression::Left(comp_expr);
-                    auto& right = BoundComparisonExpression::Right(comp_expr);
-                    bool left_is_scalar = left.IsFoldable();
-                    bool right_is_scalar = right.IsFoldable();
-                    if (left_is_scalar || right_is_scalar) {
-                        bool column_on_left = left.GetExpressionClass() == ExpressionClass::BOUND_COLUMN_REF;
-                        auto column_name = column_on_left ? left.ToString() : right.ToString();
-                        Value val;
-
-                        auto& scalar_expr = column_on_left ? right : left;
-
-                        if (!ExpressionExecutor::TryEvaluateScalar(context, scalar_expr, val)) {
-                            continue;
-                        }
-
-                        if (validate_wrapper(column_name, val)) {
-                            can_pushdown = true;
-                            read_bind_data.filter_column = column_name;
-                        }
-                    }
-                }
-            }
-
-            // Case 1: list_contains([1, 2, 3], col) -- list literal
-            if (!can_pushdown && filter->GetExpressionClass() == ExpressionClass::BOUND_FUNCTION) {
-                auto& op_expr = filter->Cast<BoundFunctionExpression>();
-                const auto& fname = op_expr.Function().GetName().GetIdentifierName();
-                if (fname == "contains" || fname == "list_contains" || fname == "array_contains" ||
-                    fname == "list_has" || fname == "array_has") {
-                    auto& children = op_expr.GetChildren();
-                    if (children.size() == 2 && children[0]->GetExpressionClass() == ExpressionClass::BOUND_CONSTANT) {
-                        auto& const_expr = children[0]->Cast<BoundConstantExpression>();
-                        auto column_name = children[1]->ToString();
-                        auto& list_value = const_expr.GetValue();
-
-                        if (list_value.type().id() == LogicalTypeId::LIST) {
-                            auto list_children = ListValue::GetChildren(list_value);
-                            bool any = false;
-                            for (const auto& child : list_children) {
-                                if (validate_wrapper(column_name, child)) any = true;
-                            }
-                            if (any) {
-                                read_bind_data.filter_column = column_name;
-                                can_pushdown = true;
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Case 2: col IN (1, 2, 3) -- SQL IN operator
-            if (!can_pushdown && filter->GetExpressionClass() == ExpressionClass::BOUND_OPERATOR &&
-                filter->GetExpressionType() == ExpressionType::COMPARE_IN) {
-                auto& op_expr = filter->Cast<BoundOperatorExpression>();
-                auto& children = op_expr.GetChildren();
-                if (children[0]->GetExpressionClass() == ExpressionClass::BOUND_COLUMN_REF) {
-                    auto column_name = children[0]->ToString();
-                    bool any = false;
-                    for (idx_t i = 1; i < children.size(); i++) {
-                        if (children[i]->GetExpressionClass() == ExpressionClass::BOUND_CONSTANT) {
-                            auto& cv = children[i]->Cast<BoundConstantExpression>().GetValue();
-                            if (validate_wrapper(column_name, cv)) any = true;
-                        }
-                    }
-                    if (any) {
-                        read_bind_data.filter_column = column_name;
-                        can_pushdown = true;
-                    }
-                }
-            }
-
-            // Case 3: col IN (1, 2, 3) after InClauseRewriter
-            // Small lists get rewritten to: col=1 OR col=2 OR col=3
-            if (!can_pushdown && filter->GetExpressionClass() == ExpressionClass::BOUND_CONJUNCTION &&
-                filter->GetExpressionType() == ExpressionType::CONJUNCTION_OR) {
-                auto& conj = filter->Cast<BoundConjunctionExpression>();
-                std::string column_name;
-                std::vector<Value> local_vals;
-                bool valid = true;
-
-                for (auto& child : conj.GetChildren()) {
-                    if (child->GetExpressionClass() != ExpressionClass::BOUND_FUNCTION ||
-                        !BoundComparisonExpression::IsComparison(*child) ||
-                        child->GetExpressionType() != ExpressionType::COMPARE_EQUAL) {
-                        valid = false;
-                        break;
-                    }
-                    auto& comp_expr = child->Cast<BoundFunctionExpression>();
-                    std::string col;
-                    Value val;
-                    auto& left = BoundComparisonExpression::Left(comp_expr);
-                    auto& right = BoundComparisonExpression::Right(comp_expr);
-                    if (left.GetExpressionClass() == ExpressionClass::BOUND_COLUMN_REF &&
-                        right.GetExpressionClass() == ExpressionClass::BOUND_CONSTANT) {
-                        col = left.ToString();
-                        val = right.Cast<BoundConstantExpression>().GetValue();
-                    } else if (right.GetExpressionClass() == ExpressionClass::BOUND_COLUMN_REF &&
-                               left.GetExpressionClass() == ExpressionClass::BOUND_CONSTANT) {
-                        col = right.ToString();
-                        val = left.Cast<BoundConstantExpression>().GetValue();
-                    } else {
-                        valid = false;
-                        break;
-                    }
-
-                    if (column_name.empty())
-                        column_name = col;
-                    else if (column_name != col) {
-                        valid = false;
-                        break;
-                    }
-                    local_vals.push_back(val);
-                }
-
-                if (valid && !column_name.empty()) {
-                    bool any = false;
-                    for (auto& v : local_vals)
-                        if (validate_wrapper(column_name, v)) any = true;
-                    if (any) {
-                        read_bind_data.filter_column = column_name;
-                        can_pushdown = true;
-                    }
-                }
-            }
-
-            if (!can_pushdown) {
-                filters_new.push_back(std::move(filter));
-            } else {
-                already_pushed = true;
-            }
-        }
-
-        if (already_pushed) {
+        auto pushdown = ExtractVidFilterPushdown(context, filters, validate_and_extract);
+        if (pushdown.consumed) {
+            read_bind_data.filter_column = pushdown.matched_column;
             int64_t vertex_num = 0;
             const auto& graph_info = read_bind_data.GetGraphInfo();
             if (read_bind_data.filter_column == GID_COLUMN_INTERNAL) {
@@ -1064,14 +921,12 @@ public:
                                  : GetCountClass::GetCount(graph_info->GetVertexInfo(edge_info->GetDstType()),
                                                            graph_info->GetPrefix());
             }
-            for (const auto& vid : vids) {
+            for (const auto& vid : pushdown.vids) {
                 if (0 <= vid && vid < vertex_num) {
                     read_bind_data.vid_ranges.push_back({vid, vid + 1});
                 }
             }
         }
-
-        filters = std::move(filters_new);
     }
 
     static void Register(ExtensionLoader& loader) { loader.RegisterFunction(ReadFinal::GetFunction()); }

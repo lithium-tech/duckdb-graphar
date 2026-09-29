@@ -47,7 +47,6 @@ target_link_libraries(unittest_graphar
         parquet_extension
         duckdb_graphar_extension
         graphar
-        Arrow::arrow_static
         Catch2::Catch2WithMain
 )
 
@@ -55,6 +54,13 @@ target_include_directories(unittest_graphar PRIVATE
     ${DUCKDB_INCLUDES}
     ${EXTENSION_INCLUDES}
 )
+
+if(TARGET Arrow::arrow_static)
+    get_target_property(_arrow_incdirs Arrow::arrow_static INTERFACE_INCLUDE_DIRECTORIES)
+    if(_arrow_incdirs)
+        target_include_directories(unittest_graphar PRIVATE ${_arrow_incdirs})
+    endif()
+endif()
 
 # Integrate with ctest for easy test execution. ctest runs tests from the build
 # directory by default, but the storage tests reference fixture data with paths

@@ -50,5 +50,6 @@ process_graph() {
 
 process_graph "$ROOTDIR/data/snap-musae-github"
 process_graph "$ROOTDIR/data/snap-musae-github-csv"
+process_graph "$ROOTDIR/data/snap-musae-github-multichunk"
 
 echo "Successfully prepared test data."

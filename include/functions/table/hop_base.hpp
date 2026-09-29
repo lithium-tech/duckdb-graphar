@@ -3,11 +3,16 @@
 #include "functions/table/read_base.hpp"
 #include "storage/graphar_catalog.hpp"
 #include "storage/graphar_schema_entry.hpp"
+#include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
 
 #include <duckdb/function/table_function.hpp>
 
+#include <graphar/filesystem.h>
 #include <graphar/graph_info.h>
+
+#include <algorithm>
+#include <filesystem>
 
 namespace duckdb {
 
@@ -108,15 +113,34 @@ public:
 
 class HopBase {
 public:
+    static bool IsPathArgument(const std::string& arg) {
+        if (arg.rfind("s3://", 0) == 0 || arg.rfind("file://", 0) == 0) {
+            return true;
+        }
+        if (arg.find('/') != std::string::npos || arg.find('\\') != std::string::npos) {
+            return true;
+        }
+        auto dot = arg.rfind('.');
+        if (dot != std::string::npos) {
+            auto ext = arg.substr(dot);
+            if (ext == ".yaml" || ext == ".yml") {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static bool IsGraphPathMode(TableFunctionBindInput& input) {
+        return input.named_parameters.find("src") != input.named_parameters.end() ||
+               input.named_parameters.find("dst") != input.named_parameters.end() ||
+               input.named_parameters.find("type") != input.named_parameters.end();
+    }
+
     static bool IsCatalogMode(TableFunctionBindInput& input) {
         DUCKDB_GRAPHAR_LOG_TRACE("HopBase::IsCatalogMode");
 
-        bool has_src = input.named_parameters.find("src") != input.named_parameters.end();
-        bool has_dst = input.named_parameters.find("dst") != input.named_parameters.end();
-        bool has_edge = input.named_parameters.find("type") != input.named_parameters.end();
         bool has_catalog = input.named_parameters.find("catalog") != input.named_parameters.end();
-
-        bool is_path_mode = has_src || has_dst || has_edge;
+        bool is_path_mode = IsGraphPathMode(input);
 
         if (is_path_mode && has_catalog) {
             throw BinderException(
@@ -128,7 +152,15 @@ public:
                 input.table_function.GetName().GetIdentifierName());
         }
 
-        return !is_path_mode;
+        if (is_path_mode) {
+            return false;
+        }
+        if (has_catalog) {
+            return true;
+        }
+        // Neither path params nor an explicit catalog: decide by the first argument.
+        const auto arg0 = StringValue::Get(input.inputs[0]);
+        return !IsPathArgument(arg0);
     }
     static void SetBindDataByEdgeTable(ClientContext& context, TableFunctionBindInput& input,
                                        HopBaseBindData& bind_data) {
@@ -165,12 +197,87 @@ public:
 
         DUCKDB_GRAPHAR_LOG_DEBUG("HopBase using edge table: " + bind_data.GetFullTableName());
     }
+    static void SetBindDataByEdgePath(ClientContext& context, TableFunctionBindInput& input,
+                                      HopBaseBindData& bind_data) {
+        DUCKDB_GRAPHAR_LOG_TRACE("HopBase::SetBindDataByEdgePath");
+
+        const auto file_path = StringValue::Get(input.inputs[0]);
+        bind_data.graph_path = file_path;
+
+        std::string yaml_content;
+        {
+            std::string no_url_path;
+            auto maybe_fs = graphar::FileSystemFromUriOrPath(file_path, &no_url_path);
+            if (maybe_fs.has_error()) {
+                throw IOException("Failed to open edge info path '%s': %s", file_path,
+                                  maybe_fs.error().message().c_str());
+            }
+            auto fs = maybe_fs.value();
+            auto maybe_content = fs->ReadFileToValue<std::string>(no_url_path);
+            if (maybe_content.has_error()) {
+                throw IOException("Failed to read edge info from path '%s': %s", file_path,
+                                  maybe_content.error().message().c_str());
+            }
+            yaml_content = maybe_content.value();
+        }
+
+        auto maybe_edge_info = graphar::EdgeInfo::Load(yaml_content);
+        if (maybe_edge_info.has_error()) {
+            throw IOException("Failed to parse edge info from path '%s': %s", file_path,
+                              maybe_edge_info.error().message().c_str());
+        }
+        auto edge_info = maybe_edge_info.value();
+        if (!edge_info) {
+            throw IOException("Edge info is null when loading from path '%s'", file_path);
+        }
+        if (!edge_info->IsValidated() || !edge_info->GetAdjacentList(graphar::AdjListType::ordered_by_source)) {
+            throw BinderException(
+                "Could not load edge info from path '%s'. The file does not look like a valid EdgeInfo.yaml "
+                "(expected keys: src_type, edge_type, dst_type, chunk_size, src_chunk_size, dst_chunk_size, "
+                "adj_lists). Did you pass a GraphInfo.yaml instead of an EdgeInfo.yaml?",
+                file_path);
+        }
+        bind_data.edge_info = edge_info;
+
+        auto prefix = graphar::PathToDirectory(file_path);
+        if (!prefix.starts_with("s3://") && std::filesystem::path(prefix).is_relative()) {
+            prefix = std::filesystem::absolute(prefix).string();
+            std::replace(prefix.begin(), prefix.end(), '\\', '/');
+            if (!prefix.empty() && prefix.back() != '/') {
+                prefix += '/';
+            }
+        }
+
+        const auto src_type = bind_data.edge_info->GetSrcType();
+        const auto dst_type = bind_data.edge_info->GetDstType();
+        graphar::VertexInfoVector vertex_infos;
+        auto add_vertex = [&](const std::string& type, graphar::IdType chunk_size) {
+            if (std::find_if(vertex_infos.begin(), vertex_infos.end(),
+                             [&](const auto& v) { return v->GetType() == type; }) == vertex_infos.end()) {
+                vertex_infos.push_back(graphar::CreateVertexInfo(type, chunk_size, {}, {}, "vertex/" + type + "/"));
+            }
+        };
+        add_vertex(src_type, bind_data.edge_info->GetSrcChunkSize());
+        add_vertex(dst_type, bind_data.edge_info->GetDstChunkSize());
+
+        bind_data.graph_info = graphar::CreateGraphInfo("graph", vertex_infos, {bind_data.edge_info}, {}, prefix);
+    }
+
     static void SetBindDataByGraphPath(ClientContext& context, TableFunctionBindInput& input,
                                        HopBaseBindData& bind_data) {
         DUCKDB_GRAPHAR_LOG_TRACE("HopBase::SetBindDataByGraphPath");
 
         const auto file_path = StringValue::Get(input.inputs[0]);
         bind_data.graph_path = file_path;
+
+        bool has_path_params = input.named_parameters.find("src") != input.named_parameters.end() ||
+                               input.named_parameters.find("dst") != input.named_parameters.end() ||
+                               input.named_parameters.find("type") != input.named_parameters.end();
+        if (!has_path_params) {
+            SetBindDataByEdgePath(context, input, bind_data);
+            return;
+        }
+
         const auto src_type = StringValue::Get(input.named_parameters.at("src"));
         std::string dst_type;
         auto dst_entry = input.named_parameters.find("dst");

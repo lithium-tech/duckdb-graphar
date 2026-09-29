@@ -35,7 +35,7 @@ The extension was tested using a set of simple query scenarios:
 * **Max degree** – Find the vertex with the highest degree (i.e., most connections).
 
   ```sql
-  SELECT max(degree), * FROM edges_vertex('/data/git/Person_knows_Person.yaml');
+  SELECT max(out_degree) FROM degree('/data/git/Git.yaml', src='Person', type='knows', dst='Person');
   ```
 
 * **Path existence** – Check whether there is a path between two vertices.

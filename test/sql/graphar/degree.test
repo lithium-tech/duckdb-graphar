@@ -1,0 +1,119 @@
+require duckdb_graphar
+
+statement ok
+SET autoinstall_known_extensions=1;
+
+statement ok
+SET autoload_known_extensions=1;
+
+statement ok
+LOAD parquet;
+
+# Basic select over the generated snap-musae-github graph: one row per vertex, 3 columns.
+query III
+SELECT * FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex=5;
+----
+5
+1
+0
+
+query III
+SELECT * FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex=42;
+----
+42
+55
+0
+
+query I
+SELECT COUNT(*) FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person');
+----
+37700
+
+# Projection pushdown: only out_degree requested (dst offset file not read).
+query I
+SELECT out_degree FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex=10;
+----
+66
+
+# Projection pushdown: only in_degree requested (src offset file not read).
+query I
+SELECT in_degree FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex=18710;
+----
+32
+
+query I
+SELECT _graphArVertexIndex FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex=7;
+----
+7
+
+# Single equality filter pushdown.
+query III
+SELECT * FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex=18710;
+----
+18710
+33
+32
+
+# Batch filter pushdown (IN).
+query II
+SELECT _graphArVertexIndex, out_degree FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex IN (5, 18710) ORDER BY _graphArVertexIndex;
+----
+5
+1
+18710
+33
+
+# Batch filter pushdown (list_contains).
+query II
+SELECT _graphArVertexIndex, out_degree FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE list_contains([3, 10, 22], _graphArVertexIndex) ORDER BY _graphArVertexIndex;
+----
+3
+5
+10
+66
+22
+7
+
+# Non-existent indices return empty tables.
+query III
+SELECT * FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex=-1;
+----
+
+query III
+SELECT * FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex=999999;
+----
+
+# Batch filters with only non-existent indices return empty; mixed return valid rows only.
+query II
+SELECT _graphArVertexIndex, out_degree FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex IN (-1, 999999) ORDER BY _graphArVertexIndex;
+----
+
+query II
+SELECT _graphArVertexIndex, out_degree FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex IN (5, -1, 999999) ORDER BY _graphArVertexIndex;
+----
+5
+1
+
+# IN with a non-constant RHS member keeps the whole filter.
+query II
+SELECT _graphArVertexIndex, out_degree FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex IN (5, out_degree) ORDER BY _graphArVertexIndex;
+----
+5
+1
+6
+6
+8
+8
+
+# max(out_degree).
+query I
+SELECT max(out_degree) FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person');
+----
+6809
+
+# max(in_degree).
+query I
+SELECT max(in_degree) FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person');
+----
+7470
+

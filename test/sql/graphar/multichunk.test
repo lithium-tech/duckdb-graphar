@@ -1,0 +1,207 @@
+require duckdb_graphar
+
+statement ok
+SET autoinstall_known_extensions=1;
+
+statement ok
+SET autoload_known_extensions=1;
+
+statement ok
+LOAD parquet;
+
+# =============================================================================
+# GitMultichunk: a small multichunk graph derived from snap-musae-github.
+#
+# Layout (see data/snap-musae-github-multichunk/import.script.git.yaml):
+#   - vertex_chunk_size: 64  -> 60 vertex chunks (3789 vertices, indices 0..3788)
+#   - edge_chunk_size: 256   -> edge adj_list split across the 60 source-vertex
+#                               chunks (2560 edges total; each source part holds
+#                               <=112 edges).
+#
+# Vertex ids are reindexed from the source CSV: original global id 4 -> index 0,
+# so _graphArVertexIndex / _graphArSrcIndex / _graphArDstIndex are 0-based here.
+# Because the graph is small, the total edge count (2560) is LOWER than the max
+# valid vertex index (3788), which is exactly the case the single-chunk graph
+# never exercises (there edge_count 289003 >> vertex count 37700).
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Attach + basic counts
+# -----------------------------------------------------------------------------
+statement ok
+ATTACH '{WORKING_DIRECTORY}/data/snap-musae-github-multichunk/graphar/GitMultichunk.graph.yaml' as mchunk (type duckdb_graphar);
+
+query I
+SELECT name from (SHOW ALL TABLES) ORDER BY name;
+----
+Person
+Person_knows_Person
+
+query I
+SELECT COUNT(*) FROM Person;
+----
+3789
+
+query I
+SELECT COUNT(*) FROM Person_knows_Person;
+----
+2560
+
+# -----------------------------------------------------------------------------
+# read_vertices across chunk boundaries
+# -----------------------------------------------------------------------------
+query I
+SELECT COUNT(*) FROM read_vertices('{WORKING_DIRECTORY}/data/snap-musae-github-multichunk/graphar/GitMultichunk.graph.yaml', type='Person');
+----
+3789
+
+# Vertex chunk boundaries are at 0,64,128,...,3776. The last (60th) chunk
+# [3776, 3789) has 13 vertices.
+query I
+SELECT COUNT(*) FROM Person WHERE _graphArVertexIndex >= 3776;
+----
+13
+
+query I
+SELECT id FROM Person WHERE _graphArVertexIndex IN (0, 63, 64, 127, 128, 3776) ORDER BY _graphArVertexIndex;
+----
+4
+67
+68
+131
+132
+3780
+
+# A batch filter spanning four different vertex chunks.
+query I
+SELECT COUNT(*) FROM Person WHERE _graphArVertexIndex IN (0, 63, 64, 127, 128, 3776);
+----
+6
+
+# -----------------------------------------------------------------------------
+# read_edges / Person_knows_Person across chunk boundaries
+# -----------------------------------------------------------------------------
+query I
+SELECT COUNT(*) FROM read_edges('{WORKING_DIRECTORY}/data/snap-musae-github-multichunk/graphar/GitMultichunk.graph.yaml', src='Person', type='knows', dst='Person');
+----
+2560
+
+# Source chunk 0 has 65 edges (src index 0..63), chunk 1 has 76 (64..127).
+query I
+SELECT COUNT(*) FROM Person_knows_Person WHERE _graphArSrcIndex BETWEEN 0 AND 63;
+----
+65
+
+query I
+SELECT COUNT(*) FROM Person_knows_Person WHERE _graphArSrcIndex BETWEEN 64 AND 127;
+----
+76
+
+# The vast majority of edges cross vertex-chunk boundaries (src and dst in
+# different chunks), because the graph is sparse and edges are long-range.
+query I
+SELECT COUNT(*) FROM Person_knows_Person WHERE CAST(_graphArSrcIndex/64 AS INTEGER) != CAST(_graphArDstIndex/64 AS INTEGER);
+----
+2521
+
+# Concrete edges spanning chunk boundaries (src 6 is in chunk 0, its dsts are
+# in far chunks).
+query II
+SELECT _graphArSrcIndex, _graphArDstIndex FROM Person_knows_Person WHERE _graphArSrcIndex IN (0, 6, 63, 64, 65) ORDER BY _graphArSrcIndex, _graphArDstIndex;
+----
+0	2861
+6	911
+6	1403
+6	1919
+6	2074
+63	3325
+65	2440
+
+# A batch filter across source chunks 0,1,2.
+query I
+SELECT COUNT(*) FROM Person_knows_Person WHERE _graphArSrcIndex IN (63, 64, 65);
+----
+2
+
+# -----------------------------------------------------------------------------
+# degree() across chunk boundaries
+# -----------------------------------------------------------------------------
+query III
+SELECT * FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github-multichunk/graphar/GitMultichunk.graph.yaml', src='Person', type='knows', dst='Person') WHERE _graphArVertexIndex IN (0, 6, 64, 2861) ORDER BY _graphArVertexIndex;
+----
+0	1	0
+6	4	0
+64	0	0
+2861	0	1
+
+# max(out_degree)/max(in_degree) over the full graph. The multichunk graph is
+# sparse (edge_count 2560 < vertex_count 3789), so most vertices have no edges
+# and the maxima are driven by the few high-degree vertices.
+query I
+SELECT max(out_degree) FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github-multichunk/graphar/GitMultichunk.graph.yaml', src='Person', type='knows', dst='Person');
+----
+79
+
+query I
+SELECT max(in_degree) FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github-multichunk/graphar/GitMultichunk.graph.yaml', src='Person', type='knows', dst='Person');
+----
+122
+
+# -----------------------------------------------------------------------------
+# Bug 2: edge src/dst index filters must be bounded by the vertex count (3789),
+# not the edge count (2560). Vertex 3775 is valid but has no outgoing edges in
+# this subset, so it must return 0 rows instead of raising
+# "Invalid filter range: 3775 > 2560".
+# -----------------------------------------------------------------------------
+query I
+SELECT COUNT(*) FROM Person_knows_Person WHERE _graphArSrcIndex=3775;
+----
+0
+
+# A high valid dst index (3700) has no incoming edges either.
+query I
+SELECT COUNT(*) FROM Person_knows_Person WHERE _graphArDstIndex=3700;
+----
+0
+
+# -----------------------------------------------------------------------------
+# read_hop across chunk boundaries (single start vertex with no outgoing edges)
+# -----------------------------------------------------------------------------
+query I
+SELECT COUNT(*) FROM read_hop('{WORKING_DIRECTORY}/data/snap-musae-github-multichunk/graphar/GitMultichunk.graph.yaml', src='Person', type='knows', dst='Person', vid=0);
+----
+1
+
+# -----------------------------------------------------------------------------
+# Bug 1: GetCountClass::count_cache is scoped per graph. Querying the big
+# single-chunk graph first and then the multichunk graph in the same process must
+# not leak counts between them. Without the fix, degree() on the multichunk graph
+# would reuse the big graph's vertex count (37700) and try to read past the last
+# multichunk chunk ("offset/chunk60" not found), making these results depend on
+# which graphs were queried earlier.
+# -----------------------------------------------------------------------------
+statement ok
+ATTACH '{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml' as big (type duckdb_graphar);
+
+query I
+SELECT max(out_degree) FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', src='Person', type='knows', dst='Person');
+----
+6809
+
+# After querying the big graph, the multichunk counts must still be correct.
+query I
+SELECT max(out_degree) FROM degree('{WORKING_DIRECTORY}/data/snap-musae-github-multichunk/graphar/GitMultichunk.graph.yaml', src='Person', type='knows', dst='Person');
+----
+79
+
+# The tables are qualified by the multichunk catalog because the big graph
+# (attached above) is now the default in the search path.
+query I
+SELECT COUNT(*) FROM mchunk.main.Person_knows_Person;
+----
+2560
+
+query I
+SELECT COUNT(*) FROM mchunk.main.Person WHERE _graphArVertexIndex >= 3776;
+----
+13

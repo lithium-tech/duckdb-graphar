@@ -45,3 +45,10 @@ statement error
 SELECT COUNT(*) FROM read_hop_filtered('Person_knows_Person', catalog='nonexistent_db', vid=10);
 ----
 Binder Error: Catalog "nonexistent_db" does not exist!
+
+# A GraphInfo.yaml passed as a direct edge path must produce a clear error,
+# not a segmentation fault.
+statement error
+SELECT * FROM read_hop_filtered('{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml', vid=10);
+----
+Could not load edge info from path

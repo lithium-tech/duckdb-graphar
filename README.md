@@ -60,10 +60,9 @@ directory to query its vertex/edge tables:
 ./build/release/duckdb -c "attach '/path/to/Graph.yaml' (type duckdb_graphar); select * from person limit 20;"
 ```
 
-The `data/` directory is not tracked in full; the source datasets under
-`data/snap-musae-github/` and `data/snap-musae-github-csv/` must be converted to
-GraphAr format before use. This is done by the same scripts the CI pipeline
-runs:
+The `data/` directory is not tracked in full; the source datasets must be
+converted to GraphAr format before use. This is done by the same scripts the CI
+pipeline runs:
 
 ```bash
 # Install the GraphAr CLI (builds against the locally built arrow/graphar)
@@ -75,6 +74,20 @@ runs:
 
 After running these, example graphs are available under
 `data/<graph>/graphar/` (e.g. `data/snap-musae-github/graphar/Git.graph.yaml`).
+
+The following graphs are produced:
+
+- `data/snap-musae-github` — the full GitHub dataset: 37,700 vertices and
+  289,003 edges in a **single chunk** (chunk sizes exceed the data size).
+- `data/snap-musae-github-csv` — the same data, stored with CSV (instead of
+  parquet) file type.
+- `data/snap-musae-github-multichunk` — a small **multichunk** graph (3,789
+  vertices, 2,560 edges) derived from `data/snap-musae-github` by keeping a
+  contiguous vertex window. It uses `vertex_chunk_size: 64` and
+  `edge_chunk_size: 256`, so vertex data spans 60 chunks and edge adj_lists are
+  split across the 60 source-vertex chunks. Its purpose is to exercise
+  cross-chunk reads and to expose fail-potential scenarios that a single-chunk
+  graph cannot reproduce (see `test/sql/graphar/multichunk.test`).
 
 ## S3 warning note
 
