@@ -30,6 +30,7 @@ public:
                                ReadBaseLocalTableFunctionState& lstate, idx_t ind, const std::string& filter_column);
     static unique_ptr<BaseStatistics> GetStatistics(ClientContext& context, const FunctionData* bind_data,
                                                     column_t column_index);
+    static unique_ptr<NodeStatistics> Cardinality(ClientContext& context, const FunctionData* bind_data);
 
     static void PushdownComplexFilter(ClientContext& context, LogicalGet& get, FunctionData* bind_data,
                                       vector<unique_ptr<Expression>>& filters);

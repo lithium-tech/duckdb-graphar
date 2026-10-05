@@ -12,6 +12,7 @@
 #include <duckdb/planner/expression/bound_constant_expression.hpp>
 #include <duckdb/planner/expression/bound_function_expression.hpp>
 #include <duckdb/planner/expression/bound_operator_expression.hpp>
+#include <duckdb/storage/statistics/node_statistics.hpp>
 
 #include <graphar/api/arrow_reader.h>
 #include <graphar/api/high_level_reader.h>
@@ -162,6 +163,14 @@ unique_ptr<BaseStatistics> ReadVertices::GetStatistics(ClientContext& context, c
     return ReadBase<ReadVertices>::GetStatistics(context, bind_data, column_index);
 }
 //-------------------------------------------------------------------
+// Cardinality
+//-------------------------------------------------------------------
+unique_ptr<NodeStatistics> ReadVertices::Cardinality(ClientContext& context, const FunctionData* bind_data) {
+    auto& bd = bind_data->Cast<ReadBindData>();
+    auto count = GetCountClass::GetCount(bd.type_info, bd.GetGraphInfo()->GetPrefix());
+    return make_uniq<NodeStatistics>(count, count);
+}
+//-------------------------------------------------------------------
 // PushdownComplexFilter
 //-------------------------------------------------------------------
 void ReadVertices::PushdownComplexFilter(ClientContext& context, LogicalGet& get, FunctionData* bind_data,
@@ -195,6 +204,7 @@ static void InitFunction(TableFunction& read_vertices) {
     read_vertices.filter_pushdown = false;
     read_vertices.projection_pushdown = true;
     read_vertices.statistics = ReadVertices::GetStatistics;
+    read_vertices.cardinality = ReadVertices::Cardinality;
     read_vertices.pushdown_complex_filter = ReadVertices::PushdownComplexFilter;
 
     read_vertices.get_partition_data = ReadBase<ReadVertices>::GetPartitionData;
