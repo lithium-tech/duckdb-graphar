@@ -32,8 +32,8 @@ ARROW_CLONED = $(ARROW_DIR)/.cloned
 ARROW_BUILT = $(ARROW_DIR)/.built
 ARROW_INSTALLED = $(ARROW_DIR)/.installed
 
-GRAPHAR_REP=https://github.com/lithium-tech/incubator-graphar.git
-GRAPHAR_COMMIT=8a4c3c9633b5e130812c5cb79171beebdcc4ad42
+GRAPHAR_REP=https://github.com/RoyalMirMak/incubator-graphar.git
+GRAPHAR_COMMIT=5a152d5270c4237bbb225d1f39c351574f94ddb9
 GRAPHAR_DIR=$(THIRD_PARTY_DIR)/graphar
 GRAPHAR_INSTALL_DIR=$(GRAPHAR_DIR)/install
 GRAPHAR_SRC_DIR=$(GRAPHAR_DIR)/src
