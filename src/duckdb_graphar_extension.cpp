@@ -38,6 +38,15 @@ static void FinalizeS3(DataChunk& args, ExpressionState& state, Vector& result) 
     }
 }
 
+class DuckDBGrapharFinalizeS3Callback : public ExtensionCallback {
+public:
+    void OnConnectionClosed(ClientContext &context) override {
+        if (arrow::fs::IsS3Initialized() && !arrow::fs::IsS3Finalized()) {
+            graphar::FinalizeS3();
+        }
+    }
+};
+
 static void LoadInternal(ExtensionLoader& loader) {
     auto& config = DBConfig::GetConfig(loader.GetDatabaseInstance());
 
@@ -78,6 +87,8 @@ static void LoadInternal(ExtensionLoader& loader) {
     ShortestPath::Register(loader);
 
     StorageExtension::Register(config, "duckdb_graphar", make_shared_ptr<GraphArStorageExtension>());
+
+    ExtensionCallback::Register(config, make_shared_ptr<DuckDBGrapharFinalizeS3Callback>());
 }
 
 void DuckdbGrapharExtension::Load(ExtensionLoader& loader) { LoadInternal(loader); }

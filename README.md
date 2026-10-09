@@ -89,18 +89,11 @@ The following graphs are produced:
   cross-chunk reads and to expose fail-potential scenarios that a single-chunk
   graph cannot reproduce (see `test/sql/graphar/multichunk.test`).
 
-## S3 warning note
+## S3
 
-When using S3-backed data, DuckDB may print the warning
-
-```
-arrow::fs::FinalizeS3 was not called even though S3 was initialized. This could
-lead to a segmentation fault at exit
-```
-
-To avoid a possible segmentation fault on exit, call the
-`duckdb_graphar_finalize_s3()` function (registered by this extension) to explicitly
-finalize the S3 filesystem before the process ends.
+See [docs/s3.md](docs/s3.md) for details on using S3-backed graphs: which
+environment variables must be set, how to create the DuckDB S3 secret, and how
+to call `duckdb_graphar_finalize_s3()` correctly at shutdown.
 
 ## Telemetry
 
