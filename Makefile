@@ -42,11 +42,16 @@ GRAPHAR_CLONED = $(GRAPHAR_DIR)/.cloned
 GRAPHAR_BUILT = $(GRAPHAR_DIR)/.built
 GRAPHAR_INSTALLED = $(GRAPHAR_DIR)/.installed
 
-# The pinned DuckDB submodule is checked out at tag v2.0.0. Without an explicit
-# version DuckDB's CMake derives "v2.0.0-dev<N>" from the git commit count, so
-# pin the version here (it is passed to cmake as -DOVERRIDE_GIT_DESCRIBE by
-# duckdb_extension.Makefile). Override with: make release OVERRIDE_GIT_DESCRIBE=<ver>
+# DuckDB version to force only for an explicit `make release`. `make` with no
+# target (also a release build, via all: release) and `make debug` are left
+# untouched so DuckDB's CMake reports its own git-derived version (dev<N>).
+#
+# `?=` keeps a user-provided value: e.g. `make release OVERRIDE_GIT_DESCRIBE=v1.5.0`
+# pins v1.5.0, while the default pins v2.0.0. MAKECMDGOALS is empty for `make`
+# (no goal) and "release" only for an explicit `make release`.
+ifeq ($(filter release,$(MAKECMDGOALS)),release)
 OVERRIDE_GIT_DESCRIBE ?= v2.0.0
+endif
 
 ARROW_ROOT=$(ARROW_INSTALL_DIR)
 GRAPHAR_ROOT=$(GRAPHAR_INSTALL_DIR)
@@ -289,7 +294,9 @@ configure_ci: $(THIRD_PARTY_CMAKE)
 release: $(THIRD_PARTY_CMAKE) $(EXTENSION_CONFIG_STEP)
 	mkdir -p build/release
 	@test -f build/release/CMakeCache.txt || cmake $(GENERATOR) $(BUILD_FLAGS) $(EXT_RELEASE_FLAGS) $(VCPKG_MANIFEST_FLAGS) -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=20 -S $(DUCKDB_SRCDIR) -B build/release
-	cmake -S $(DUCKDB_SRCDIR) -B build/release -DCMAKE_CXX_STANDARD=20
+	# Re-run cmake passing the pinned DuckDB version so a prior `make` (which built
+	# this dir without forcing a version) does not leave a stale cached version.
+	cmake -S $(DUCKDB_SRCDIR) -B build/release -DCMAKE_CXX_STANDARD=20 -DOVERRIDE_GIT_DESCRIBE="$(OVERRIDE_GIT_DESCRIBE)"
 	cmake --build build/release --config Release
 
 debug: $(THIRD_PARTY_CMAKE) $(EXTENSION_CONFIG_STEP)
