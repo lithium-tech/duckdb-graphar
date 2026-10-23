@@ -42,6 +42,12 @@ GRAPHAR_CLONED = $(GRAPHAR_DIR)/.cloned
 GRAPHAR_BUILT = $(GRAPHAR_DIR)/.built
 GRAPHAR_INSTALLED = $(GRAPHAR_DIR)/.installed
 
+# The pinned DuckDB submodule is checked out at tag v2.0.0. Without an explicit
+# version DuckDB's CMake derives "v2.0.0-dev<N>" from the git commit count, so
+# pin the version here (it is passed to cmake as -DOVERRIDE_GIT_DESCRIBE by
+# duckdb_extension.Makefile). Override with: make release OVERRIDE_GIT_DESCRIBE=<ver>
+OVERRIDE_GIT_DESCRIBE ?= v2.0.0
+
 ARROW_ROOT=$(ARROW_INSTALL_DIR)
 GRAPHAR_ROOT=$(GRAPHAR_INSTALL_DIR)
 
