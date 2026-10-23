@@ -414,14 +414,14 @@ public:
     }
 
     static void SetFunctionParams(TableFunction& fun) {
-        fun.named_parameters["src"] = LogicalType::VARCHAR;
-        fun.named_parameters["dst"] = LogicalType::VARCHAR;
-        fun.named_parameters["type"] = LogicalType::VARCHAR;
+        fun.GetSignature().AddKeywordOnly("src", LogicalType::VARCHAR);
+        fun.GetSignature().AddKeywordOnly("dst", LogicalType::VARCHAR);
+        fun.GetSignature().AddKeywordOnly("type", LogicalType::VARCHAR);
 
-        fun.named_parameters["catalog"] = LogicalType::VARCHAR;
+        fun.GetSignature().AddKeywordOnly("catalog", LogicalType::VARCHAR);
 
-        fun.named_parameters["vids"] = LogicalType::LIST(LogicalType::BIGINT);
-        fun.named_parameters["vid"] = LogicalType::BIGINT;
+        fun.GetSignature().AddKeywordOnly("vids", LogicalType::LIST(LogicalType::BIGINT));
+        fun.GetSignature().AddKeywordOnly("vid", LogicalType::BIGINT);
     }
 };
 

@@ -216,7 +216,7 @@ TableFunction ReadVertices::GetFunction() {
     TableFunction read_vertices(Identifier(GetFunctionName()), {LogicalType::VARCHAR}, Execute, Bind);
     InitFunction(read_vertices);
 
-    read_vertices.named_parameters["type"] = LogicalType::VARCHAR;
+    read_vertices.GetSignature().AddKeywordOnly("type", LogicalType::VARCHAR);
 
     return read_vertices;
 }

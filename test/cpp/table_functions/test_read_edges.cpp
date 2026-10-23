@@ -19,14 +19,13 @@ TEST_CASE("ReadEdges GetFunction basic test", "[read_edges]") {
     REQUIRE_NOTHROW(read_edges = ReadEdges::GetFunction());
     
     REQUIRE(read_edges.GetName() == "read_edges");
-    REQUIRE(read_edges.arguments.size() == 1);
-    REQUIRE(read_edges.named_parameters.size() == 3);
+    REQUIRE(read_edges.GetSignature().GetPositionalParameterCount() == 1);
     CHECK(read_edges.filter_pushdown == false);
     CHECK(read_edges.projection_pushdown == true);
-    
-    REQUIRE(read_edges.named_parameters.find("src") != read_edges.named_parameters.end());
-    REQUIRE(read_edges.named_parameters.find("dst") != read_edges.named_parameters.end());
-    REQUIRE(read_edges.named_parameters.find("type") != read_edges.named_parameters.end());
+
+    REQUIRE(read_edges.GetSignature().GetParameterIndexByName("src").IsValid());
+    REQUIRE(read_edges.GetSignature().GetParameterIndexByName("dst").IsValid());
+    REQUIRE(read_edges.GetSignature().GetParameterIndexByName("type").IsValid());
 }
 
 TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadEdges Bind function invalid_edge", "[read_edges]", FILE_TYPES_FOR_TEST) {

@@ -382,9 +382,9 @@ TableFunction Degree::GetFunction() {
     degree.projection_pushdown = true;
     degree.pushdown_complex_filter = Degree::PushdownComplexFilter;
 
-    degree.named_parameters["src"] = LogicalType::VARCHAR;
-    degree.named_parameters["dst"] = LogicalType::VARCHAR;
-    degree.named_parameters["type"] = LogicalType::VARCHAR;
+    degree.GetSignature().AddKeywordOnly("src", LogicalType::VARCHAR);
+    degree.GetSignature().AddKeywordOnly("dst", LogicalType::VARCHAR);
+    degree.GetSignature().AddKeywordOnly("type", LogicalType::VARCHAR);
 
     return degree;
 }

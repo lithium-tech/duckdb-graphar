@@ -35,14 +35,13 @@ TEST_CASE("ShortestPath GetFunction basic test", "[shortest_path]") {
     REQUIRE_NOTHROW(shortest_path_func = ShortestPath::GetFunction());
     
     REQUIRE(shortest_path_func.GetName() == "shortest_path");
-    REQUIRE(shortest_path_func.arguments.size() == 3);
-    REQUIRE(shortest_path_func.named_parameters.size() == 3);
+    REQUIRE(shortest_path_func.GetSignature().GetPositionalParameterCount() == 3);
     CHECK(shortest_path_func.filter_pushdown == false);
     CHECK(shortest_path_func.projection_pushdown == false);
 
-    REQUIRE(shortest_path_func.named_parameters.find("src") != shortest_path_func.named_parameters.end());
-    REQUIRE(shortest_path_func.named_parameters.find("type") != shortest_path_func.named_parameters.end());
-    REQUIRE(shortest_path_func.named_parameters.find("dst") != shortest_path_func.named_parameters.end());
+    REQUIRE(shortest_path_func.GetSignature().GetParameterIndexByName("src").IsValid());
+    REQUIRE(shortest_path_func.GetSignature().GetParameterIndexByName("type").IsValid());
+    REQUIRE(shortest_path_func.GetSignature().GetParameterIndexByName("dst").IsValid());
 }
 
 TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute - 1 hop path", "[shortest_path]", FILE_TYPES_FOR_TEST) {

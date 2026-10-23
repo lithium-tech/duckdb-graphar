@@ -10,6 +10,7 @@
 #include <duckdb/common/multi_file/multi_file_reader.hpp>
 #include <duckdb/main/database.hpp>
 #include <duckdb/main/secret/secret_manager.hpp>
+#include <duckdb/parser/parsed_data/create_table_info.hpp>
 #include <duckdb/parser/tableref/table_function_ref.hpp>
 #include <duckdb/planner/binder.hpp>
 #include <duckdb/planner/logical_operator.hpp>
@@ -21,7 +22,11 @@
 namespace duckdb {
 
 GraphArTableEntry::GraphArTableEntry(Catalog& catalog, unique_ptr<SchemaCatalogEntry> schema, CreateTableInfo& info)
-    : TableCatalogEntry(catalog, *schema, info), schema(std::move(schema)) {}
+    : TableCatalogEntry(catalog, *schema, info), schema(std::move(schema)), columns(std::move(info.columns)) {}
+
+const ColumnList& GraphArTableEntry::GetColumns() const {
+    return columns;
+}
 
 unique_ptr<BaseStatistics> GraphArTableEntry::GetStatistics(ClientContext& context, column_t column_id) {
     throw NotImplementedException("GraphArTableEntry::GetStatistics");

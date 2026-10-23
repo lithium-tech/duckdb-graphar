@@ -283,9 +283,9 @@ TableFunction ReadEdges::GetFunction() {
     TableFunction read_edges(Identifier(GetFunctionName()), {LogicalType::VARCHAR}, Execute, Bind);
     InitFunction(read_edges);
 
-    read_edges.named_parameters["src"] = LogicalType::VARCHAR;
-    read_edges.named_parameters["dst"] = LogicalType::VARCHAR;
-    read_edges.named_parameters["type"] = LogicalType::VARCHAR;
+    read_edges.GetSignature().AddKeywordOnly("src", LogicalType::VARCHAR);
+    read_edges.GetSignature().AddKeywordOnly("dst", LogicalType::VARCHAR);
+    read_edges.GetSignature().AddKeywordOnly("type", LogicalType::VARCHAR);
 
     return read_edges;
 }

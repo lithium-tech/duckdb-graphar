@@ -320,9 +320,9 @@ TableFunction ShortestPath::GetFunction() {
     // 2. shortest_path(start_id, end_id, graph_path, src=..., type=..., dst=...) - uses YAML path
     TableFunction func(Identifier("shortest_path"), {LogicalType::BIGINT, LogicalType::BIGINT, LogicalType::VARCHAR},
                        Function, Bind, InitGlobal);
-    func.named_parameters["src"] = LogicalType::VARCHAR;
-    func.named_parameters["type"] = LogicalType::VARCHAR;
-    func.named_parameters["dst"] = LogicalType::VARCHAR;
+    func.GetSignature().AddKeywordOnly("src", LogicalType::VARCHAR);
+    func.GetSignature().AddKeywordOnly("type", LogicalType::VARCHAR);
+    func.GetSignature().AddKeywordOnly("dst", LogicalType::VARCHAR);
     return func;
 }
 

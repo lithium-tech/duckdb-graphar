@@ -28,10 +28,19 @@ protected:
         duckdb::vector<duckdb::Identifier> input_table_names;
         duckdb::TableFunction table_function;
         duckdb::TableFunctionRef ref;
+        duckdb::BoundTableFunction bound_table_function(table_function);
 
-        return duckdb::TableFunctionBindInput(inputs, named_parameters, input_table_types,
+        // TableFunctionBindInput now expects the named arguments in an
+        // InsertionOrderPreservingMap (named_argument_map_t); convert from the
+        // unordered named_parameter_map_t the tests construct.
+        duckdb::named_argument_map_t named_arguments;
+        for (auto &kv : named_parameters) {
+            named_arguments.insert(kv.first, kv.second);
+        }
+
+        return duckdb::TableFunctionBindInput(inputs, named_arguments, input_table_types,
                                     input_table_names, nullptr, nullptr,
-                                    table_function, ref);
+                                    bound_table_function, ref);
     }
 public:
     ~TableFunctionsFixture() = default;
