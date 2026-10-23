@@ -24,9 +24,7 @@ namespace duckdb {
 GraphArTableEntry::GraphArTableEntry(Catalog& catalog, unique_ptr<SchemaCatalogEntry> schema, CreateTableInfo& info)
     : TableCatalogEntry(catalog, *schema, info), schema(std::move(schema)), columns(std::move(info.columns)) {}
 
-const ColumnList& GraphArTableEntry::GetColumns() const {
-    return columns;
-}
+const ColumnList& GraphArTableEntry::GetColumns() const { return columns; }
 
 unique_ptr<BaseStatistics> GraphArTableEntry::GetStatistics(ClientContext& context, column_t column_id) {
     throw NotImplementedException("GraphArTableEntry::GetStatistics");
