@@ -130,16 +130,19 @@ public:
         return false;
     }
 
+    static bool IsNamedParamSet(TableFunctionBindInput& input, const char* name) {
+        auto it = input.named_parameters.find(Identifier(name));
+        return it != input.named_parameters.end() && !it->second.IsNull();
+    }
+
     static bool IsGraphPathMode(TableFunctionBindInput& input) {
-        return input.named_parameters.find("src") != input.named_parameters.end() ||
-               input.named_parameters.find("dst") != input.named_parameters.end() ||
-               input.named_parameters.find("type") != input.named_parameters.end();
+        return IsNamedParamSet(input, "src") || IsNamedParamSet(input, "dst") || IsNamedParamSet(input, "type");
     }
 
     static bool IsCatalogMode(TableFunctionBindInput& input) {
         DUCKDB_GRAPHAR_LOG_TRACE("HopBase::IsCatalogMode");
 
-        bool has_catalog = input.named_parameters.find("catalog") != input.named_parameters.end();
+        bool has_catalog = IsNamedParamSet(input, "catalog");
         bool is_path_mode = IsGraphPathMode(input);
 
         if (is_path_mode && has_catalog) {
@@ -170,7 +173,7 @@ public:
         std::string catalog_name;
 
         auto catalog_entry = input.named_parameters.find("catalog");
-        if (catalog_entry != input.named_parameters.end()) {
+        if (catalog_entry != input.named_parameters.end() && !catalog_entry->second.IsNull()) {
             catalog_name = StringValue::Get(catalog_entry->second);
         }
         auto& catalog = Catalog::GetCatalog(context, Identifier(catalog_name));
@@ -270,10 +273,7 @@ public:
         const auto file_path = StringValue::Get(input.inputs[0]);
         bind_data.graph_path = file_path;
 
-        bool has_path_params = input.named_parameters.find("src") != input.named_parameters.end() ||
-                               input.named_parameters.find("dst") != input.named_parameters.end() ||
-                               input.named_parameters.find("type") != input.named_parameters.end();
-        if (!has_path_params) {
+        if (!IsNamedParamSet(input, "src")) {
             SetBindDataByEdgePath(context, input, bind_data);
             return;
         }
@@ -281,7 +281,7 @@ public:
         const auto src_type = StringValue::Get(input.named_parameters.at("src"));
         std::string dst_type;
         auto dst_entry = input.named_parameters.find("dst");
-        if (dst_entry == input.named_parameters.end()) {
+        if (dst_entry == input.named_parameters.end() || dst_entry->second.IsNull()) {
             dst_type = src_type;
         } else {
             dst_type = StringValue::Get(dst_entry->second);
@@ -310,18 +310,18 @@ public:
 
         duckdb::vector<duckdb::Value> duck_vids;
         auto vids_entry = input.named_parameters.find("vids");
-        if (vids_entry == input.named_parameters.end()) {
-            auto vid_entry = input.named_parameters.find("vid");
-            if (vid_entry != input.named_parameters.end() && !vid_entry->second.IsNull()) {
-                duck_vids = {vid_entry->second};
-            } else {
-                throw BinderException("Expecting a named parameter vids or vid");
-            }
-        } else {
+        auto vid_entry = input.named_parameters.find("vid");
+        bool has_vids = vids_entry != input.named_parameters.end() && !vids_entry->second.IsNull();
+        bool has_vid = vid_entry != input.named_parameters.end() && !vid_entry->second.IsNull();
+        if (has_vids) {
             duck_vids = ListValue::GetChildren(vids_entry->second);
             if (duck_vids.empty()) {
                 throw BinderException("Expecting non empty vids");
             }
+        } else if (has_vid) {
+            duck_vids = {vid_entry->second};
+        } else {
+            throw BinderException("Expecting a named parameter vids or vid");
         }
 
         bind_data.vids.resize(duck_vids.size());
@@ -414,14 +414,14 @@ public:
     }
 
     static void SetFunctionParams(TableFunction& fun) {
-        fun.GetSignature().AddKeywordOnly("src", LogicalType::VARCHAR);
-        fun.GetSignature().AddKeywordOnly("dst", LogicalType::VARCHAR);
-        fun.GetSignature().AddKeywordOnly("type", LogicalType::VARCHAR);
+        fun.GetSignature().AddKeywordOnly("src", LogicalType::VARCHAR, Value());
+        fun.GetSignature().AddKeywordOnly("dst", LogicalType::VARCHAR, Value());
+        fun.GetSignature().AddKeywordOnly("type", LogicalType::VARCHAR, Value());
 
-        fun.GetSignature().AddKeywordOnly("catalog", LogicalType::VARCHAR);
+        fun.GetSignature().AddKeywordOnly("catalog", LogicalType::VARCHAR, Value());
 
-        fun.GetSignature().AddKeywordOnly("vids", LogicalType::LIST(LogicalType::BIGINT));
-        fun.GetSignature().AddKeywordOnly("vid", LogicalType::BIGINT);
+        fun.GetSignature().AddKeywordOnly("vids", LogicalType::LIST(LogicalType::BIGINT), Value());
+        fun.GetSignature().AddKeywordOnly("vid", LogicalType::BIGINT, Value());
     }
 };
 

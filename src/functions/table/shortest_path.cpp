@@ -24,8 +24,8 @@ unique_ptr<FunctionData> ShortestPath::Bind(ClientContext& context, TableFunctio
     bind_data->start_id = input.inputs[0].GetValue<graphar::IdType>();
     bind_data->end_id = input.inputs[1].GetValue<graphar::IdType>();
 
-    // Check if named parameters exist (new signature) or not (old signature)
-    bool use_yaml_path = !input.named_parameters.empty();
+    auto src_it = input.named_parameters.find("src");
+    bool use_yaml_path = src_it != input.named_parameters.end() && !src_it->second.IsNull();
 
     if (use_yaml_path) {
         // New signature: file_path + named params (src, type, dst)
@@ -320,9 +320,9 @@ TableFunction ShortestPath::GetFunction() {
     // 2. shortest_path(start_id, end_id, graph_path, src=..., type=..., dst=...) - uses YAML path
     TableFunction func(Identifier("shortest_path"), {LogicalType::BIGINT, LogicalType::BIGINT, LogicalType::VARCHAR},
                        Function, Bind, InitGlobal);
-    func.GetSignature().AddKeywordOnly("src", LogicalType::VARCHAR);
-    func.GetSignature().AddKeywordOnly("type", LogicalType::VARCHAR);
-    func.GetSignature().AddKeywordOnly("dst", LogicalType::VARCHAR);
+    func.GetSignature().AddKeywordOnly("src", LogicalType::VARCHAR, Value());
+    func.GetSignature().AddKeywordOnly("type", LogicalType::VARCHAR, Value());
+    func.GetSignature().AddKeywordOnly("dst", LogicalType::VARCHAR, Value());
     return func;
 }
 
