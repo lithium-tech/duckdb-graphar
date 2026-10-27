@@ -22,19 +22,37 @@ namespace duckdb {
 //-------------------------------------------------------------------
 // Bind
 //-------------------------------------------------------------------
-unique_ptr<FunctionData> TwoHop::Bind(ClientContext& context, TableFunctionBindInput& input,
-                                      vector<LogicalType>& return_types, vector<Identifier>& names) {
-    DUCKDB_GRAPHAR_LOG_TRACE("TwoHop::Bind");
-
-    const bool is_catalog_mode = HopBase::IsCatalogMode(input);
+unique_ptr<FunctionData> TwoHop::BindGraphPath(ClientContext& context, TableFunctionBindInput& input,
+                                               vector<LogicalType>& return_types, vector<Identifier>& names) {
+    DUCKDB_GRAPHAR_LOG_TRACE("TwoHop::BindGraphPath");
 
     auto bind_data = make_uniq<TwoHopBindData>();
+    HopBase::SetBindDataByGraphPath(context, input, *bind_data);
+    return FinishBind(context, input, std::move(bind_data), return_types, names);
+}
 
-    if (is_catalog_mode) {
-        HopBase::SetBindDataByEdgeTable(context, input, *bind_data);
-    } else {
-        HopBase::SetBindDataByGraphPath(context, input, *bind_data);
-    }
+unique_ptr<FunctionData> TwoHop::BindEdgePath(ClientContext& context, TableFunctionBindInput& input,
+                                              vector<LogicalType>& return_types, vector<Identifier>& names) {
+    DUCKDB_GRAPHAR_LOG_TRACE("TwoHop::BindEdgePath");
+
+    auto bind_data = make_uniq<TwoHopBindData>();
+    HopBase::SetBindDataByEdgePath(context, input, *bind_data);
+    return FinishBind(context, input, std::move(bind_data), return_types, names);
+}
+
+unique_ptr<FunctionData> TwoHop::BindEdgeCatalog(ClientContext& context, TableFunctionBindInput& input,
+                                                 vector<LogicalType>& return_types, vector<Identifier>& names) {
+    DUCKDB_GRAPHAR_LOG_TRACE("TwoHop::BindEdgeCatalog");
+
+    auto bind_data = make_uniq<TwoHopBindData>();
+    HopBase::SetBindDataByEdgeTable(context, input, *bind_data);
+    return FinishBind(context, input, std::move(bind_data), return_types, names);
+}
+
+unique_ptr<FunctionData> TwoHop::FinishBind(ClientContext& context, TableFunctionBindInput& input,
+                                            unique_ptr<TwoHopBindData> bind_data,
+                                            vector<LogicalType>& return_types, vector<Identifier>& names) {
+    DUCKDB_GRAPHAR_LOG_TRACE("TwoHop::FinishBind");
 
     HopBase::SetBindDataVids(input, *bind_data);
 
@@ -116,9 +134,17 @@ void TwoHop::Execute(ClientContext& context, TableFunctionInput& input, DataChun
 TableFunctionSet TwoHop::GetFunctions() {
     TableFunctionSet two_hop((Identifier(GetFunctionName())));
 
-    TableFunction two_hop_default("", {LogicalType::VARCHAR}, Execute, Bind);
-    SetTableFuncionParams(two_hop_default);
-    two_hop.AddFunction(two_hop_default);
+    TableFunction two_hop_graph_path("", {}, Execute, BindGraphPath);
+    SetGraphPathTableFunctionParams(two_hop_graph_path);
+    two_hop.AddFunction(two_hop_graph_path);
+
+    TableFunction two_hop_edge_path("", {}, Execute, BindEdgePath);
+    SetEdgePathTableFunctionParams(two_hop_edge_path);
+    two_hop.AddFunction(two_hop_edge_path);
+
+    TableFunction two_hop_edge_catalog("", {}, Execute, BindEdgeCatalog);
+    SetEdgeCatalogTableFunctionParams(two_hop_edge_catalog);
+    two_hop.AddFunction(two_hop_edge_catalog);
 
     return two_hop;
 }

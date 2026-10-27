@@ -30,6 +30,17 @@ SELECT COUNT(*) FROM read_hop('{WORKING_DIRECTORY}/data/snap-musae-github/grapha
 ----
 18247
 
+# EdgeInfo.yaml passed via the keyword-only edgePath= overload.
+query I
+SELECT COUNT(*) FROM read_hop(edgePath='{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Person_knows_Person.edge.yaml', vid=10);
+----
+17457
+
+query I
+SELECT COUNT(*) FROM read_hop(edgePath='{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Person_knows_Person.edge.yaml', vids=[1, 10]);
+----
+18247
+
 
 statement ok
 ATTACH '{WORKING_DIRECTORY}/data/snap-musae-github/graphar/Git.graph.yaml' as git(type duckdb_graphar);

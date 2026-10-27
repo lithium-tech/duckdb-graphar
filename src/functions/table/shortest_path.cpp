@@ -16,63 +16,74 @@
 
 namespace duckdb {
 
-unique_ptr<FunctionData> ShortestPath::Bind(ClientContext& context, TableFunctionBindInput& input,
-                                            vector<LogicalType>& return_types, vector<Identifier>& names) {
-    DUCKDB_GRAPHAR_LOG_TRACE("ShortestPath::Bind");
+unique_ptr<FunctionData> ShortestPath::BindGraphPath(ClientContext& context, TableFunctionBindInput& input,
+                                                     vector<LogicalType>& return_types, vector<Identifier>& names) {
+    DUCKDB_GRAPHAR_LOG_TRACE("ShortestPath::BindGraphPath");
 
     auto bind_data = make_uniq<ShortestPathBindData>();
     bind_data->start_id = input.inputs[0].GetValue<graphar::IdType>();
     bind_data->end_id = input.inputs[1].GetValue<graphar::IdType>();
 
-    auto src_it = input.named_parameters.find("src");
-    bool use_yaml_path = src_it != input.named_parameters.end() && !src_it->second.IsNull();
+    // Graph-path signature: file_path + named params (src, type, dst).
+    const auto file_path = StringValue::Get(input.inputs[2]);
+    const auto src_type = StringValue::Get(input.named_parameters.at("src"));
+    const auto e_type = StringValue::Get(input.named_parameters.at("type"));
+    const auto dst_type = StringValue::Get(input.named_parameters.at("dst"));
 
-    if (use_yaml_path) {
-        // New signature: file_path + named params (src, type, dst)
-        const auto file_path = StringValue::Get(input.inputs[2]);
-        const auto src_type = StringValue::Get(input.named_parameters.at("src"));
-        const auto e_type = StringValue::Get(input.named_parameters.at("type"));
-        const auto dst_type = StringValue::Get(input.named_parameters.at("dst"));
+    DUCKDB_GRAPHAR_LOG_DEBUG("ShortestPath parameters: start=" + std::to_string(bind_data->start_id) +
+                             ", end=" + std::to_string(bind_data->end_id) + ", file=" + file_path +
+                             ", edge=" + src_type + "_" + e_type + "_" + dst_type);
 
-        DUCKDB_GRAPHAR_LOG_DEBUG("ShortestPath parameters: start=" + std::to_string(bind_data->start_id) +
-                                 ", end=" + std::to_string(bind_data->end_id) + ", file=" + file_path +
-                                 ", edge=" + src_type + "_" + e_type + "_" + dst_type);
+    // Load graph info from YAML path directly (no catalog lookup)
+    auto maybe_graph_info = graphar::GraphInfo::Load(file_path);
+    if (maybe_graph_info.has_error()) {
+        throw IOException("Failed to load graph info from path: %s", file_path);
+    }
+    bind_data->graph_info = maybe_graph_info.value();
+    bind_data->table_name = file_path;
 
-        // Load graph info from YAML path directly (no catalog lookup)
-        auto maybe_graph_info = graphar::GraphInfo::Load(file_path);
-        if (maybe_graph_info.has_error()) {
-            throw IOException("Failed to load graph info from path: %s", file_path);
-        }
-        bind_data->graph_info = maybe_graph_info.value();
-        bind_data->table_name = file_path;
+    // Get edge info by type names
+    auto edge_info = bind_data->graph_info->GetEdgeInfo(src_type, e_type, dst_type);
+    if (!edge_info) {
+        throw BinderException("Edges of this type are not found: " + src_type + "_" + e_type + "_" + dst_type);
+    }
+    bind_data->edge_info = edge_info;
 
-        // Get edge info by type names
-        auto edge_info = bind_data->graph_info->GetEdgeInfo(src_type, e_type, dst_type);
-        if (!edge_info) {
-            throw BinderException("Edges of this type are not found: " + src_type + "_" + e_type + "_" + dst_type);
-        }
-        bind_data->edge_info = edge_info;
+    auto src_vtype = edge_info->GetSrcType();
+    auto dst_vtype = edge_info->GetDstType();
+    if (src_vtype != dst_vtype) {
+        throw InvalidInputException(
+            "Shortest path requires same vertex type for source and destination. "
+            "Got src=" +
+            src_vtype + ", dst=" + dst_vtype);
+    }
+    if (!edge_info->IsDirected()) {
+        throw InvalidInputException(
+            "Shortest path algorithm only supports directed graphs. "
+            "Edge type '" +
+            edge_info->GetEdgeType() + "' is undirected.");
+    }
+    bind_data->vertex_info = bind_data->graph_info->GetVertexInfo(src_vtype);
+    if (!bind_data->vertex_info) {
+        throw InvalidInputException("Failed to get vertex info for type: " + src_vtype);
+    }
 
-        auto src_vtype = edge_info->GetSrcType();
-        auto dst_vtype = edge_info->GetDstType();
-        if (src_vtype != dst_vtype) {
-            throw InvalidInputException(
-                "Shortest path requires same vertex type for source and destination. "
-                "Got src=" +
-                src_vtype + ", dst=" + dst_vtype);
-        }
-        if (!edge_info->IsDirected()) {
-            throw InvalidInputException(
-                "Shortest path algorithm only supports directed graphs. "
-                "Edge type '" +
-                edge_info->GetEdgeType() + "' is undirected.");
-        }
-        bind_data->vertex_info = bind_data->graph_info->GetVertexInfo(src_vtype);
-        if (!bind_data->vertex_info) {
-            throw InvalidInputException("Failed to get vertex info for type: " + src_vtype);
-        }
-    } else {
-        // Old signature: table_name - use catalog lookup
+    return_types = {LogicalType::BIGINT, LogicalType::BIGINT};
+    names = {"step_number", "_graphArVertexIndex"};
+
+    return std::move(bind_data);
+}
+
+unique_ptr<FunctionData> ShortestPath::BindCatalog(ClientContext& context, TableFunctionBindInput& input,
+                                                   vector<LogicalType>& return_types, vector<Identifier>& names) {
+    DUCKDB_GRAPHAR_LOG_TRACE("ShortestPath::BindCatalog");
+
+    auto bind_data = make_uniq<ShortestPathBindData>();
+    bind_data->start_id = input.inputs[0].GetValue<graphar::IdType>();
+    bind_data->end_id = input.inputs[1].GetValue<graphar::IdType>();
+
+    {
+        // Catalog signature: table_name - use catalog lookup
         auto table_name = input.inputs[2].GetValue<string>();
         DUCKDB_GRAPHAR_LOG_DEBUG("ShortestPath parameters: start=" + std::to_string(bind_data->start_id) +
                                  ", end=" + std::to_string(bind_data->end_id) + ", table=" + table_name);
@@ -315,17 +326,27 @@ void ShortestPath::Function(ClientContext& context, TableFunctionInput& data_p, 
 }
 
 TableFunction ShortestPath::GetFunction() {
-    // Supports two signatures:
-    // 1. shortest_path(start_id, end_id, edge_table_name) - uses catalog lookup
-    // 2. shortest_path(start_id, end_id, graph_path, src=..., type=..., dst=...) - uses YAML path
+    // Graph-path overload: shortest_path(start, end, graph_path, src=..., type=..., dst=...).
     TableFunction func(Identifier("shortest_path"), {LogicalType::BIGINT, LogicalType::BIGINT, LogicalType::VARCHAR},
-                       Function, Bind, InitGlobal);
-    func.GetSignature().AddKeywordOnly("src", LogicalType::VARCHAR, Value());
-    func.GetSignature().AddKeywordOnly("type", LogicalType::VARCHAR, Value());
-    func.GetSignature().AddKeywordOnly("dst", LogicalType::VARCHAR, Value());
+                       Function, BindGraphPath, InitGlobal);
+    func.GetSignature().AddKeywordOnly("src", LogicalType::VARCHAR);
+    func.GetSignature().AddKeywordOnly("type", LogicalType::VARCHAR);
+    func.GetSignature().AddKeywordOnly("dst", LogicalType::VARCHAR);
     return func;
 }
 
-void ShortestPath::Register(ExtensionLoader& loader) { loader.RegisterFunction(GetFunction()); }
+TableFunctionSet ShortestPath::GetFunctions() {
+    // Supports two signatures:
+    // 1. shortest_path(start_id, end_id, edge_table_name) - uses catalog lookup
+    // 2. shortest_path(start_id, end_id, graph_path, src=..., type=..., dst=...) - uses YAML path
+    TableFunctionSet set(Identifier("shortest_path"));
+    set.AddFunction(GetFunction());
+    TableFunction func_catalog("", {LogicalType::BIGINT, LogicalType::BIGINT, LogicalType::VARCHAR}, Function,
+                               BindCatalog, InitGlobal);
+    set.AddFunction(func_catalog);
+    return set;
+}
+
+void ShortestPath::Register(ExtensionLoader& loader) { loader.RegisterFunction(GetFunctions()); }
 
 }  // namespace duckdb

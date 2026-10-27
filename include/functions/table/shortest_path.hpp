@@ -40,14 +40,19 @@ struct ShortestPathGlobalState : public GlobalTableFunctionState {
 
 class ShortestPath {
 public:
-    static unique_ptr<FunctionData> Bind(ClientContext& context, TableFunctionBindInput& input,
-                                         vector<LogicalType>& return_types, vector<Identifier>& names);
+    // Graph-path overload: shortest_path(start, end, path.yaml, src=, type=, dst=).
+    static unique_ptr<FunctionData> BindGraphPath(ClientContext& context, TableFunctionBindInput& input,
+                                                  vector<LogicalType>& return_types, vector<Identifier>& names);
+    // Catalog overload: shortest_path(start, end, table_name).
+    static unique_ptr<FunctionData> BindCatalog(ClientContext& context, TableFunctionBindInput& input,
+                                                vector<LogicalType>& return_types, vector<Identifier>& names);
 
     static unique_ptr<GlobalTableFunctionState> InitGlobal(ClientContext& context, TableFunctionInitInput& input);
 
     static void Function(ClientContext& context, TableFunctionInput& data_p, DataChunk& output);
 
     static TableFunction GetFunction();
+    static TableFunctionSet GetFunctions();
 
     static void Register(ExtensionLoader& loader);
 };

@@ -25,19 +25,39 @@ namespace duckdb {
 //-------------------------------------------------------------------
 // Bind
 //-------------------------------------------------------------------
-unique_ptr<FunctionData> ReadHop::Bind(ClientContext& context, TableFunctionBindInput& input,
-                                       vector<LogicalType>& return_types, vector<Identifier>& names) {
-    DUCKDB_GRAPHAR_LOG_TRACE("ReadHop::Bind");
-
-    const bool is_catalog_mode = HopBase::IsCatalogMode(input);
+unique_ptr<FunctionData> ReadHop::BindGraphPath(ClientContext& context, TableFunctionBindInput& input,
+                                                vector<LogicalType>& return_types, vector<Identifier>& names) {
+    DUCKDB_GRAPHAR_LOG_TRACE("ReadHop::BindGraphPath");
 
     auto bind_data = make_uniq<ReadHopBindData>();
 
-    if (is_catalog_mode) {
-        HopBase::SetBindDataByEdgeTable(context, input, *bind_data);
-    } else {
-        HopBase::SetBindDataByGraphPath(context, input, *bind_data);
-    }
+    HopBase::SetBindDataByGraphPath(context, input, *bind_data);
+    return FinishBind(context, input, std::move(bind_data), return_types, names);
+}
+
+unique_ptr<FunctionData> ReadHop::BindEdgePath(ClientContext& context, TableFunctionBindInput& input,
+                                              vector<LogicalType>& return_types, vector<Identifier>& names) {
+    DUCKDB_GRAPHAR_LOG_TRACE("ReadHop::BindEdgePath");
+
+    auto bind_data = make_uniq<ReadHopBindData>();
+    HopBase::SetBindDataByEdgePath(context, input, *bind_data);
+    return FinishBind(context, input, std::move(bind_data), return_types, names);
+}
+
+unique_ptr<FunctionData> ReadHop::BindEdgeCatalog(ClientContext& context, TableFunctionBindInput& input,
+                                                  vector<LogicalType>& return_types, vector<Identifier>& names) {
+    DUCKDB_GRAPHAR_LOG_TRACE("ReadHop::BindEdgeCatalog");
+
+    auto bind_data = make_uniq<ReadHopBindData>();
+
+    HopBase::SetBindDataByEdgeTable(context, input, *bind_data);
+    return FinishBind(context, input, std::move(bind_data), return_types, names);
+}
+
+unique_ptr<FunctionData> ReadHop::FinishBind(ClientContext& context, TableFunctionBindInput& input,
+                                             unique_ptr<ReadHopBindData> bind_data,
+                                             vector<LogicalType>& return_types, vector<Identifier>& names) {
+    DUCKDB_GRAPHAR_LOG_TRACE("ReadHop::FinishBind");
 
     HopBase::SetBindDataVids(input, *bind_data);
     HopBase::SetBindDataFilter(*bind_data);
@@ -89,9 +109,20 @@ ReaderPtr ReadHop::GetReader(ClientContext& context, ReadBaseGlobalTableFunction
 TableFunctionSet ReadHop::GetFunctions() {
     TableFunctionSet read_hop((Identifier(GetFunctionName())));
 
-    TableFunction read_hop_default("", {LogicalType::VARCHAR}, Execute, Bind);
-    SetTableFuncionParams(read_hop_default);
-    read_hop.AddFunction(read_hop_default);
+    // Graph-path overload: read_hop(path.yaml, src=..., dst=..., type=..., [vids|vid]).
+    TableFunction read_hop_graph_path("", {}, Execute, BindGraphPath);
+    SetGraphPathTableFunctionParams(read_hop_graph_path);
+    read_hop.AddFunction(read_hop_graph_path);
+
+    // Edge-path overload: read_hop(edgePath=edge.yaml, [vids|vid]).
+    TableFunction read_hop_edge_path("", {}, Execute, BindEdgePath);
+    SetEdgePathTableFunctionParams(read_hop_edge_path);
+    read_hop.AddFunction(read_hop_edge_path);
+
+    // Edge-path/catalog overload: read_hop(edge.yaml, [vids|vid]) or read_hop(table, catalog=..., [vids|vid]).
+    TableFunction read_hop_edge_catalog("", {}, Execute, BindEdgeCatalog);
+    SetEdgeCatalogTableFunctionParams(read_hop_edge_catalog);
+    read_hop.AddFunction(read_hop_edge_catalog);
 
     return read_hop;
 }
@@ -99,8 +130,8 @@ TableFunctionSet ReadHop::GetFunctions() {
 // GetScanFunction
 //-------------------------------------------------------------------
 TableFunction ReadHop::GetScanFunction() {
-    TableFunction read_hop("", {}, Execute, Bind);
-    SetTableFuncionParams(read_hop);
+    TableFunction read_hop("", {}, Execute, BindEdgeCatalog);
+    SetEdgeCatalogTableFunctionParams(read_hop);
     return read_hop;
 }
 //-------------------------------------------------------------------

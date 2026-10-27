@@ -26,19 +26,36 @@ namespace duckdb {
 //-------------------------------------------------------------------
 // Bind
 //-------------------------------------------------------------------
-unique_ptr<FunctionData> ReadHopFiltered::Bind(ClientContext& context, TableFunctionBindInput& input,
-                                               vector<LogicalType>& return_types, vector<Identifier>& names) {
-    DUCKDB_GRAPHAR_LOG_TRACE("ReadHopFiltered::Bind");
-    const bool is_catalog_mode = HopBase::IsCatalogMode(input);
+unique_ptr<FunctionData> ReadHopFiltered::BindGraphPath(ClientContext& context, TableFunctionBindInput& input,
+                                                        vector<LogicalType>& return_types,
+                                                        vector<Identifier>& names) {
+    DUCKDB_GRAPHAR_LOG_TRACE("ReadHopFiltered::BindGraphPath");
 
     auto bind_data = make_uniq<ReadHopFilteredBindData>();
 
-    if (is_catalog_mode) {
-        HopBase::SetBindDataByEdgeTable(context, input, *bind_data);
-    } else {
-        HopBase::SetBindDataByGraphPath(context, input, *bind_data);
-        bind_data->graph_info_path = StringValue::Get(input.inputs[0]);
+    HopBase::SetBindDataByGraphPath(context, input, *bind_data);
+    bind_data->graph_info_path = bind_data->graph_path;
+    return FinishBind(context, input, std::move(bind_data), return_types, names);
+}
+
+unique_ptr<FunctionData> ReadHopFiltered::BindEdgeCatalog(ClientContext& context, TableFunctionBindInput& input,
+                                                          vector<LogicalType>& return_types,
+                                                          vector<Identifier>& names) {
+    DUCKDB_GRAPHAR_LOG_TRACE("ReadHopFiltered::BindEdgeCatalog");
+
+    auto bind_data = make_uniq<ReadHopFilteredBindData>();
+    HopBase::SetBindDataByEdgeTable(context, input, *bind_data);
+    if (!bind_data->graph_path.empty()) {
+        // Deprecated positional path was routed to edge-path mode.
+        bind_data->graph_info_path = bind_data->graph_path;
     }
+    return FinishBind(context, input, std::move(bind_data), return_types, names);
+}
+
+unique_ptr<FunctionData> ReadHopFiltered::FinishBind(ClientContext& context, TableFunctionBindInput& input,
+                                                     unique_ptr<ReadHopFilteredBindData> bind_data,
+                                                     vector<LogicalType>& return_types, vector<Identifier>& names) {
+    DUCKDB_GRAPHAR_LOG_TRACE("ReadHopFiltered::FinishBind");
 
     HopBase::SetBindDataVids(input, *bind_data);
 
@@ -110,10 +127,13 @@ void ReadHopFiltered::PushdownComplexFilter(ClientContext& context, LogicalGet& 
 TableFunctionSet ReadHopFiltered::GetFunctions() {
     TableFunctionSet read_hop_filtered((Identifier(GetFunctionName())));
 
-    TableFunction read_hop_default("", {LogicalType::VARCHAR}, Execute, Bind);
+    TableFunction read_hop_graph_path("", {}, Execute, BindGraphPath);
+    SetGraphPathTableFunctionParams(read_hop_graph_path);
+    read_hop_filtered.AddFunction(read_hop_graph_path);
 
-    SetTableFuncionParams(read_hop_default);
-    read_hop_filtered.AddFunction(read_hop_default);
+    TableFunction read_hop_edge_catalog("", {}, Execute, BindEdgeCatalog);
+    SetEdgeCatalogTableFunctionParams(read_hop_edge_catalog);
+    read_hop_filtered.AddFunction(read_hop_edge_catalog);
 
     return read_hop_filtered;
 }
@@ -121,8 +141,8 @@ TableFunctionSet ReadHopFiltered::GetFunctions() {
 // GetScanFunction
 //-------------------------------------------------------------------
 TableFunction ReadHopFiltered::GetScanFunction() {
-    TableFunction read_hop("", {}, Execute, Bind);
-    SetTableFuncionParams(read_hop);
+    TableFunction read_hop("", {}, Execute, BindEdgeCatalog);
+    SetEdgeCatalogTableFunctionParams(read_hop);
 
     return read_hop;
 }

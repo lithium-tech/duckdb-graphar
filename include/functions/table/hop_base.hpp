@@ -135,41 +135,18 @@ public:
         return it != input.named_parameters.end() && !it->second.IsNull();
     }
 
-    static bool IsGraphPathMode(TableFunctionBindInput& input) {
-        return IsNamedParamSet(input, "src") || IsNamedParamSet(input, "dst") || IsNamedParamSet(input, "type");
-    }
-
-    static bool IsCatalogMode(TableFunctionBindInput& input) {
-        DUCKDB_GRAPHAR_LOG_TRACE("HopBase::IsCatalogMode");
-
-        bool has_catalog = IsNamedParamSet(input, "catalog");
-        bool is_path_mode = IsGraphPathMode(input);
-
-        if (is_path_mode && has_catalog) {
-            throw BinderException(
-                "%s: 'catalog' cannot be used together with 'src', 'dst', or 'type'. "
-                "Use either:\n"
-                "  %s('path.yaml', src='...', dst='...', type='...')\n"
-                "  %s('table_name', catalog='...')",
-                input.table_function.GetName().GetIdentifierName(), input.table_function.GetName().GetIdentifierName(),
-                input.table_function.GetName().GetIdentifierName());
-        }
-
-        if (is_path_mode) {
-            return false;
-        }
-        if (has_catalog) {
-            return true;
-        }
-        // Neither path params nor an explicit catalog: decide by the first argument.
-        const auto arg0 = StringValue::Get(input.inputs[0]);
-        return !IsPathArgument(arg0);
-    }
     static void SetBindDataByEdgeTable(ClientContext& context, TableFunctionBindInput& input,
                                        HopBaseBindData& bind_data) {
         DUCKDB_GRAPHAR_LOG_TRACE("HopBase::SetDataByEdgeTable");
 
         bind_data.table_name = StringValue::Get(input.inputs[0]);
+
+        if (IsPathArgument(bind_data.table_name)) {
+            DUCKDB_GRAPHAR_LOG_WARN("Deprecated: Table name looks like path to graph file, use edgePath=, instead order parametr");
+            SetBindDataByEdgePath(context, input, bind_data);
+            return;
+        }
+
         std::string catalog_name;
 
         auto catalog_entry = input.named_parameters.find("catalog");
@@ -178,7 +155,7 @@ public:
         }
         auto& catalog = Catalog::GetCatalog(context, Identifier(catalog_name));
         if (catalog.GetCatalogType() != GraphArCatalog::TYPE) {
-            throw BinderException("Expecting a GraphAr catalog, but got %s", catalog.GetCatalogType());
+            throw BinderException("Expecting a GraphAr catalog, but got %s type %s", catalog.GetName(), catalog.GetCatalogType());
         }
         bind_data.catalog_name = catalog.GetName().GetIdentifierName();
 
@@ -204,7 +181,16 @@ public:
                                       HopBaseBindData& bind_data) {
         DUCKDB_GRAPHAR_LOG_TRACE("HopBase::SetBindDataByEdgePath");
 
-        const auto file_path = StringValue::Get(input.inputs[0]);
+        std::string file_path;
+        if (!input.inputs.empty()) {
+            file_path = StringValue::Get(input.inputs[0]);
+        } else {
+            auto edge_path_it = input.named_parameters.find(Identifier("edgePath"));
+            if (edge_path_it == input.named_parameters.end() || edge_path_it->second.IsNull()) {
+                throw BinderException("Missing 'edgePath' argument");
+            }
+            file_path = StringValue::Get(edge_path_it->second);
+        }
         bind_data.graph_path = file_path;
 
         std::string yaml_content;
@@ -265,18 +251,21 @@ public:
 
         bind_data.graph_info = graphar::CreateGraphInfo("graph", vertex_infos, {bind_data.edge_info}, {}, prefix);
     }
-
     static void SetBindDataByGraphPath(ClientContext& context, TableFunctionBindInput& input,
                                        HopBaseBindData& bind_data) {
         DUCKDB_GRAPHAR_LOG_TRACE("HopBase::SetBindDataByGraphPath");
 
-        const auto file_path = StringValue::Get(input.inputs[0]);
-        bind_data.graph_path = file_path;
-
-        if (!IsNamedParamSet(input, "src")) {
-            SetBindDataByEdgePath(context, input, bind_data);
-            return;
+        std::string file_path;
+        if (!input.inputs.empty()) {
+            file_path = StringValue::Get(input.inputs[0]);
+        } else {
+            auto graph_path_it = input.named_parameters.find(Identifier("graphPath"));
+            if (graph_path_it == input.named_parameters.end() || graph_path_it->second.IsNull()) {
+                throw BinderException("Missing 'graphPath' argument");
+            }
+            file_path = StringValue::Get(graph_path_it->second);
         }
+        bind_data.graph_path = file_path;
 
         const auto src_type = StringValue::Get(input.named_parameters.at("src"));
         std::string dst_type;
@@ -413,15 +402,38 @@ public:
                                  ',' + std::to_string(gstate.special_dst.second));
     }
 
-    static void SetFunctionParams(TableFunction& fun) {
-        fun.GetSignature().AddKeywordOnly("src", LogicalType::VARCHAR, Value());
-        fun.GetSignature().AddKeywordOnly("dst", LogicalType::VARCHAR, Value());
-        fun.GetSignature().AddKeywordOnly("type", LogicalType::VARCHAR, Value());
-
-        fun.GetSignature().AddKeywordOnly("catalog", LogicalType::VARCHAR, Value());
-
+    // Parameters shared by all hop overloads: the vids/vid selectors (one of
+    // them must be provided, enforced in Bind).
+    // Maybe split it
+    static void SetFunctionVidsParams(TableFunction& fun) {
         fun.GetSignature().AddKeywordOnly("vids", LogicalType::LIST(LogicalType::BIGINT), Value());
         fun.GetSignature().AddKeywordOnly("vid", LogicalType::BIGINT, Value());
+    }
+
+    // Overload for the graph-path mode: 
+    //   read_hop(path.yaml, src, type, dst, [vids|vid])
+    static void SetGraphPathFunctionParams(TableFunction& fun) {
+        fun.GetSignature().AddParameter("graphPath", LogicalType::VARCHAR);
+        fun.GetSignature().AddKeywordOnly("src", LogicalType::VARCHAR);
+        fun.GetSignature().AddKeywordOnly("type", LogicalType::VARCHAR);
+        fun.GetSignature().AddKeywordOnly("dst", LogicalType::VARCHAR, Value());
+        SetFunctionVidsParams(fun);
+    }
+
+    // Overload for the edge-path:
+    //   read_hop(edgePath=edge.yaml, [vids|vid])   - edge info file
+    static void SetEdgePathFunctionParams(TableFunction& fun) {
+        fun.GetSignature().AddKeywordOnly("edgePath", LogicalType::VARCHAR);
+        SetFunctionVidsParams(fun);
+    }
+
+    // Overload for the edge-path / catalog modes:
+    //   read_hop(edge.yaml, [vids|vid])   - edge info file - !!!DEPRECATED!!!
+    //   read_hop(table, catalog, [vids|vid]) - catalog table lookup
+    static void SetEdgeCatalogFunctionParams(TableFunction& fun) {
+        fun.GetSignature().AddParameter("table", LogicalType::VARCHAR);
+        fun.GetSignature().AddKeywordOnly("catalog", LogicalType::VARCHAR, Value());
+        SetFunctionVidsParams(fun);
     }
 };
 
