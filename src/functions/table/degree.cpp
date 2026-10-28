@@ -334,7 +334,7 @@ void Degree::Execute(ClientContext& context, TableFunctionInput& input, DataChun
         gstate.iter += n;
     }
 
-    output.SetCardinality(written);
+    output.SetChildCardinality(written);
     gstate.chunk_count++;
 
     DUCKDB_GRAPHAR_LOG_DEBUG("Degree::Execute wrote " + std::to_string(written) + " rows");

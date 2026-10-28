@@ -49,17 +49,17 @@ struct GraphArFunctions {
     static void setByIter(DataChunk& output, GraphArIter& iter, const int prop_i, const int row_i,
                           const std::string& prop_name, const std::string& prop_type) {
         if (prop_type == "bool") {
-            output.SetValue(prop_i, row_i, iter.template property<bool>(prop_name).value());
+            output.data[prop_i].SetValue(row_i, iter.template property<bool>(prop_name).value());
         } else if (prop_type == "int32") {
-            output.SetValue(prop_i, row_i, iter.template property<int32_t>(prop_name).value());
+            output.data[prop_i].SetValue(row_i, iter.template property<int32_t>(prop_name).value());
         } else if (prop_type == "int64") {
-            output.SetValue(prop_i, row_i, iter.template property<int64_t>(prop_name).value());
+            output.data[prop_i].SetValue(row_i, iter.template property<int64_t>(prop_name).value());
         } else if (prop_type == "float") {
-            output.SetValue(prop_i, row_i, iter.template property<float_t>(prop_name).value());
+            output.data[prop_i].SetValue(row_i, iter.template property<float_t>(prop_name).value());
         } else if (prop_type == "double") {
-            output.SetValue(prop_i, row_i, iter.template property<double_t>(prop_name).value());
+            output.data[prop_i].SetValue(row_i, iter.template property<double_t>(prop_name).value());
         } else if (prop_type == "string") {
-            output.SetValue(prop_i, row_i, iter.template property<std::string>(prop_name).value());
+            output.data[prop_i].SetValue(row_i, iter.template property<std::string>(prop_name).value());
         } else {
             throw NotImplementedException("Unsupported type");
         }

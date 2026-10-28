@@ -209,7 +209,7 @@ void ConvertArrowTableToDataChunk(const arrow::Table& table, DataChunk& output, 
     }
 
     const auto num_rows = table.num_rows();
-    output.SetCardinality(num_rows);
+    output.SetChildCardinality(num_rows);
     for (idx_t col_idx = 0; col_idx < column_ids.size(); col_idx++) {
         auto& arrow_type = *arrow_table_schema.GetColumns().at(column_ids[col_idx]);
         if (arrow_type.GetDuckType().id() == LogicalTypeId::VARCHAR) {
@@ -220,7 +220,7 @@ void ConvertArrowTableToDataChunk(const arrow::Table& table, DataChunk& output, 
                 }
                 auto value = maybe_value.ValueUnsafe();
                 auto duckdb_value = GraphArFunctions::ArrowScalar2DuckValue(value);
-                output.SetValue(col_idx, row_i, duckdb_value);
+                output.data[col_idx].SetValue(row_i, duckdb_value);
             }
             continue;
         }

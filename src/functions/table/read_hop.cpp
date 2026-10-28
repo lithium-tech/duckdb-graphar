@@ -286,7 +286,6 @@ void ReadHop::Execute(ClientContext& context, TableFunctionInput& input, DataChu
     }
 
     output.SetChildCardinality(num_rows);
-    output.SetCardinality(num_rows);
     gstate.total_rows += num_rows;
     gstate.chunk_count++;
 }

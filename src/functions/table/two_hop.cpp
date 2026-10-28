@@ -125,7 +125,7 @@ void TwoHop::Execute(ClientContext& context, TableFunctionInput& input, DataChun
         DUCKDB_GRAPHAR_LOG_DEBUG("Vertex finished " + std::to_string(lstate.reader->GetVertex()));
         lstate.MoveReader(gstate);
     }
-    output.SetCardinality(0);
+    output.SetChildCardinality(0);
     DUCKDB_GRAPHAR_LOG_DEBUG("Empty Execute");
 }
 //-------------------------------------------------------------------

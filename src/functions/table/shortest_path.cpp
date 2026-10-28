@@ -305,11 +305,11 @@ void ShortestPath::Function(ClientContext& context, TableFunctionInput& data_p, 
     auto& global_state = data_p.global_state->Cast<ShortestPathGlobalState>();
 
     if (!global_state.path_found || global_state.current_step >= global_state.path.size()) {
-        output.SetCardinality(0);
+        output.SetChildCardinality(0);
         return;
     }
 
-    output.SetCardinality(1);
+    output.SetChildCardinality(1);
     auto& step_vector = output.data[0];
     auto& vertex_vector = output.data[1];
 
