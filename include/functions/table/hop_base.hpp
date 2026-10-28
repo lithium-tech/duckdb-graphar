@@ -141,18 +141,16 @@ public:
 
         bind_data.table_name = StringValue::Get(input.inputs[0]);
 
-        if (IsPathArgument(bind_data.table_name)) {
-            DUCKDB_GRAPHAR_LOG_WARN(
-                "Deprecated: Table name looks like path to graph file, use edgePath=, instead order parametr");
-            SetBindDataByEdgePath(context, input, bind_data);
-            return;
-        }
-
         std::string catalog_name;
 
         auto catalog_entry = input.named_parameters.find("catalog");
         if (catalog_entry != input.named_parameters.end() && !catalog_entry->second.IsNull()) {
             catalog_name = StringValue::Get(catalog_entry->second);
+        } else if (IsPathArgument(bind_data.table_name)) {
+            DUCKDB_GRAPHAR_LOG_WARN(
+                "Deprecated: Table name looks like path to graph file, use edgePath=, instead order parametr");
+            SetBindDataByEdgePath(context, input, bind_data);
+            return;
         }
         auto& catalog = Catalog::GetCatalog(context, Identifier(catalog_name));
         if (catalog.GetCatalogType() != GraphArCatalog::TYPE) {

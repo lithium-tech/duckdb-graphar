@@ -44,10 +44,6 @@ unique_ptr<FunctionData> ReadHopFiltered::BindEdgeCatalog(ClientContext& context
 
     auto bind_data = make_uniq<ReadHopFilteredBindData>();
     HopBase::SetBindDataByEdgeTable(context, input, *bind_data);
-    if (!bind_data->graph_path.empty()) {
-        // Deprecated positional path was routed to edge-path mode.
-        bind_data->graph_info_path = bind_data->graph_path;
-    }
     return FinishBind(context, input, std::move(bind_data), return_types, names);
 }
 
