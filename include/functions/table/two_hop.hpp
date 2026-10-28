@@ -70,8 +70,8 @@ public:
     static unique_ptr<FunctionData> BindEdgeCatalog(ClientContext& context, TableFunctionBindInput& input,
                                                     vector<LogicalType>& return_types, vector<Identifier>& names);
     static unique_ptr<FunctionData> FinishBind(ClientContext& context, TableFunctionBindInput& input,
-                                               unique_ptr<TwoHopBindData> bind_data,
-                                               vector<LogicalType>& return_types, vector<Identifier>& names);
+                                               unique_ptr<TwoHopBindData> bind_data, vector<LogicalType>& return_types,
+                                               vector<Identifier>& names);
     static unique_ptr<GlobalTableFunctionState> Init(ClientContext& context, TableFunctionInitInput& input);
     static unique_ptr<LocalTableFunctionState> InitLocal(ExecutionContext& context, TableFunctionInitInput& input,
                                                          GlobalTableFunctionState* gstate_ptr);

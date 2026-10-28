@@ -50,8 +50,8 @@ unique_ptr<FunctionData> TwoHop::BindEdgeCatalog(ClientContext& context, TableFu
 }
 
 unique_ptr<FunctionData> TwoHop::FinishBind(ClientContext& context, TableFunctionBindInput& input,
-                                            unique_ptr<TwoHopBindData> bind_data,
-                                            vector<LogicalType>& return_types, vector<Identifier>& names) {
+                                            unique_ptr<TwoHopBindData> bind_data, vector<LogicalType>& return_types,
+                                            vector<Identifier>& names) {
     DUCKDB_GRAPHAR_LOG_TRACE("TwoHop::FinishBind");
 
     HopBase::SetBindDataVids(input, *bind_data);

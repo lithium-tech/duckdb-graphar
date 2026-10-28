@@ -27,8 +27,7 @@ namespace duckdb {
 // Bind
 //-------------------------------------------------------------------
 unique_ptr<FunctionData> ReadHopFiltered::BindGraphPath(ClientContext& context, TableFunctionBindInput& input,
-                                                        vector<LogicalType>& return_types,
-                                                        vector<Identifier>& names) {
+                                                        vector<LogicalType>& return_types, vector<Identifier>& names) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadHopFiltered::BindGraphPath");
 
     auto bind_data = make_uniq<ReadHopFilteredBindData>();

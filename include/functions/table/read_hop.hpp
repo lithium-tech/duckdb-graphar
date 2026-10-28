@@ -111,8 +111,8 @@ public:
     static unique_ptr<FunctionData> BindEdgeCatalog(ClientContext& context, TableFunctionBindInput& input,
                                                     vector<LogicalType>& return_types, vector<Identifier>& names);
     static unique_ptr<FunctionData> FinishBind(ClientContext& context, TableFunctionBindInput& input,
-                                               unique_ptr<ReadHopBindData> bind_data,
-                                               vector<LogicalType>& return_types, vector<Identifier>& names);
+                                               unique_ptr<ReadHopBindData> bind_data, vector<LogicalType>& return_types,
+                                               vector<Identifier>& names);
     static BaseReaderPtr GetBaseReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate, idx_t ind,
                                        const std::string& filter_column,
                                        std::shared_ptr<graphar::SharedChunkCounter> counter = nullptr);

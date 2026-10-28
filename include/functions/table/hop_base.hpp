@@ -142,7 +142,8 @@ public:
         bind_data.table_name = StringValue::Get(input.inputs[0]);
 
         if (IsPathArgument(bind_data.table_name)) {
-            DUCKDB_GRAPHAR_LOG_WARN("Deprecated: Table name looks like path to graph file, use edgePath=, instead order parametr");
+            DUCKDB_GRAPHAR_LOG_WARN(
+                "Deprecated: Table name looks like path to graph file, use edgePath=, instead order parametr");
             SetBindDataByEdgePath(context, input, bind_data);
             return;
         }
@@ -155,7 +156,8 @@ public:
         }
         auto& catalog = Catalog::GetCatalog(context, Identifier(catalog_name));
         if (catalog.GetCatalogType() != GraphArCatalog::TYPE) {
-            throw BinderException("Expecting a GraphAr catalog, but got %s type %s", catalog.GetName(), catalog.GetCatalogType());
+            throw BinderException("Expecting a GraphAr catalog, but got %s type %s", catalog.GetName(),
+                                  catalog.GetCatalogType());
         }
         bind_data.catalog_name = catalog.GetName().GetIdentifierName();
 
@@ -410,7 +412,7 @@ public:
         fun.GetSignature().AddKeywordOnly("vid", LogicalType::BIGINT, Value());
     }
 
-    // Overload for the graph-path mode: 
+    // Overload for the graph-path mode:
     //   read_hop(path.yaml, src, type, dst, [vids|vid])
     static void SetGraphPathFunctionParams(TableFunction& fun) {
         fun.GetSignature().AddParameter("graphPath", LogicalType::VARCHAR);

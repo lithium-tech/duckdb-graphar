@@ -36,7 +36,7 @@ unique_ptr<FunctionData> ReadHop::BindGraphPath(ClientContext& context, TableFun
 }
 
 unique_ptr<FunctionData> ReadHop::BindEdgePath(ClientContext& context, TableFunctionBindInput& input,
-                                              vector<LogicalType>& return_types, vector<Identifier>& names) {
+                                               vector<LogicalType>& return_types, vector<Identifier>& names) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadHop::BindEdgePath");
 
     auto bind_data = make_uniq<ReadHopBindData>();
@@ -55,8 +55,8 @@ unique_ptr<FunctionData> ReadHop::BindEdgeCatalog(ClientContext& context, TableF
 }
 
 unique_ptr<FunctionData> ReadHop::FinishBind(ClientContext& context, TableFunctionBindInput& input,
-                                             unique_ptr<ReadHopBindData> bind_data,
-                                             vector<LogicalType>& return_types, vector<Identifier>& names) {
+                                             unique_ptr<ReadHopBindData> bind_data, vector<LogicalType>& return_types,
+                                             vector<Identifier>& names) {
     DUCKDB_GRAPHAR_LOG_TRACE("ReadHop::FinishBind");
 
     HopBase::SetBindDataVids(input, *bind_data);
