@@ -6,6 +6,9 @@ else()
     set(LOAD_INCLUDE_DIR "${EXTENSION_ROOT_DIR}")
 endif()
 
+# Load parquet BEFORE duckdb_graphar for cpp unittests
+duckdb_extension_load(parquet)
+
 duckdb_extension_load(duckdb_graphar
     INCLUDE_DIR "${LOAD_INCLUDE_DIR}/include"
     SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}"

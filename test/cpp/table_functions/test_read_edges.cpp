@@ -36,7 +36,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadEdges Bind function invali
 
     named_parameter_map_t named_parameters({{"src", Value("Person")}, {"dst", Value("Person")}, {"type", Value("invalid_edge")}});
     vector<LogicalType> input_table_types({});
-    auto input = TestFixture::CreateMockBindInput(inputs, named_parameters, input_table_types);    
+    MockTableFunctionBindInput input(inputs, named_parameters, input_table_types);    
         
     vector<LogicalType> return_types;
     vector<Identifier> names;
@@ -44,7 +44,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadEdges Bind function invali
     
     TableFunction read_edges = ReadEdges::GetFunction();
 
-    REQUIRE_THROWS_AS(read_edges.bind(*TestFixture::conn.context, input, return_types, names), BinderException);
+    REQUIRE_THROWS_AS(read_edges.bind(*TestFixture::conn.context, input.bind_input, return_types, names), BinderException);
 }
 
 TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadEdges Bind and Execute functions edge without property", "[read_edges]", FILE_TYPES_FOR_TEST) {
@@ -56,7 +56,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadEdges Bind and Execute fun
 
     named_parameter_map_t named_parameters({{"src", Value("Person")}, {"dst", Value("Person")}, {"type", Value("knows")}});
     vector<LogicalType> input_table_types({});
-    auto input = TestFixture::CreateMockBindInput(inputs, named_parameters, input_table_types);    
+    MockTableFunctionBindInput input(inputs, named_parameters, input_table_types);    
     
     vector<LogicalType> return_types;
     vector<Identifier> names;
@@ -66,7 +66,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadEdges Bind and Execute fun
  
     INFO("Bind test");    
     unique_ptr<FunctionData> bind_data;
-    REQUIRE_NOTHROW(bind_data = read_edges.bind(*TestFixture::conn.context, input, return_types, names));
+    REQUIRE_NOTHROW(bind_data = read_edges.bind(*TestFixture::conn.context, input.bind_input, return_types, names));
 
     REQUIRE(bind_data != nullptr);
     REQUIRE(return_types == vector<LogicalType> ({LogicalType::BIGINT, LogicalType::BIGINT}));
@@ -114,7 +114,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadEdges GetStatistics test",
     vector<Value> inputs({Value(TestFixture::path_trial_graph)});
     named_parameter_map_t named_parameters({{"src", Value("Person")}, {"dst", Value("Person")}, {"type", Value("knows")}});
     vector<LogicalType> input_table_types({});
-    auto input = TestFixture::CreateMockBindInput(inputs, named_parameters, input_table_types);
+    MockTableFunctionBindInput input(inputs, named_parameters, input_table_types);
     
     vector<LogicalType> return_types;
     vector<Identifier> names;
@@ -124,7 +124,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadEdges GetStatistics test",
 
     INFO("Bind test");
     unique_ptr<FunctionData> bind_data;
-    REQUIRE_NOTHROW(bind_data = read_edges.bind(*TestFixture::conn.context, input, return_types, names));
+    REQUIRE_NOTHROW(bind_data = read_edges.bind(*TestFixture::conn.context, input.bind_input, return_types, names));
     REQUIRE(bind_data != nullptr);
     INFO("Finish bind test");
 
@@ -163,7 +163,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadEdges Bind and Execute fun
 
     named_parameter_map_t named_parameters({{"src", Value("Person")}, {"dst", Value("Person")}, {"type", Value("knows")}});
     vector<LogicalType> input_table_types({});
-    auto input = TestFixture::CreateMockBindInput(inputs, named_parameters, input_table_types);    
+    MockTableFunctionBindInput input(inputs, named_parameters, input_table_types);    
     
     vector<LogicalType> return_types;
     vector<std::string> names;
@@ -173,7 +173,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadEdges Bind and Execute fun
 
     INFO("Bind test"); 
     unique_ptr<FunctionData> bind_data;
-    REQUIRE_NOTHROW(bind_data = read_edges.bind(*TestFixture::conn.context, input, return_types, names));
+    REQUIRE_NOTHROW(bind_data = read_edges.bind(*TestFixture::conn.context, input.bind_input, return_types, names));
 
     REQUIRE(bind_data != nullptr);
     REQUIRE(return_types == vector<LogicalType> ({LogicalType::BIGINT, LogicalType::BIGINT, LogicalType::INTEGER, LogicalType::VARCHAR, LogicalType::FLOAT}));

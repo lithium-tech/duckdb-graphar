@@ -58,7 +58,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
         {"dst", Value("Person")}
     });
     vector<LogicalType> input_table_types({});
-    auto bind_input = TestFixture::CreateMockBindInput(inputs, named_parameters, input_table_types);
+    MockTableFunctionBindInput bind_input(inputs, named_parameters, input_table_types);
 
     vector<LogicalType> return_types;
     vector<Identifier> names;
@@ -69,7 +69,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
     INFO("Bind test");
     TestFixture::conn.BeginTransaction();
     unique_ptr<FunctionData> bind_data;
-    REQUIRE_NOTHROW(bind_data = shortest_path_func.bind(*TestFixture::conn.context, bind_input, return_types, names));
+    REQUIRE_NOTHROW(bind_data = shortest_path_func.bind(*TestFixture::conn.context, bind_input.bind_input, return_types, names));
 
     REQUIRE(bind_data != nullptr);
     REQUIRE(names.size() == 2);
@@ -129,7 +129,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
         {"dst", Value("Person")}
     });
     vector<LogicalType> input_table_types({});
-    auto bind_input = TestFixture::CreateMockBindInput(inputs, named_parameters, input_table_types);
+    MockTableFunctionBindInput bind_input(inputs, named_parameters, input_table_types);
 
     vector<LogicalType> return_types;
     vector<Identifier> names;
@@ -140,7 +140,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
     INFO("Bind test");
     TestFixture::conn.BeginTransaction();
     unique_ptr<FunctionData> bind_data;
-    REQUIRE_NOTHROW(bind_data = shortest_path_func.bind(*TestFixture::conn.context, bind_input, return_types, names));
+    REQUIRE_NOTHROW(bind_data = shortest_path_func.bind(*TestFixture::conn.context, bind_input.bind_input, return_types, names));
 
     REQUIRE(bind_data != nullptr);
     REQUIRE(names.size() == 2);
@@ -202,7 +202,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
         {"dst", Value("Person")}
     });
     vector<LogicalType> input_table_types({});
-    auto bind_input = TestFixture::CreateMockBindInput(inputs, named_parameters, input_table_types);
+    MockTableFunctionBindInput bind_input(inputs, named_parameters, input_table_types);
 
     vector<LogicalType> return_types;
     vector<Identifier> names;
@@ -213,7 +213,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
     INFO("Bind test");
     TestFixture::conn.BeginTransaction();
     unique_ptr<FunctionData> bind_data;
-    REQUIRE_NOTHROW(bind_data = shortest_path_func.bind(*TestFixture::conn.context, bind_input, return_types, names));
+    REQUIRE_NOTHROW(bind_data = shortest_path_func.bind(*TestFixture::conn.context, bind_input.bind_input, return_types, names));
 
     REQUIRE(bind_data != nullptr);
     REQUIRE(names.size() == 2);
@@ -271,7 +271,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
         {"dst", Value("Person")}
     });
     vector<LogicalType> input_table_types({});
-    auto bind_input = TestFixture::CreateMockBindInput(inputs, named_parameters, input_table_types);
+    MockTableFunctionBindInput bind_input(inputs, named_parameters, input_table_types);
 
     vector<LogicalType> return_types;
     vector<Identifier> names;
@@ -282,7 +282,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
     INFO("Bind test");
     TestFixture::conn.BeginTransaction();
     unique_ptr<FunctionData> bind_data;
-    REQUIRE_NOTHROW(bind_data = shortest_path_func.bind(*TestFixture::conn.context, bind_input, return_types, names));
+    REQUIRE_NOTHROW(bind_data = shortest_path_func.bind(*TestFixture::conn.context, bind_input.bind_input, return_types, names));
 
     REQUIRE(bind_data != nullptr);
     REQUIRE(names.size() == 2);
@@ -334,7 +334,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
         {"dst", Value("Person")}
     });
     vector<LogicalType> input_table_types({});
-    auto bind_input = TestFixture::CreateMockBindInput(inputs, named_parameters, input_table_types);
+    MockTableFunctionBindInput bind_input(inputs, named_parameters, input_table_types);
 
     vector<LogicalType> return_types;
     vector<Identifier> names;
@@ -345,7 +345,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
     INFO("Bind test");
     TestFixture::conn.BeginTransaction();
     unique_ptr<FunctionData> bind_data;
-    REQUIRE_NOTHROW(bind_data = shortest_path_func.bind(*TestFixture::conn.context, bind_input, return_types, names));
+    REQUIRE_NOTHROW(bind_data = shortest_path_func.bind(*TestFixture::conn.context, bind_input.bind_input, return_types, names));
 
     REQUIRE(bind_data != nullptr);
     REQUIRE(names.size() == 2);
@@ -396,7 +396,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
         {"dst", Value("Person")}
     });
     vector<LogicalType> input_table_types({});
-    auto bind_input = TestFixture::CreateMockBindInput(inputs, named_parameters, input_table_types);
+    MockTableFunctionBindInput bind_input(inputs, named_parameters, input_table_types);
 
     vector<LogicalType> return_types;
     vector<Identifier> names;
@@ -407,7 +407,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
     INFO("Bind test");
     TestFixture::conn.BeginTransaction();
     unique_ptr<FunctionData> bind_data;
-    REQUIRE_NOTHROW(bind_data = shortest_path_func.bind(*TestFixture::conn.context, bind_input, return_types, names));
+    REQUIRE_NOTHROW(bind_data = shortest_path_func.bind(*TestFixture::conn.context, bind_input.bind_input, return_types, names));
 
     REQUIRE(bind_data != nullptr);
     REQUIRE(names.size() == 2);
@@ -468,7 +468,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
         {"dst", Value("Person")}
     });
     vector<LogicalType> input_table_types({});
-    auto bind_input = TestFixture::CreateMockBindInput(inputs, named_parameters, input_table_types);
+    MockTableFunctionBindInput bind_input(inputs, named_parameters, input_table_types);
 
     vector<LogicalType> return_types;
     vector<Identifier> names;
@@ -479,7 +479,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
     INFO("Bind test");
     TestFixture::conn.BeginTransaction();
     unique_ptr<FunctionData> bind_data;
-    REQUIRE_NOTHROW(bind_data = shortest_path_func.bind(*TestFixture::conn.context, bind_input, return_types, names));
+    REQUIRE_NOTHROW(bind_data = shortest_path_func.bind(*TestFixture::conn.context, bind_input.bind_input, return_types, names));
 
     REQUIRE(bind_data != nullptr);
     REQUIRE(names.size() == 2);
@@ -529,7 +529,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
         {"dst", Value("Person")}
     });
     vector<LogicalType> input_table_types({});
-    auto bind_input = TestFixture::CreateMockBindInput(inputs, named_parameters, input_table_types);
+    MockTableFunctionBindInput bind_input(inputs, named_parameters, input_table_types);
 
     vector<LogicalType> return_types;
     vector<Identifier> names;
@@ -540,7 +540,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
     INFO("Bind test");
     TestFixture::conn.BeginTransaction();
     unique_ptr<FunctionData> bind_data;
-    REQUIRE_NOTHROW(bind_data = shortest_path_func.bind(*TestFixture::conn.context, bind_input, return_types, names));
+    REQUIRE_NOTHROW(bind_data = shortest_path_func.bind(*TestFixture::conn.context, bind_input.bind_input, return_types, names));
 
     REQUIRE(bind_data != nullptr);
     REQUIRE(names.size() == 2);
@@ -590,7 +590,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
         {"dst", Value("Person")}
     });
     vector<LogicalType> input_table_types({});
-    auto bind_input = TestFixture::CreateMockBindInput(inputs, named_parameters, input_table_types);
+    MockTableFunctionBindInput bind_input(inputs, named_parameters, input_table_types);
 
     vector<LogicalType> return_types;
     vector<Identifier> names;
@@ -601,7 +601,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ShortestPath Bind and Execute 
     INFO("Bind test");
     TestFixture::conn.BeginTransaction();
     unique_ptr<FunctionData> bind_data;
-    REQUIRE_NOTHROW(bind_data = shortest_path_func.bind(*TestFixture::conn.context, bind_input, return_types, names));
+    REQUIRE_NOTHROW(bind_data = shortest_path_func.bind(*TestFixture::conn.context, bind_input.bind_input, return_types, names));
 
     REQUIRE(bind_data != nullptr);
     REQUIRE(names.size() == 2);

@@ -4,6 +4,32 @@
 #include "functions/table/read_vertices.hpp"
 #include "duckdb/parser/tableref/table_function_ref.hpp"
 
+struct MockTableFunctionBindInput {
+    duckdb::TableFunction table_function;
+    duckdb::BoundTableFunction bound_table_function;
+    duckdb::TableFunctionRef ref;
+    duckdb::vector<duckdb::Identifier> input_table_names;
+    duckdb::named_argument_map_t named_arguments;
+    duckdb::TableFunctionBindInput bind_input;
+
+    MockTableFunctionBindInput(duckdb::vector<duckdb::Value> &inputs,
+                               duckdb::named_parameter_map_t &named_parameters,
+                               duckdb::vector<duckdb::LogicalType> &input_table_types)
+        : bound_table_function(table_function),
+          bind_input(inputs, named_arguments, input_table_types, input_table_names,
+                     nullptr, nullptr, bound_table_function, ref) {
+        // TableFunctionBindInput expects the named arguments in an
+        // InsertionOrderPreservingMap (named_argument_map_t); convert from
+        // the unordered named_parameter_map_t the tests construct.
+        for (auto &kv : named_parameters) {
+            named_arguments.insert(kv.first, kv.second);
+        }
+    }
+
+    MockTableFunctionBindInput(const MockTableFunctionBindInput &) = delete;
+    MockTableFunctionBindInput &operator=(const MockTableFunctionBindInput &) = delete;
+};
+
 template <typename FileTypeTag> 
 class TableFunctionsFixture: public BasicGrapharFixture<FileTypeTag> {
 protected:
@@ -23,25 +49,6 @@ protected:
     std::string path_feature_graph;
     std::string path_edges_feature_graph;
     std::string folder_feature_graph;
-    
-    static duckdb::TableFunctionBindInput CreateMockBindInput(duckdb::vector<duckdb::Value> &inputs, duckdb::named_parameter_map_t &named_parameters, duckdb::vector<duckdb::LogicalType> &input_table_types) {
-        duckdb::vector<duckdb::Identifier> input_table_names;
-        duckdb::TableFunction table_function;
-        duckdb::TableFunctionRef ref;
-        duckdb::BoundTableFunction bound_table_function(table_function);
-
-        // TableFunctionBindInput now expects the named arguments in an
-        // InsertionOrderPreservingMap (named_argument_map_t); convert from the
-        // unordered named_parameter_map_t the tests construct.
-        duckdb::named_argument_map_t named_arguments;
-        for (auto &kv : named_parameters) {
-            named_arguments.insert(kv.first, kv.second);
-        }
-
-        return duckdb::TableFunctionBindInput(inputs, named_arguments, input_table_types,
-                                    input_table_names, nullptr, nullptr,
-                                    bound_table_function, ref);
-    }
 public:
     ~TableFunctionsFixture() = default;
     TableFunctionsFixture(): BasicGrapharFixture<FileTypeTag>() {
