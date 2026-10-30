@@ -104,8 +104,15 @@ private:
 
 class ReadHop : public ReadBase<ReadHop> {
 public:
-    static unique_ptr<FunctionData> Bind(ClientContext& context, TableFunctionBindInput& input,
-                                         vector<LogicalType>& return_types, vector<Identifier>& names);
+    static unique_ptr<FunctionData> BindGraphPath(ClientContext& context, TableFunctionBindInput& input,
+                                                  vector<LogicalType>& return_types, vector<Identifier>& names);
+    static unique_ptr<FunctionData> BindEdgePath(ClientContext& context, TableFunctionBindInput& input,
+                                                 vector<LogicalType>& return_types, vector<Identifier>& names);
+    static unique_ptr<FunctionData> BindEdgeCatalog(ClientContext& context, TableFunctionBindInput& input,
+                                                    vector<LogicalType>& return_types, vector<Identifier>& names);
+    static unique_ptr<FunctionData> FinishBind(ClientContext& context, TableFunctionBindInput& input,
+                                               unique_ptr<ReadHopBindData> bind_data, vector<LogicalType>& return_types,
+                                               vector<Identifier>& names);
     static BaseReaderPtr GetBaseReader(ClientContext& context, ReadBaseGlobalTableFunctionState& gstate, idx_t ind,
                                        const std::string& filter_column,
                                        std::shared_ptr<graphar::SharedChunkCounter> counter = nullptr);
@@ -135,16 +142,23 @@ public:
     template <bool notLocked>
     static idx_t FetchRowsNum(ReadHopGlobalTableFunctionState& gstate, ReadHopLocalTableFunctionState& lstate);
 
-    static void SetTableFuncionParams(TableFunction& fun) {
+    static void SetTableFunctionParamsCommon(TableFunction& fun) {
         fun.init_global = InitWrapper;
         fun.init_local = InitLocalWrapper;
-
-        HopBase::SetFunctionParams(fun);
-
         fun.filter_pushdown = false;
         fun.projection_pushdown = true;
-        // fun.statistics = GetStatistics;
-        // fun.pushdown_complex_filter = PushdownComplexFilter;
+    }
+    static void SetGraphPathTableFunctionParams(TableFunction& fun) {
+        SetTableFunctionParamsCommon(fun);
+        HopBase::SetGraphPathFunctionParams(fun);
+    }
+    static void SetEdgePathTableFunctionParams(TableFunction& fun) {
+        SetTableFunctionParamsCommon(fun);
+        HopBase::SetEdgePathFunctionParams(fun);
+    }
+    static void SetEdgeCatalogTableFunctionParams(TableFunction& fun) {
+        SetTableFunctionParamsCommon(fun);
+        HopBase::SetEdgeCatalogFunctionParams(fun);
     }
     static void Register(ExtensionLoader& loader) { loader.RegisterFunction(GetFunctions()); }
 

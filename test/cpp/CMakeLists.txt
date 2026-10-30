@@ -42,13 +42,15 @@ add_executable(unittest_graphar ${ALL_OBJECT_FILES})
 target_link_libraries(unittest_graphar
     PRIVATE
         duckdb_static
-        duckdb_generated_extension_loader
-        core_functions_extension
-        parquet_extension
-        duckdb_graphar_extension
         graphar
         Catch2::Catch2WithMain
 )
+
+# Statically link and register the extensions the tests exercise. This replaces
+# the old duckdb_generated_extension_loader target: it links each
+# <name>_extension and generates <TARGET>_static_extension_loader.c (plus the
+# autoregister source) that registers duckdb_register_static_extensions.
+duckdb_link_extensions(unittest_graphar PRIVATE core_functions parquet duckdb_graphar)
 
 target_include_directories(unittest_graphar PRIVATE
     ${DUCKDB_INCLUDES}

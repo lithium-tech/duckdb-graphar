@@ -334,7 +334,7 @@ void Degree::Execute(ClientContext& context, TableFunctionInput& input, DataChun
         gstate.iter += n;
     }
 
-    output.SetCardinality(written);
+    output.SetChildCardinality(written);
     gstate.chunk_count++;
 
     DUCKDB_GRAPHAR_LOG_DEBUG("Degree::Execute wrote " + std::to_string(written) + " rows");
@@ -382,9 +382,9 @@ TableFunction Degree::GetFunction() {
     degree.projection_pushdown = true;
     degree.pushdown_complex_filter = Degree::PushdownComplexFilter;
 
-    degree.named_parameters["src"] = LogicalType::VARCHAR;
-    degree.named_parameters["dst"] = LogicalType::VARCHAR;
-    degree.named_parameters["type"] = LogicalType::VARCHAR;
+    degree.GetSignature().AddKeywordOnly("src", LogicalType::VARCHAR);
+    degree.GetSignature().AddKeywordOnly("dst", LogicalType::VARCHAR);
+    degree.GetSignature().AddKeywordOnly("type", LogicalType::VARCHAR);
 
     return degree;
 }

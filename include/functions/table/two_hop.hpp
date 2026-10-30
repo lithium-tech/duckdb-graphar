@@ -63,26 +63,36 @@ public:
 
 class TwoHop {
 public:
-    static unique_ptr<FunctionData> Bind(ClientContext& context, TableFunctionBindInput& input,
-                                         vector<LogicalType>& return_types, vector<Identifier>& names);
-    static unique_ptr<FunctionData> BindEdgeTable(ClientContext& context, TableFunctionBindInput& input,
+    static unique_ptr<FunctionData> BindGraphPath(ClientContext& context, TableFunctionBindInput& input,
                                                   vector<LogicalType>& return_types, vector<Identifier>& names);
-    static unique_ptr<FunctionData> BindGraphInfoPath(ClientContext& context, TableFunctionBindInput& input,
-                                                      vector<LogicalType>& return_types, vector<Identifier>& names);
-    static unique_ptr<FunctionData> BindFinish(ClientContext& context, TableFunctionBindInput& input,
-                                               vector<LogicalType>& return_types, vector<Identifier>& names,
-                                               unique_ptr<TwoHopBindData> bind_data);
+    static unique_ptr<FunctionData> BindEdgePath(ClientContext& context, TableFunctionBindInput& input,
+                                                 vector<LogicalType>& return_types, vector<Identifier>& names);
+    static unique_ptr<FunctionData> BindEdgeCatalog(ClientContext& context, TableFunctionBindInput& input,
+                                                    vector<LogicalType>& return_types, vector<Identifier>& names);
+    static unique_ptr<FunctionData> FinishBind(ClientContext& context, TableFunctionBindInput& input,
+                                               unique_ptr<TwoHopBindData> bind_data, vector<LogicalType>& return_types,
+                                               vector<Identifier>& names);
     static unique_ptr<GlobalTableFunctionState> Init(ClientContext& context, TableFunctionInitInput& input);
     static unique_ptr<LocalTableFunctionState> InitLocal(ExecutionContext& context, TableFunctionInitInput& input,
                                                          GlobalTableFunctionState* gstate_ptr);
     static void Execute(ClientContext& context, TableFunctionInput& input, DataChunk& output);
 
     static TableFunctionSet GetFunctions();
-    static void SetTableFuncionParams(TableFunction& fun) {
+    static void SetTableFunctionParamsCommon(TableFunction& fun) {
         fun.init_global = Init;
         fun.init_local = InitLocal;
-
-        HopBase::SetFunctionParams(fun);
+    }
+    static void SetGraphPathTableFunctionParams(TableFunction& fun) {
+        SetTableFunctionParamsCommon(fun);
+        HopBase::SetGraphPathFunctionParams(fun);
+    }
+    static void SetEdgePathTableFunctionParams(TableFunction& fun) {
+        SetTableFunctionParamsCommon(fun);
+        HopBase::SetEdgePathFunctionParams(fun);
+    }
+    static void SetEdgeCatalogTableFunctionParams(TableFunction& fun) {
+        SetTableFunctionParamsCommon(fun);
+        HopBase::SetEdgeCatalogFunctionParams(fun);
     }
     static void Register(ExtensionLoader& loader) { loader.RegisterFunction(GetFunctions()); }
 

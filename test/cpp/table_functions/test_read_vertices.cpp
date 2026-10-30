@@ -19,12 +19,11 @@ TEST_CASE("ReadVertices GetFunction basic test", "[read_vertices]") {
     REQUIRE_NOTHROW(read_vertices = ReadVertices::GetFunction());
     
     REQUIRE(read_vertices.GetName() == "read_vertices");
-    REQUIRE(read_vertices.arguments.size() == 1);
-    REQUIRE(read_vertices.named_parameters.size() == 1);
+    REQUIRE(read_vertices.GetSignature().GetPositionalParameterCount() == 1);
     CHECK(read_vertices.filter_pushdown == false);
     CHECK(read_vertices.projection_pushdown == true);
 
-    REQUIRE(read_vertices.named_parameters.find("type") != read_vertices.named_parameters.end());
+    REQUIRE(read_vertices.GetSignature().GetParameterIndexByName("type").IsValid());
 }
 
 TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadVertices Bind and Execute functions vertex without properties", "[read_vertices]", FILE_TYPES_FOR_TEST) {
@@ -32,7 +31,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadVertices Bind and Execute 
     vector<Value> inputs({Value(TestFixture::path_trial_graph)});
     named_parameter_map_t named_parameters({{"type", Value("Person")}});
     vector<LogicalType> input_table_types({});
-    auto input = TestFixture::CreateMockBindInput(inputs, named_parameters, input_table_types);
+    MockTableFunctionBindInput input(inputs, named_parameters, input_table_types);
 
     vector<LogicalType> return_types;
     vector<Identifier> names;
@@ -42,7 +41,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadVertices Bind and Execute 
 
     INFO("Bind test");
     unique_ptr<FunctionData> bind_data;
-    REQUIRE_NOTHROW(bind_data = read_vertices.bind(*TestFixture::conn.context, input, return_types, names));
+    REQUIRE_NOTHROW(bind_data = read_vertices.bind(*TestFixture::conn.context, input.bind_input, return_types, names));
 
     REQUIRE(bind_data != nullptr);
     REQUIRE(return_types == vector<LogicalType>({LogicalType::BIGINT, LogicalType::INTEGER}));
@@ -90,7 +89,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadVertices Bind function inv
     vector<Value> inputs({Value(TestFixture::path_trial_graph)});
     named_parameter_map_t named_parameters({{"type", Value("InvalidVertex")}});
     vector<LogicalType> input_table_types({});
-    auto input = TestFixture::CreateMockBindInput(inputs, named_parameters, input_table_types);
+    MockTableFunctionBindInput input(inputs, named_parameters, input_table_types);
 
     vector<LogicalType> return_types;
     vector<Identifier> names;
@@ -98,7 +97,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadVertices Bind function inv
 
     TableFunction read_vertices = ReadVertices::GetFunction();
 
-    REQUIRE_THROWS_AS(read_vertices.bind(*TestFixture::conn.context, input, return_types, names), BinderException);
+    REQUIRE_THROWS_AS(read_vertices.bind(*TestFixture::conn.context, input.bind_input, return_types, names), BinderException);
 }
 
 TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadVertices GetStatistics test", "[read_vertices]", FILE_TYPES_FOR_TEST) {
@@ -106,7 +105,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadVertices GetStatistics tes
     vector<Value> inputs({Value(TestFixture::path_trial_graph)});
     named_parameter_map_t named_parameters({{"type", Value("Person")}});
     vector<LogicalType> input_table_types({});
-    auto input = TestFixture::CreateMockBindInput(inputs, named_parameters, input_table_types);
+    MockTableFunctionBindInput input(inputs, named_parameters, input_table_types);
 
     vector<LogicalType> return_types;
     vector<Identifier> names;
@@ -116,7 +115,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture, "ReadVertices GetStatistics tes
 
     INFO("Bind test");
     unique_ptr<FunctionData> bind_data;
-    REQUIRE_NOTHROW(bind_data = read_vertices.bind(*TestFixture::conn.context, input, return_types, names));
+    REQUIRE_NOTHROW(bind_data = read_vertices.bind(*TestFixture::conn.context, input.bind_input, return_types, names));
     REQUIRE(bind_data != nullptr);
     INFO("Finish bind test");
 
@@ -156,7 +155,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture,"ReadVertices Bind and Execute f
 
     named_parameter_map_t named_parameters({{"type", Value("Person")}});
     vector<LogicalType> input_table_types({});
-    auto input = TestFixture::CreateMockBindInput(inputs, named_parameters, input_table_types);
+    MockTableFunctionBindInput input(inputs, named_parameters, input_table_types);
 
     vector<LogicalType> return_types;
     vector<std::string> names;
@@ -166,7 +165,7 @@ TEMPLATE_TEST_CASE_METHOD(TableFunctionsFixture,"ReadVertices Bind and Execute f
 
     INFO("Bind test");
     unique_ptr<FunctionData> bind_data;
-    REQUIRE_NOTHROW(bind_data = read_vertices.bind(*TestFixture::conn.context, input, return_types, names));
+    REQUIRE_NOTHROW(bind_data = read_vertices.bind(*TestFixture::conn.context, input.bind_input, return_types, names));
 
     REQUIRE(bind_data != nullptr);
     REQUIRE(return_types == vector<LogicalType>({LogicalType::BIGINT, LogicalType::INTEGER, LogicalType::VARCHAR, LogicalType::VARCHAR}));

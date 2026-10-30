@@ -340,25 +340,25 @@ protected:
                 if (prop_schema.data_type == "int32") {
                     arrow::Int32Builder b;
                     for (const auto& edge_data : edges_schema.edges) {
-                        b.Append(std::get<int32_t>(edge_data.properties.at(prop_schema.name)));
+                        REQUIRE(b.Append(std::get<int32_t>(edge_data.properties.at(prop_schema.name))).ok());
                     }
                     prop_arrays.push_back(b.Finish().ValueOrDie());
                 } else if (prop_schema.data_type == "int64") {
                     arrow::Int64Builder b;
                     for (const auto& edge_data : edges_schema.edges) {
-                        b.Append(std::get<int64_t>(edge_data.properties.at(prop_schema.name)));
+                        REQUIRE(b.Append(std::get<int64_t>(edge_data.properties.at(prop_schema.name))).ok());
                     }
                     prop_arrays.push_back(b.Finish().ValueOrDie());
                 } else if (prop_schema.data_type == "float") {
                     arrow::FloatBuilder b;
                     for (const auto& edge_data : edges_schema.edges) {
-                        b.Append(std::get<float>(edge_data.properties.at(prop_schema.name)));
+                        REQUIRE(b.Append(std::get<float>(edge_data.properties.at(prop_schema.name))).ok());
                     }
                     prop_arrays.push_back(b.Finish().ValueOrDie());
                 } else if (prop_schema.data_type == "double") {
                     arrow::DoubleBuilder b;
                     for (const auto& edge_data : edges_schema.edges) {
-                        b.Append(std::get<double>(edge_data.properties.at(prop_schema.name)));
+                        REQUIRE(b.Append(std::get<double>(edge_data.properties.at(prop_schema.name))).ok());
                     }
                     prop_arrays.push_back(b.Finish().ValueOrDie());
                 } else if (prop_schema.data_type == "string") {
@@ -369,13 +369,13 @@ protected:
                     // inconsistent with its schema and the parquet writer rejects it.
                     arrow::LargeStringBuilder b;
                     for (const auto& edge_data : edges_schema.edges) {
-                        b.Append(std::get<std::string>(edge_data.properties.at(prop_schema.name)));
+                        REQUIRE(b.Append(std::get<std::string>(edge_data.properties.at(prop_schema.name))).ok());
                     }
                     prop_arrays.push_back(b.Finish().ValueOrDie());
                 } else if (prop_schema.data_type == "bool") {
                     arrow::BooleanBuilder b;
                     for (const auto& edge_data : edges_schema.edges) {
-                        b.Append(std::get<bool>(edge_data.properties.at(prop_schema.name)));
+                        REQUIRE(b.Append(std::get<bool>(edge_data.properties.at(prop_schema.name))).ok());
                     }
                     prop_arrays.push_back(b.Finish().ValueOrDie());
                 } else {

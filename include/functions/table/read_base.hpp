@@ -889,7 +889,7 @@ public:
             }
         }
 
-        output.SetCardinality(num_rows);
+        output.SetChildCardinality(num_rows);
         gstate.total_rows += num_rows;
         DUCKDB_GRAPHAR_LOG_DEBUG("Size of chunk: " + std::to_string(num_rows) +
                                  " Total size: " + std::to_string(gstate.total_rows))

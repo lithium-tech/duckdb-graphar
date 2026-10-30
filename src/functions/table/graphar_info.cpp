@@ -29,18 +29,18 @@ void GraphArInfo::Execute(ClientContext& context, TableFunctionInput& data_p, Da
     if (data.finished.exchange(true, std::memory_order_relaxed)) {
         return;
     }
-    output.SetCardinality(1);
+    output.SetChildCardinality(1);
 
 #ifdef EXTENSION_GIT_COMMIT_HASH
-    output.SetValue(0, 0, Value(EXTENSION_GIT_COMMIT_HASH));
+    output.data[0].SetValue(0, Value(EXTENSION_GIT_COMMIT_HASH));
 #else
-    output.SetValue(0, 0, Value(GraphArFunctions::graphArT2duckT("string")));
+    output.data[0].SetValue(0, Value(GraphArFunctions::graphArT2duckT("string"));
 #endif
 
 #ifdef EXTENSION_BUILD_TIMESTAMP
-    output.SetValue(1, 0, Value(EXTENSION_BUILD_TIMESTAMP));
+    output.data[1].SetValue(0, Value(EXTENSION_BUILD_TIMESTAMP));
 #else
-    output.SetValue(1, 0, Value(GraphArFunctions::graphArT2duckT("timestamp_tz")));
+    output.data[1].SetValue(0, Value(GraphArFunctions::graphArT2duckT("timestamp_tz")));
 #endif
 }
 

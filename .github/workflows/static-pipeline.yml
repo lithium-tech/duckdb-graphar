@@ -136,11 +136,6 @@ jobs:
           ./scripts/install-cli.sh || exit 1
           ./scripts/generate-graphar-data.sh || exit 1
 
-      - name: Run tests
-        if: matrix.os == 'ubuntu-22.04'
-        run: |
-          make test
-
       - name: Prepare Artifacts for Upload
         run: |
           mkdir -p upload-artifacts
@@ -154,4 +149,9 @@ jobs:
           name: duckdb-graphar-${{ matrix.os }}
           path: upload-artifacts
           if-no-files-found: error
+
+      - name: Run tests
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          make test
 

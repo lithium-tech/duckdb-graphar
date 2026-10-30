@@ -13,6 +13,8 @@ public:
     GraphArTableEntry(Catalog& catalog, unique_ptr<SchemaCatalogEntry> schema, CreateTableInfo& info);
 
 public:
+    const ColumnList& GetColumns() const override;
+
     unique_ptr<BaseStatistics> GetStatistics(ClientContext& context, column_t column_id) override;
 
     TableFunction GetScanFunction(ClientContext& context, unique_ptr<FunctionData>& bind_data) override;
@@ -30,6 +32,7 @@ public:
 
 private:
     unique_ptr<SchemaCatalogEntry> schema;
+    ColumnList columns;
     weak_ptr<GraphArTableInformation> table_info;
 };
 
