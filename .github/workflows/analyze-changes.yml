@@ -1,3 +1,4 @@
+
 name: PVS-Studio analyze changes
 on:
   push:
@@ -11,7 +12,6 @@ permissions:
   contents: read
   actions: read
   security-events: write
-
 jobs:
   analyze-changes:
     runs-on: ubuntu-22.04
@@ -23,30 +23,27 @@ jobs:
 
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends build-essential cmake curl libcurl4-openssl-dev pvs-studio
-
           pvs-studio-analyzer credentials ${{ secrets.PVS_STUDIO_CREDENTIALS }}
 
       - name: Check out repository code
         uses: actions/checkout@v4
         with:
            fetch-depth: 0
+           submodules: recursive
 
       - name: Get list of changed source files
         run: |
           git diff --name-only ${{ github.event.before }}..${{ github.event.after }} > source-files.txt
           cat source-files.txt
-
       - name: Build
         run: |
-          cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=On -B build .
-          cmake --build build -j$(getconf _NPROCESSORS_ONLN)
+          CMAKE_EXPORT_COMPILE_COMMANDS=ON make release
 
       - name: Analyze and generate report
         run: |
           if [ -s source-files.txt ]; then
-            pvs-studio-analyzer analyze -f build/compile_commands.json --exclude-path 'build/_deps/' \
+            pvs-studio-analyzer analyze -f build/release/compile_commands.json --exclude-path 'build/_deps/' \
               --disableLicenseExpirationCheck -S source-files.txt -j $(getconf _NPROCESSORS_ONLN) || true
-
             plog-converter PVS-Studio.log -t json -n relative -R toRelative -r $PWD
             plog-converter relative.json -t sarif -n pvs-report -r file://
           else
