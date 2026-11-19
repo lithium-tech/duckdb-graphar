@@ -1,6 +1,6 @@
 export CMAKE_POLICY_VERSION_MINIMUM=3.5
-PROJ_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
+PROJ_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 # cmake --build uses make's -j (deferred eval: MAKEFLAGS is set at run time).
 MAKE_JOBS = $(if $(shell echo "$(MAKEFLAGS)" | sed -n 's/.*-j *\([0-9][0-9]*\).*/\1/p' | head -1),$(shell echo "$(MAKEFLAGS)" | sed -n 's/.*-j *\([0-9][0-9]*\).*/\1/p' | head -1),$(shell getconf _NPROCESSORS_ONLN))
 export CMAKE_BUILD_PARALLEL_LEVEL = $(MAKE_JOBS)
@@ -31,6 +31,14 @@ ARROW_BUILD_DIR=$(ARROW_SRC_DIR)/cpp/build
 ARROW_CLONED = $(ARROW_DIR)/.cloned
 ARROW_BUILT = $(ARROW_DIR)/.built
 ARROW_INSTALLED = $(ARROW_DIR)/.installed
+
+# Independent version of AWS SDK for C++; initially the same as Arrow 23.0.0's bundled SDK.
+AWS_SDK_VERSION ?= 1.11.587
+AWS_SDK_DIR=$(THIRD_PARTY_DIR)/aws-sdk
+AWS_SDK_SRC_DIR=$(AWS_SDK_DIR)/src
+AWS_SDK_BUILD_DIR=$(AWS_SDK_DIR)/build
+AWS_SDK_INSTALL_DIR=$(AWS_SDK_DIR)/install
+AWS_SDK_INSTALLED=$(AWS_SDK_DIR)/.installed-$(AWS_SDK_VERSION)
 
 GRAPHAR_REP=https://github.com/lithium-tech/incubator-graphar.git
 GRAPHAR_COMMIT=8a4c3c9633b5e130812c5cb79171beebdcc4ad42
@@ -144,7 +152,24 @@ $(ARROW_CLONED):
 	git clone --branch apache-arrow-$(ARROW_VERSION) ${ARROW_REP} $(ARROW_SRC_DIR)
 	@touch $(ARROW_CLONED)
 
-$(ARROW_BUILT): $(ARROW_CLONED) $(BOOST_INSTALLED)
+$(AWS_SDK_INSTALLED):
+	@echo "Build and install AWS SDK $(AWS_SDK_VERSION)"
+	rm -rf $(AWS_SDK_SRC_DIR) $(AWS_SDK_BUILD_DIR) $(AWS_SDK_INSTALL_DIR)
+	mkdir -p $(AWS_SDK_DIR)
+	rm -f $(AWS_SDK_DIR)/.installed-*
+	git clone --branch $(AWS_SDK_VERSION) --depth 1 --recurse-submodules https://github.com/aws/aws-sdk-cpp.git $(AWS_SDK_SRC_DIR)
+	cmake -S $(AWS_SDK_SRC_DIR) -B $(AWS_SDK_BUILD_DIR) -G Ninja \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DCMAKE_INSTALL_PREFIX=$(AWS_SDK_INSTALL_DIR) \
+		-DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+		-DBUILD_SHARED_LIBS=OFF \
+		-DENABLE_TESTING=OFF \
+		-DBUILD_ONLY="config;s3;transfer;identity-management;sts;cognito-identity"
+	cmake --build $(AWS_SDK_BUILD_DIR) --parallel $(MAKE_JOBS)
+	cmake --install $(AWS_SDK_BUILD_DIR)
+	@touch $(AWS_SDK_INSTALLED)
+
+$(ARROW_BUILT): $(ARROW_CLONED) $(BOOST_INSTALLED) $(AWS_SDK_INSTALLED)
 	@echo "Build Apache Arrow"
 	rm -rf $(ARROW_BUILD_DIR)
 	mkdir -p $(ARROW_BUILD_DIR)
@@ -178,6 +203,8 @@ $(ARROW_BUILT): $(ARROW_CLONED) $(BOOST_INSTALLED)
 		-DARROW_TESTING=OFF \
 		-DCMAKE_INSTALL_PREFIX=$(ARROW_INSTALL_DIR) \
 		-DARROW_DEPENDENCY_SOURCE=BUNDLED \
+		-DAWSSDK_SOURCE=SYSTEM \
+		-DCMAKE_PREFIX_PATH=$(AWS_SDK_INSTALL_DIR) \
 		-DARROW_DEPENDENCY_USE_SHARED=OFF \
 		-G Ninja
 	@grep -F "Boost_DIR" $(ARROW_BUILD_DIR)/CMakeCache.txt | grep -F "=$(BOOST_CMAKE_DIR)" >/dev/null
@@ -208,7 +235,7 @@ $(GRAPHAR_BUILT): $(GRAPHAR_CLONED)
 		-DCMAKE_BUILD_TYPE=Release \
 		-DGRAPHAR_BUILD_STATIC=ON \
 		-DUSE_STATIC_ARROW=ON \
-		-DCMAKE_PREFIX_PATH=$(ARROW_INSTALL_DIR) \
+		-DCMAKE_PREFIX_PATH="$(ARROW_INSTALL_DIR);$(AWS_SDK_INSTALL_DIR)" \
 		-DCMAKE_INSTALL_PREFIX=$(GRAPHAR_INSTALL_DIR) \
 		-DCMAKE_CXX_FLAGS=-fPIC \
 		-DCMAKE_C_FLAGS=-fPIC \
@@ -236,13 +263,13 @@ $(LIBUV_BUILT): $(LIBUV_CLONED)
 	mkdir -p $(LIBUV_BUILD_DIR)
 	cd $(LIBUV_BUILD_DIR) && \
 	cmake $(LIBUV_SRC_DIR) \
-		-DCMAKE_BUILD_TYPE=Release \
-		-DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-		-DLIBUV_BUILD_SHARED=OFF \
-		-DLIBUV_BUILD_TESTS=OFF \
-		-DLIBUV_BUILD_BENCH=OFF \
-		-DCMAKE_INSTALL_PREFIX=$(LIBUV_INSTALL_DIR) \
-		-G Ninja
+			-DCMAKE_BUILD_TYPE=Release \
+			-DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+			-DLIBUV_BUILD_SHARED=OFF \
+			-DLIBUV_BUILD_TESTS=OFF \
+			-DLIBUV_BUILD_BENCH=OFF \
+			-DCMAKE_INSTALL_PREFIX=$(LIBUV_INSTALL_DIR) \
+			-G Ninja
 	@touch $(LIBUV_BUILT)
 
 $(LIBUV_INSTALLED): $(LIBUV_BUILT)
@@ -267,10 +294,10 @@ $(UVW_INSTALLED): $(UVW_CLONED)
 	mkdir -p $(UVW_BUILD_DIR)
 	cd $(UVW_BUILD_DIR) && \
 	cmake $(UVW_SRC_DIR) \
-		-DBUILD_UVW_LIBS=OFF \
-		-DUSE_LIBCPP=OFF \
-		-DCMAKE_INSTALL_PREFIX=$(UVW_INSTALL_DIR) \
-		-G Ninja
+			-DBUILD_UVW_LIBS=OFF \
+			-DUSE_LIBCPP=OFF \
+			-DCMAKE_INSTALL_PREFIX=$(UVW_INSTALL_DIR) \
+			-G Ninja
 	cd $(UVW_BUILD_DIR) && ninja install
 	@test -f $(UVW_INSTALL_DIR)/lib/cmake/uvw/uvwConfig.cmake
 	@touch $(UVW_INSTALLED)
@@ -278,6 +305,7 @@ $(UVW_INSTALLED): $(UVW_CLONED)
 $(THIRD_PARTY_CMAKE): $(BOOST_INSTALLED) $(ARROW_INSTALLED) $(GRAPHAR_INSTALLED) $(LIBUV_INSTALLED) $(UVW_INSTALLED)
 	@echo 'set(Boost_ROOT "$(BOOST_INSTALL_DIR)" CACHE PATH "Path to Boost")' > $(THIRD_PARTY_CMAKE)
 	@echo 'set(Boost_DIR "$(BOOST_CMAKE_DIR)" CACHE PATH "Path to Boost CMake package")' >> $(THIRD_PARTY_CMAKE)
+	@echo 'list(PREPEND CMAKE_PREFIX_PATH "$(AWS_SDK_INSTALL_DIR)")' >> $(THIRD_PARTY_CMAKE)
 	@echo 'set(ARROW_ROOT "$(ARROW_ROOT)" CACHE PATH "Path to Arrow")' >> $(THIRD_PARTY_CMAKE)
 	@echo 'set(GRAPHAR_ROOT "$(GRAPHAR_ROOT)" CACHE PATH "Path to GraphAr")' >> $(THIRD_PARTY_CMAKE)
 	@echo 'set(LIBUV_ROOT "$(LIBUV_ROOT)" CACHE PATH "Path to libuv")' >> $(THIRD_PARTY_CMAKE)

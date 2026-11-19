@@ -91,9 +91,8 @@ The following graphs are produced:
 
 ## S3
 
-See [docs/s3.md](docs/s3.md) for details on using S3-backed graphs: which
-environment variables must be set, how to create the DuckDB S3 secret, and how
-to call `duckdb_graphar_finalize_s3()` correctly at shutdown.
+See [docs/s3.md](docs/s3.md) for S3-backed graphs: Arrow credentials,
+TLS configuration, and DuckDB's separate `httpfs` access.
 
 ## Telemetry
 

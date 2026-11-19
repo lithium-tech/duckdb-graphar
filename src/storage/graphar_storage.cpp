@@ -5,8 +5,6 @@
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
 
-#include <arrow/filesystem/s3fs.h>
-
 #include <duckdb/catalog/catalog_entry/schema_catalog_entry.hpp>
 #include <duckdb/catalog/catalog_entry/table_catalog_entry.hpp>
 #include <duckdb/main/client_data.hpp>
@@ -15,7 +13,6 @@
 #include <duckdb/transaction/transaction_manager.hpp>
 
 #include <duckdb.hpp>
-#include <filesystem>
 
 namespace duckdb {
 
@@ -23,41 +20,12 @@ static unique_ptr<Catalog> GraphArAttach(optional_ptr<StorageExtensionInfo> stor
                                          AttachedDatabase& db, const string& name, AttachInfo& info,
                                          AttachOptions& attach_options) {
     DUCKDB_GRAPHAR_LOG_TRACE("GraphArAttach");
-    if (info.path.starts_with("s3://")) {
-        arrow::fs::FileSystemGlobalOptions global_options;
-        std::vector<std::string> env_vars = {"AWS_CA_BUNDLE", "SSL_CERT_FILE", "CURL_CA_BUNDLE", "REQUESTS_CA_BUNDLE"};
-        std::string ca_bundle;
-        for (const auto& env_var : env_vars) {
-            const char* value = std::getenv(env_var.c_str());
-            if (value != nullptr && value[0] != '\0') {
-                ca_bundle = value;
-                break;
-            }
-        }
-        if (!ca_bundle.empty()) {
-            global_options.tls_ca_file_path = ca_bundle;
-        }
-        auto status = arrow::fs::Initialize(global_options);
-    }
     auto maybe_graph_info = graphar::GraphInfo::Load(info.path);
     if (maybe_graph_info.has_error()) {
         throw IOException("Failed to load graph info from path: %s because of %s", info.path,
                           maybe_graph_info.error().message());
     }
     auto graph_info = maybe_graph_info.value();
-    const auto& prefix = graph_info->GetPrefix();
-    if (!prefix.starts_with("s3://") && std::filesystem::path(prefix).is_relative()) {
-        throw IOException(
-            "Using relative path as prefix is not supported. Please use absolute path or just remove this field.");
-    }
-    if (prefix.starts_with("s3://")) {
-        if (!arrow::fs::IsS3Initialized()) {
-            auto status = graphar::InitializeS3();
-            if (!status.ok()) {
-                throw IOException("Failed to initialize S3: %s", status.message());
-            }
-        }
-    }
     return make_uniq<GraphArCatalog>(db, info.path, graph_info, context, name);
 }
 
