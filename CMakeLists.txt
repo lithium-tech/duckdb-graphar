@@ -31,7 +31,6 @@ string(TIMESTAMP BUILD_TIMESTAMP "%Y-%m-%d %H:%M:%S%z")
 
 # Add compile definitions for version information
 add_definitions(-DEXTENSION_GIT_COMMIT_HASH="${EXTENSION_GIT_COMMIT_HASH}")
-
 # Only graphar_info.cpp exposes build metadata, so scope the ever-changing
 # timestamp to that file; a global define would recompile every source on
 # each configure.
@@ -47,12 +46,6 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-
-if(UNIX AND NOT APPLE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libstdc++ -static-libgcc")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++ -static-libgcc")
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libstdc++ -static-libgcc")
-endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/extension_deps.cmake")
     include("${CMAKE_CURRENT_SOURCE_DIR}/third_party/extension_deps.cmake")
@@ -85,9 +78,6 @@ find_package(graphar REQUIRED CONFIG)
 find_package(libuv REQUIRED CONFIG)
 find_package(uvw REQUIRED CONFIG)
 
-# GraphAr's target carries `-Wl,--exclude-libs,ALL`, which would hide the
-# generated-extension-loader symbols in libduckdb.so that `unittest` needs to
-# run the SQL tests; strip just that flag (Arrow/Parquet linkage is unaffected).
 if(TARGET graphar)
     get_target_property(_gar_link_libs graphar INTERFACE_LINK_LIBRARIES)
     if(_gar_link_libs)

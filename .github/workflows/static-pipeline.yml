@@ -54,7 +54,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-14]
+        os: [ubuntu-22.04, macos-15-intel]
 
     steps:
       - name: Checkout Repository
@@ -73,11 +73,10 @@ jobs:
             libzstd-dev libsnappy-dev ccache python3-pip
 
       - name: Install System Dependencies (macOS)
-        if: matrix.os == 'macos-14'
+        if: matrix.os == 'macos-15-intel'
         run: brew install ccache
-
       - name: Set up specific CMake version (macOS)
-        if: matrix.os == 'macos-14'
+        if: matrix.os == 'macos-15-intel'
         uses: jwlawson/actions-setup-cmake@v2
         with:
           cmake-version: '3.28.3'
@@ -88,7 +87,7 @@ jobs:
           echo "CCACHE_DIR=${{ runner.workspace }}/.ccache" >> $GITHUB_ENV
           if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
             echo "/usr/lib/ccache" >> $GITHUB_PATH
-          elif [ "${{ matrix.os }}" = "macos-14" ]; then
+          elif [ "${{ matrix.os }}" = "macos-15-intel" ]; then
             echo "/usr/local/opt/ccache/libexec" >> $GITHUB_PATH
           fi
 
@@ -96,9 +95,9 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ runner.workspace }}/.ccache
-          key: ${{ runner.os }}-ccache-${{ hashFiles('Makefile', 'CMakeLists.txt', 'extension_config.cmake') }}
+          key: ${{ matrix.os }}-ccache-${{ hashFiles('Makefile', 'CMakeLists.txt', 'extension_config.cmake') }}
           restore-keys: |
-            ${{ runner.os }}-ccache
+            ${{ matrix.os }}-ccache-
 
       - name: Cache Arrow and GraphAr
         id: cache-third-party
@@ -106,9 +105,7 @@ jobs:
         with:
           path: |
             third_party/
-          key: ${{ runner.os }}-third-party-${{ hashFiles('Makefile') }}
-          restore-keys: |
-            ${{ runner.os }}-third-party
+          key: ${{ matrix.os }}-third-party-${{ hashFiles('Makefile') }}
 
       - name: Skip Arrow/GraphAr build if cached
         if: steps.cache-third-party.outputs.cache-hit == 'true'
@@ -154,4 +151,3 @@ jobs:
         if: matrix.os == 'ubuntu-22.04'
         run: |
           make test
-

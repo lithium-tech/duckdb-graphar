@@ -1,6 +1,6 @@
 export CMAKE_POLICY_VERSION_MINIMUM=3.5
-PROJ_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
+PROJ_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 # cmake --build uses make's -j (deferred eval: MAKEFLAGS is set at run time).
 MAKE_JOBS = $(if $(shell echo "$(MAKEFLAGS)" | sed -n 's/.*-j *\([0-9][0-9]*\).*/\1/p' | head -1),$(shell echo "$(MAKEFLAGS)" | sed -n 's/.*-j *\([0-9][0-9]*\).*/\1/p' | head -1),$(shell getconf _NPROCESSORS_ONLN))
 export CMAKE_BUILD_PARALLEL_LEVEL = $(MAKE_JOBS)
@@ -11,7 +11,6 @@ EXT_CONFIG=${PROJ_DIR}extension_config.cmake
 
 THIRD_PARTY_DIR=$(PROJ_DIR)third_party
 THIRD_PARTY_CMAKE=$(PROJ_DIR)third_party/extension_deps.cmake
-
 BOOST_VERSION=1.92.0
 BOOST_VERSION_UNDERSCORE=1_92_0
 BOOST_DIR=$(THIRD_PARTY_DIR)/boost
@@ -21,7 +20,6 @@ BOOST_ARCHIVE=$(BOOST_DIR)/boost_$(BOOST_VERSION_UNDERSCORE).tar.gz
 BOOST_URL=https://archives.boost.io/release/$(BOOST_VERSION)/source/boost_$(BOOST_VERSION_UNDERSCORE).tar.gz
 BOOST_INSTALLED=$(BOOST_DIR)/.installed-$(BOOST_VERSION)
 BOOST_CMAKE_DIR=$(BOOST_INSTALL_DIR)/lib/cmake/Boost-$(BOOST_VERSION)
-
 ARROW_REP=https://github.com/apache/arrow.git
 ARROW_VERSION=23.0.0
 ARROW_DIR=$(THIRD_PARTY_DIR)/arrow
@@ -198,7 +196,6 @@ $(GRAPHAR_CLONED): $(ARROW_INSTALLED)
 	git clone $(GRAPHAR_REP) $(GRAPHAR_SRC_DIR)
 	git -C $(GRAPHAR_SRC_DIR) checkout $(GRAPHAR_COMMIT)
 	@touch $(GRAPHAR_CLONED)
-
 $(GRAPHAR_BUILT): $(GRAPHAR_CLONED)
 	@echo "Build Apache GraphAr"
 	rm -rf $(GRAPHAR_BUILD_DIR)
