@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.24)
 
 set(TARGET_NAME duckdb_graphar)
 set(EXTENSION_NAME ${TARGET_NAME}_extension)
@@ -79,13 +79,13 @@ find_package(graphar REQUIRED CONFIG)
 find_package(libuv REQUIRED CONFIG)
 find_package(uvw REQUIRED CONFIG)
 
-# GraphAr's target carries `-Wl,--exclude-libs,ALL`, which would hide the
-# generated-extension-loader symbols in libduckdb.so that `unittest` needs to
-# run the SQL tests; strip just that flag (Arrow/Parquet linkage is unaffected).
 if(TARGET graphar)
     get_target_property(_gar_link_libs graphar INTERFACE_LINK_LIBRARIES)
     if(_gar_link_libs)
-        list(REMOVE_ITEM _gar_link_libs "-Wl,--whole-archive" "-Wl,--no-whole-archive")
+        list(REMOVE_ITEM _gar_link_libs "-Wl,--exclude-libs,ALL")
+        if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+            list(REMOVE_ITEM _gar_link_libs "-Wl,--whole-archive" "-Wl,--no-whole-archive")
+        endif()
         set_target_properties(graphar PROPERTIES INTERFACE_LINK_LIBRARIES "${_gar_link_libs}")
     endif()
     unset(_gar_link_libs)
@@ -130,7 +130,8 @@ target_include_directories(${LOADABLE_EXTENSION_NAME}
 )
 
 set(EXTENSION_LIBRARIES
-        graphar
+        "$<$<PLATFORM_ID:Linux>:$<LINK_LIBRARY:WHOLE_ARCHIVE,graphar>>"
+        "$<$<NOT:$<PLATFORM_ID:Linux>>:graphar>"
         ${Boost_LIBRARIES}
         libuv::uv_a
         uvw::uvw)
