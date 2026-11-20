@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 3.20)
 
 set(TARGET_NAME duckdb_graphar)
 set(EXTENSION_NAME ${TARGET_NAME}_extension)
@@ -31,7 +31,6 @@ string(TIMESTAMP BUILD_TIMESTAMP "%Y-%m-%d %H:%M:%S%z")
 
 # Add compile definitions for version information
 add_definitions(-DEXTENSION_GIT_COMMIT_HASH="${EXTENSION_GIT_COMMIT_HASH}")
-
 # Only graphar_info.cpp exposes build metadata, so scope the ever-changing
 # timestamp to that file; a global define would recompile every source on
 # each configure.
@@ -83,9 +82,6 @@ if(TARGET graphar)
     get_target_property(_gar_link_libs graphar INTERFACE_LINK_LIBRARIES)
     if(_gar_link_libs)
         list(REMOVE_ITEM _gar_link_libs "-Wl,--exclude-libs,ALL")
-        if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-            list(REMOVE_ITEM _gar_link_libs "-Wl,--whole-archive" "-Wl,--no-whole-archive")
-        endif()
         set_target_properties(graphar PROPERTIES INTERFACE_LINK_LIBRARIES "${_gar_link_libs}")
     endif()
     unset(_gar_link_libs)
@@ -130,8 +126,7 @@ target_include_directories(${LOADABLE_EXTENSION_NAME}
 )
 
 set(EXTENSION_LIBRARIES
-        "$<$<PLATFORM_ID:Linux>:$<LINK_LIBRARY:WHOLE_ARCHIVE,graphar>>"
-        "$<$<NOT:$<PLATFORM_ID:Linux>>:graphar>"
+        graphar
         ${Boost_LIBRARIES}
         libuv::uv_a
         uvw::uvw)
