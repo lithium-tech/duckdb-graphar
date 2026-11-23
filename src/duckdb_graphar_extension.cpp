@@ -15,6 +15,8 @@
 #include "utils/global_log_manager.hpp"
 #include "utils/pua_init.hpp"
 
+#include <arrow/filesystem/filesystem.h>
+
 #include <duckdb/common/exception.hpp>
 #include <duckdb/common/string_util.hpp>
 #include <duckdb/function/scalar_function.hpp>
@@ -32,13 +34,59 @@ inline void QuackScalarFun(DataChunk& args, ExpressionState& state, Vector& resu
     });
 }
 
-static void FinalizeS3(DataChunk& args, ExpressionState& state, Vector& result) {
+static void ConfigureArrowFileSystemCaCertificates() {
+    static std::once_flag once;
+
+    std::call_once(once, [] {
+        arrow::fs::FileSystemGlobalOptions options;
+        for (const char* name : {"AWS_CA_BUNDLE", "SSL_CERT_FILE", "CURL_CA_BUNDLE", "REQUESTS_CA_BUNDLE"}) {
+            const char* value = std::getenv(name);
+            if (!value || !*value) {
+                continue;
+            }
+            std::error_code ec;
+            if (std::filesystem::is_directory(value, ec)) {
+                options.tls_ca_dir_path = value;
+            } else {
+                options.tls_ca_file_path = value;
+            }
+            break;
+        }
+
+        if (options.tls_ca_dir_path.empty()) {
+            if (const char* dir = std::getenv("SSL_CERT_DIR"); dir && *dir) {
+                std::error_code ec;
+                if (std::filesystem::is_directory(dir, ec)) {
+                    options.tls_ca_dir_path = dir;
+                }
+            }
+        }
+
+        if (options.tls_ca_file_path.empty() && options.tls_ca_dir_path.empty()) {
+            return;
+        }
+
+        const auto status = arrow::fs::Initialize(options);
+        if (!status.ok()) {
+            throw IOException("Failed to configure Arrow TLS: %s", status.ToString());
+        }
+    });
+}
+
+static void FinalizeGrapharS3(DataChunk& args, ExpressionState& state, Vector& result) {
+    bool success = true;
+
     if (arrow::fs::IsS3Initialized() && !arrow::fs::IsS3Finalized()) {
-        graphar::FinalizeS3();
+        success = graphar::FinalizeS3().ok();
     }
+
+    result.SetVectorType(VectorType::CONSTANT_VECTOR);
+    result.SetValue(0, Value::BOOLEAN(success));
 }
 
 static void LoadInternal(ExtensionLoader& loader) {
+    ConfigureArrowFileSystemCaCertificates();
+
     auto& config = DBConfig::GetConfig(loader.GetDatabaseInstance());
 
     config.AddExtensionOption("graphar_time_logging", "Enable time logging for GraphAr requests.", LogicalType::BOOLEAN,
@@ -65,7 +113,9 @@ static void LoadInternal(ExtensionLoader& loader) {
         ScalarFunction("duckdb_graphar", {LogicalType::VARCHAR}, LogicalType::VARCHAR, QuackScalarFun);
     loader.RegisterFunction(duckdb_graphar_scalar_function);
 
-    auto finalize_s3_function = ScalarFunction("duckdb_graphar_finalize_s3", {}, LogicalType::VARCHAR, FinalizeS3);
+    auto finalize_s3_function =
+        ScalarFunction("duckdb_graphar_finalize_s3", {}, LogicalType::BOOLEAN, FinalizeGrapharS3);
+    finalize_s3_function.SetVolatile();
     loader.RegisterFunction(finalize_s3_function);
 
     ReadVertices::Register(loader);

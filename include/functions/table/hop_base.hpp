@@ -6,6 +6,8 @@
 #include "utils/func.hpp"
 #include "utils/global_log_manager.hpp"
 
+#include <arrow/util/uri.h>
+
 #include <duckdb/function/table_function.hpp>
 
 #include <graphar/filesystem.h>
@@ -114,9 +116,6 @@ public:
 class HopBase {
 public:
     static bool IsPathArgument(const std::string& arg) {
-        if (arg.rfind("s3://", 0) == 0 || arg.rfind("file://", 0) == 0) {
-            return true;
-        }
         if (arg.find('/') != std::string::npos || arg.find('\\') != std::string::npos) {
             return true;
         }
@@ -229,9 +228,8 @@ public:
         bind_data.edge_info = edge_info;
 
         auto prefix = graphar::PathToDirectory(file_path);
-        if (!prefix.starts_with("s3://") && std::filesystem::path(prefix).is_relative()) {
-            prefix = std::filesystem::absolute(prefix).string();
-            std::replace(prefix.begin(), prefix.end(), '\\', '/');
+        if (!arrow::util::Uri::FromString(file_path).ok()) {
+            prefix = std::filesystem::absolute(file_path).lexically_normal().parent_path().generic_string();
             if (!prefix.empty() && prefix.back() != '/') {
                 prefix += '/';
             }

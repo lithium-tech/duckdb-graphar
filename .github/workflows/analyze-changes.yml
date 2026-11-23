@@ -1,12 +1,12 @@
-
 name: PVS-Studio analyze changes
 on:
   push:
+    branches: [main]
     paths:
       - '**.h'
       - '**.c'
       - '**.cpp'
-  workflow_dispatch:
+      - '**.hpp'
 
 permissions:
   contents: read

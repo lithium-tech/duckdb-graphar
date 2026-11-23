@@ -1,3 +1,4 @@
+
 #pragma once
 
 #include "readers/base_reader.hpp"
@@ -34,6 +35,7 @@ private:
 class DuckParquetFileReader {
 public:
     explicit DuckParquetFileReader(std::shared_ptr<duckdb::Connection> conn_) : conn(conn_) {}
+
     unique_ptr<QueryResult> ReadFileToTable(const std::string& path, const std::vector<duckdb::column_t>& proj_columns,
                                             std::pair<int64_t, int64_t> range = {-1, -1}) {
         auto query_string = query_string_constructor.GetMainQueryString(proj_columns, range);
@@ -54,7 +56,7 @@ class BaseDuckChunkReader {
 public:
     BaseDuckChunkReader(ClientContext& init_context, std::vector<std::shared_ptr<BaseArrowChunkReader>> init_bases,
                         std::shared_ptr<DuckParquetFileReader> init_file_reader)
-        : context(init_context), bases(std::move(init_bases)), file_reader(std::move(init_file_reader)) {}
+        : bases(std::move(init_bases)), file_reader(std::move(init_file_reader)), context(init_context) {}
 
     bool CheckIfNewFileNeeded() {
         if (cur_chunk && read_rows < cur_chunk->size()) {
@@ -66,7 +68,7 @@ public:
             if (cur_chunk && cur_chunk->size() > 0) {
                 return false;
             }
-            cur_result = nullptr;
+            ClearResult();
         }
         return true;
     }
@@ -98,6 +100,7 @@ public:
     idx_t GetRowsNum() {
         DUCKDB_GRAPHAR_LOG_TRACE("BaseDuckChunkReader::GetRowsNum");
         if (path_acquired) {
+            ClearResult();
             if (!next_path.empty()) {
                 cur_result = file_reader->ReadFileToTable(next_path, proj_columns, next_rows_range);
                 cur_chunk = cur_result->Fetch();
@@ -142,15 +145,20 @@ public:
     void Reset() { base_idx = 0; }
 
 protected:
+    inline void ClearResult() {
+        cur_chunk.reset();
+        cur_result.reset();
+    }
+
     std::vector<std::shared_ptr<BaseArrowChunkReader>> bases;
     duckdb::idx_t base_idx = 0;
     std::vector<duckdb::column_t> proj_columns;
     duckdb::idx_t read_rows = 0;
-    duckdb::unique_ptr<duckdb::DataChunk> cur_chunk = nullptr;
+    std::shared_ptr<DuckParquetFileReader> file_reader;
     duckdb::idx_t cur_read_idx = 0;
     duckdb::unique_ptr<duckdb::QueryResult> cur_result = nullptr;
     duckdb::idx_t cur_result_idx = 0;
-    std::shared_ptr<DuckParquetFileReader> file_reader;
+    duckdb::unique_ptr<duckdb::DataChunk> cur_chunk = nullptr;
     ClientContext& context;
     std::string next_path = "";
     std::pair<int64_t, int64_t> next_rows_range = {-1, -1};
