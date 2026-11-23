@@ -54,7 +54,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-15-intel]
+        os: [ubuntu-22.04, macos-15-intel, macos-15]
 
     steps:
       - name: Checkout Repository
@@ -73,10 +73,10 @@ jobs:
             libzstd-dev libsnappy-dev ccache python3-pip
 
       - name: Install System Dependencies (macOS)
-        if: matrix.os == 'macos-15-intel'
+        if: runner.os == 'macOS'
         run: brew install ccache
       - name: Set up specific CMake version (macOS)
-        if: matrix.os == 'macos-15-intel'
+        if: runner.os == 'macOS'
         uses: jwlawson/actions-setup-cmake@v2
         with:
           cmake-version: '3.28.3'
@@ -87,8 +87,8 @@ jobs:
           echo "CCACHE_DIR=${{ runner.workspace }}/.ccache" >> $GITHUB_ENV
           if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
             echo "/usr/lib/ccache" >> $GITHUB_PATH
-          elif [ "${{ matrix.os }}" = "macos-15-intel" ]; then
-            echo "/usr/local/opt/ccache/libexec" >> $GITHUB_PATH
+          elif [ "${{ runner.os }}" = "macOS" ]; then
+            echo "$(brew --prefix ccache)/libexec" >> $GITHUB_PATH
           fi
 
       - name: Cache ccache
