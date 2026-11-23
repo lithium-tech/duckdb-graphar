@@ -73,6 +73,17 @@ static void ConfigureArrowFileSystemCaCertificates() {
     });
 }
 
+static void FinalizeGrapharS3(DataChunk& args, ExpressionState& state, Vector& result) {
+    bool success = true;
+
+    if (arrow::fs::IsS3Initialized() && !arrow::fs::IsS3Finalized()) {
+        success = graphar::FinalizeS3().ok();
+    }
+
+    result.SetVectorType(VectorType::CONSTANT_VECTOR);
+    result.SetValue(0, Value::BOOLEAN(success));
+}
+
 static void LoadInternal(ExtensionLoader& loader) {
     ConfigureArrowFileSystemCaCertificates();
 
@@ -101,6 +112,11 @@ static void LoadInternal(ExtensionLoader& loader) {
     auto duckdb_graphar_scalar_function =
         ScalarFunction("duckdb_graphar", {LogicalType::VARCHAR}, LogicalType::VARCHAR, QuackScalarFun);
     loader.RegisterFunction(duckdb_graphar_scalar_function);
+
+    auto finalize_s3_function =
+        ScalarFunction("duckdb_graphar_finalize_s3", {}, LogicalType::BOOLEAN, FinalizeGrapharS3);
+    finalize_s3_function.SetVolatile();
+    loader.RegisterFunction(finalize_s3_function);
 
     ReadVertices::Register(loader);
     ReadEdges::Register(loader);

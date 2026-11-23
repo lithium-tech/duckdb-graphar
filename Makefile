@@ -1,6 +1,6 @@
 export CMAKE_POLICY_VERSION_MINIMUM=3.5
-
 PROJ_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+
 # cmake --build uses make's -j (deferred eval: MAKEFLAGS is set at run time).
 MAKE_JOBS = $(if $(shell echo "$(MAKEFLAGS)" | sed -n 's/.*-j *\([0-9][0-9]*\).*/\1/p' | head -1),$(shell echo "$(MAKEFLAGS)" | sed -n 's/.*-j *\([0-9][0-9]*\).*/\1/p' | head -1),$(shell getconf _NPROCESSORS_ONLN))
 export CMAKE_BUILD_PARALLEL_LEVEL = $(MAKE_JOBS)
@@ -11,6 +11,7 @@ EXT_CONFIG=${PROJ_DIR}extension_config.cmake
 
 THIRD_PARTY_DIR=$(PROJ_DIR)third_party
 THIRD_PARTY_CMAKE=$(PROJ_DIR)third_party/extension_deps.cmake
+
 BOOST_VERSION=1.92.0
 BOOST_VERSION_UNDERSCORE=1_92_0
 BOOST_DIR=$(THIRD_PARTY_DIR)/boost
@@ -20,6 +21,7 @@ BOOST_ARCHIVE=$(BOOST_DIR)/boost_$(BOOST_VERSION_UNDERSCORE).tar.gz
 BOOST_URL=https://archives.boost.io/release/$(BOOST_VERSION)/source/boost_$(BOOST_VERSION_UNDERSCORE).tar.gz
 BOOST_INSTALLED=$(BOOST_DIR)/.installed-$(BOOST_VERSION)
 BOOST_CMAKE_DIR=$(BOOST_INSTALL_DIR)/lib/cmake/Boost-$(BOOST_VERSION)
+
 ARROW_REP=https://github.com/apache/arrow.git
 ARROW_VERSION=23.0.0
 ARROW_DIR=$(THIRD_PARTY_DIR)/arrow
@@ -29,6 +31,12 @@ ARROW_BUILD_DIR=$(ARROW_SRC_DIR)/cpp/build
 ARROW_CLONED = $(ARROW_DIR)/.cloned
 ARROW_BUILT = $(ARROW_DIR)/.built
 ARROW_INSTALLED = $(ARROW_DIR)/.installed
+
+AWS_SDK_VERSION ?= 1.11.587
+AWS_SDK_REP = https://github.com/aws/aws-sdk-cpp.git
+AWS_SDK_DIR = $(THIRD_PARTY_DIR)/aws-sdk-cpp
+AWS_SDK_SRC_DIR = $(AWS_SDK_DIR)/src
+AWS_SDK_CLONED = $(AWS_SDK_DIR)/.cloned-$(AWS_SDK_VERSION)
 
 GRAPHAR_REP=https://github.com/lithium-tech/incubator-graphar.git
 GRAPHAR_COMMIT=8a4c3c9633b5e130812c5cb79171beebdcc4ad42
@@ -142,7 +150,15 @@ $(ARROW_CLONED):
 	git clone --branch apache-arrow-$(ARROW_VERSION) ${ARROW_REP} $(ARROW_SRC_DIR)
 	@touch $(ARROW_CLONED)
 
-$(ARROW_BUILT): $(ARROW_CLONED) $(BOOST_INSTALLED)
+$(AWS_SDK_CLONED):
+	@echo "Fetch AWS SDK source $(AWS_SDK_VERSION) for Arrow FetchContent"
+	mkdir -p $(AWS_SDK_DIR)
+	rm -rf $(AWS_SDK_SRC_DIR)
+	git clone --depth 1 --branch $(AWS_SDK_VERSION) $(AWS_SDK_REP) $(AWS_SDK_SRC_DIR)
+	rm -f $(AWS_SDK_DIR)/.cloned-*
+	touch $(AWS_SDK_CLONED)
+
+$(ARROW_BUILT): $(ARROW_CLONED) $(BOOST_INSTALLED) $(AWS_SDK_CLONED)
 	@echo "Build Apache Arrow"
 	rm -rf $(ARROW_BUILD_DIR)
 	mkdir -p $(ARROW_BUILD_DIR)
@@ -175,6 +191,7 @@ $(ARROW_BUILT): $(ARROW_CLONED) $(BOOST_INSTALLED)
 		-DARROW_GANDIVA=OFF \
 		-DARROW_TESTING=OFF \
 		-DCMAKE_INSTALL_PREFIX=$(ARROW_INSTALL_DIR) \
+		-DFETCHCONTENT_SOURCE_DIR_AWS-SDK-CPP=$(AWS_SDK_SRC_DIR) \
 		-DARROW_DEPENDENCY_SOURCE=BUNDLED \
 		-DARROW_DEPENDENCY_USE_SHARED=OFF \
 		-G Ninja
@@ -196,6 +213,7 @@ $(GRAPHAR_CLONED): $(ARROW_INSTALLED)
 	git clone $(GRAPHAR_REP) $(GRAPHAR_SRC_DIR)
 	git -C $(GRAPHAR_SRC_DIR) checkout $(GRAPHAR_COMMIT)
 	@touch $(GRAPHAR_CLONED)
+
 $(GRAPHAR_BUILT): $(GRAPHAR_CLONED)
 	@echo "Build Apache GraphAr"
 	rm -rf $(GRAPHAR_BUILD_DIR)
